@@ -171,3 +171,4 @@
 .dark .studio-canvas-viewport{background-color:#263b3a;background-image:radial-gradient(#c6d9c52b .7px,transparent .7px)}
 .dark .studio-canvas-caption{color:#d8e6cc}.dark .studio-canvas-caption span{color:#b3c7b0}
 .dark .creative-studio :focus-visible{outline-color:#9aafff}
+.studio-image-unavailable{display:flex;align-items:flex-end;justify-content:flex-end;padding:4px;gap:8px;width:100%;height:100%;background:#17223d0a;color:#606c84;font-size:12px;font-weight:400;line-height:1.4;text-align:center}

@@ -1,8 +1,15 @@
 import type { StudioDocument, StudioLayer } from '@/api/studio'
+import { ImageOff } from 'lucide-react'
+import { useState } from 'react'
 import { layerStyle } from './sceneStyle'
 
+function StudioImage({ layer }: { layer: StudioLayer }) {
+  const [failed, setFailed] = useState(false)
+  return failed ? <div role="img" aria-label={`Изображение недоступно: ${layer.name}`} className="studio-image-unavailable" title="Изображение недоступно. Замените файл в свойствах."><ImageOff size={16} /><span className="sr-only">Замените файл в свойствах</span></div> : <img src={layer.src} alt={layer.name} draggable={false} onError={() => setFailed(true)} style={{ width: '100%', height: '100%', objectFit: layer.fit, fontSize: 12 }} />
+}
+
 export function LayerContent({ layer }: { layer: StudioLayer }) {
-  if (layer.kind === 'image') return <img src={layer.src} alt={layer.name} draggable={false} style={{ width: '100%', height: '100%', objectFit: layer.fit }} />
+  if (layer.kind === 'image') return <StudioImage key={layer.src} layer={layer} />
   return layer.kind === 'text' ? layer.text : null
 }
 
