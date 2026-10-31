@@ -20,6 +20,8 @@ import './studio.css'
 
 interface Props {
   source: StudioSource
+  initialDocument?: StudioDocument
+  initialSelection?: string
   campaignId: number | null
   editable: boolean
   applyReason?: string
@@ -32,31 +34,32 @@ interface Props {
 
 export function CreativeStudio(props: Props) {
   const [source] = useState(() => structuredClone(props.source))
-  const [initial, setInitial] = useState<StudioDocument | null>(null)
+  const [initial, setInitial] = useState<StudioDocument | null>(props.initialDocument ?? null)
   const [error, setError] = useState('')
   const [applying, setApplying] = useState(false)
   const image = source.kind === 'banner' ? source.item.content.image?.url : source.item.content.component.components.find(x => x.role === 'image')?.url
   useEffect(() => {
+    if (props.initialDocument) return
     let active = true
     loadStudioDocument(image).then(saved => { if (active) setInitial(saved ?? importSource(source)) }).catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'Не удалось открыть документ слоёв.') })
     return () => { active = false }
-  }, [image, source])
+  }, [image, source, props.initialDocument])
   return <Dialog.Root open onOpenChange={open => { if (!open && !applying) props.onClose() }}><Dialog.Portal><Dialog.Backdrop className="studio-backdrop" /><Dialog.Popup className="creative-studio">
     <Dialog.Title className="sr-only">Студия креативов</Dialog.Title>
     {initial ? <StudioEditor {...props} source={source} initial={initial} onApplying={setApplying} /> : <div className="studio-loading">{error ? <><p role="alert">{error}</p><Button onClick={props.onClose}>Закрыть студию</Button></> : <><LoaderCircle className="animate-spin" />Открываю слои…</>}</div>}
   </Dialog.Popup></Dialog.Portal></Dialog.Root>
 }
 
-function StudioEditor({ source, initial, campaignId, editable, applyReason, notice, hasContent, onSource, onClose, onApply, onApplying }: Props & { initial: StudioDocument; onApplying: (value: boolean) => void }) {
+function StudioEditor({ source, initial, campaignId, editable, applyReason, notice, hasContent, onSource, onClose, onApply, onApplying, initialDocument, initialSelection }: Props & { initial: StudioDocument; onApplying: (value: boolean) => void }) {
   const key = `adpilot.studio.v1.${getCurrentUser().login}.${campaignId ?? 'draft'}.${source.kind}.${source.item.id}`
-  const project = useStudioProject(key, initial, JSON.stringify(source.item.content))
+  const project = useStudioProject(key, initial, JSON.stringify(source.item.content), Boolean(initialDocument))
   const document = project.active.document
-  const [selected, setSelected] = useState<string | null>(null)
+  const [selected, setSelected] = useState<string | null>(initialSelection ?? null)
   const layer = document.layers.find(x => x.id === selected)
   const [compare, setCompare] = useState(false)
   const [variantsCollapsed, setVariantsCollapsed] = useState(true)
   const [compared, setCompared] = useState<string[]>([project.active.id])
-  const [panel, setPanel] = useState<'layers' | 'properties' | null>(null)
+  const [panel, setPanel] = useState<'layers' | 'properties' | null>(initialSelection ? 'properties' : null)
   const [prompt, setPrompt] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState('')
@@ -123,7 +126,7 @@ function StudioEditor({ source, initial, campaignId, editable, applyReason, noti
     return () => window.removeEventListener('keydown', keyboard)
   })
 
-  return <div className={`studio-shell ${compare ? 'is-comparing' : ''}`} data-panel={panel ?? ''}>
+  return <div className={`studio-shell ${compare ? 'is-comparing' : ''}`} data-panel={panel ?? ''} data-working={busy.startsWith('AI')}>
     <header className="studio-topbar"><button type="button" className="studio-back" disabled={busy === 'Применяю макет'} onClick={onClose} aria-label="Закрыть студию"><ArrowLeft size={19} /></button><div className="studio-wordmark">adpilot<span>studio</span></div><div className="studio-project-name"><strong>{source.item.name}</strong><span>{project.storageError ? 'Черновик не сохранён — скачайте PNG' : 'Варианты на этом устройстве'}</span></div>
       <div className="studio-history"><button type="button" title="Отменить" aria-label="Отменить правку" disabled={!mutable || !project.canUndo} onClick={project.undo}><Undo2 size={18} /></button><button type="button" title="Повторить" aria-label="Повторить правку" disabled={!mutable || !project.canRedo} onClick={project.redo}><Redo2 size={18} /></button></div>
       <button type="button" className={`studio-outline-button ${compare ? 'selected' : ''}`} aria-label={compare ? 'К редактору' : 'Сравнить'} disabled={Boolean(busy)} onClick={() => { if (!compare) setVariantsCollapsed(true); if (!compare && compared.length < 2) setCompared(project.variants.slice(-3).map(v => v.id)); setCompare(!compare) }}><Columns2 size={17} /><span>{compare ? 'К редактору' : 'Сравнить'}</span></button>

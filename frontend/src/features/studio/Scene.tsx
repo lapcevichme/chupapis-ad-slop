@@ -2,6 +2,7 @@ import type { StudioDocument, StudioLayer } from '@/api/studio'
 import { ImageOff } from 'lucide-react'
 import { useState } from 'react'
 import { layerStyle } from './sceneStyle'
+import './scene.css'
 import { illustrationSource } from './illustrations'
 
 function StudioImage({ layer }: { layer: StudioLayer }) {
@@ -15,10 +16,10 @@ export function LayerContent({ layer }: { layer: StudioLayer }) {
   return layer.kind === 'text' ? layer.text : null
 }
 
-export function Scene({ document, scale = 1 }: { document: StudioDocument; scale?: number }) {
+export function Scene({ document, scale = 1, onSelect }: { document: StudioDocument; scale?: number; onSelect?: (id: string) => void }) {
   return <div className="studio-scene-frame" style={{ width: document.width * scale, height: document.height * scale }}>
     <div className="studio-scene" style={{ width: document.width, height: document.height, background: document.background, transform: `scale(${scale})` }}>
-      {document.layers.filter(x => !x.hidden).map(layer => <div key={layer.id} style={{ position: 'absolute', left: layer.x, top: layer.y, width: layer.width, height: layer.height }}><div style={layerStyle(layer)}><LayerContent layer={layer} /></div></div>)}
+      {document.layers.filter(x => !x.hidden).map(layer => { const style = { position: 'absolute' as const, left: layer.x, top: layer.y, width: layer.width, height: layer.height }; const body = <div style={layerStyle(layer)}><LayerContent layer={layer} /></div>; return onSelect ? <button type="button" className="preview-layer-target" key={layer.id} aria-label={`Редактировать слой: ${layer.name}`} style={style} onClick={() => onSelect(layer.id)}>{body}</button> : <div key={layer.id} style={style}>{body}</div> })}
     </div>
   </div>
 }

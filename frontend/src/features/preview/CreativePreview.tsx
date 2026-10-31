@@ -1,6 +1,6 @@
 import { Dialog } from '@base-ui/react/dialog'
-import { ChevronDown, LoaderCircle, Maximize2, X } from 'lucide-react'
-import { useState } from 'react'
+import { ChevronDown, Maximize2, PencilLine, Smartphone, X } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Flash } from '@/features/campaign/Flash'
@@ -9,6 +9,11 @@ import type { Banner, BannerType, Content } from '@/types/api'
 import { BannerPreview } from './BannerPreview'
 import { FitPhone } from './FitPhone'
 import { PromoPreview } from './PromoPreview'
+import { loadStudioDocument } from '@/api/studio'
+import type { StudioDocument } from '@/api/studio'
+import { importSource } from '@/features/studio/model'
+import { Scene } from '@/features/studio/Scene'
+import { GenerationScene } from './GenerationScene'
 import { SMART_BANNER_SIZES, type SmartBannerSize } from './smartBannerSizes'
 
 type View = 'banner' | 'content'
@@ -21,6 +26,7 @@ interface CreativePreviewProps {
   status?: string
   // Действие над макетом, например своё фото.
   action?: ReactNode
+  onEdit?: (kind: View, document: StudioDocument, layerId?: string) => void
 }
 
 function PhoneFrame({ children }: { children: ReactNode }) {
@@ -33,22 +39,7 @@ function PhoneFrame({ children }: { children: ReactNode }) {
 
 // idle: креатива пока нет и никто его не собирает, поэтому заглушка стоит на месте.
 export function DesignPlaceholder({ label, idle = false }: { label: string; idle?: boolean }) {
-  return (
-    <FitPhone><PhoneFrame>
-      <div role={idle ? undefined : 'status'} className="flex h-full flex-col justify-end gap-3 p-4 text-sm leading-5 text-black/60">
-        <div aria-hidden="true" className={cn('flex flex-col gap-2', !idle && 'animate-pulse')}>
-          <div className="h-7 w-4/5 rounded-md bg-black/10" />
-          <div className="h-4 w-full rounded-md bg-black/10" />
-          <div className="h-4 w-2/3 rounded-md bg-black/10" />
-          <div className="mt-2 h-11 rounded-xl bg-black/10" />
-        </div>
-        <p className="m-0 flex items-center gap-2">
-          {!idle && <LoaderCircle className="size-4 shrink-0 animate-spin" aria-hidden="true" />}
-          {label}
-        </p>
-      </div>
-    </PhoneFrame></FitPhone>
-  )
+  return <GenerationScene label={label} idle={idle} />
 }
 
 function ViewTab({ selected, disabled, onClick, children }: { selected: boolean; disabled?: boolean; onClick: () => void; children: ReactNode }) {
@@ -80,10 +71,24 @@ function LengthCounter({ label, value, max }: { label: string; value?: string | 
   )
 }
 
-export function CreativePreview({ banner, bannerType, content, status, action }: CreativePreviewProps) {
+export function CreativePreview({ banner, bannerType, content, status, action, onEdit }: CreativePreviewProps) {
   const [requestedView, setRequestedView] = useState<View>('banner')
   const [size, setSize] = useState<SmartBannerSize>('card')
   const view = content ? requestedView : 'banner'
+  const [inApp, setInApp] = useState(false)
+  const source = useMemo(() => view === 'content' && content ? { kind: 'content' as const, item: content } : { kind: 'banner' as const, item: banner, type: bannerType }, [view, content, banner, bannerType])
+  const fallback = useMemo(() => importSource(source), [source])
+  const imageUrl = source.kind === 'banner' ? source.item.content.image?.url : source.item.content.component.components.find(item => item.role === 'image')?.url
+  const sourceKey = JSON.stringify([source.kind, source.item.content])
+  const [loaded, setLoaded] = useState<{ key: string; document: StudioDocument | null; error?: string }>()
+  useEffect(() => {
+    let active = true
+    loadStudioDocument(imageUrl).then(document => { if (active) setLoaded({ key: sourceKey, document }) }).catch(() => { if (active) setLoaded({ key: sourceKey, document: null, error: 'Не удалось загрузить слои. Обновите страницу перед редактированием.' }) })
+    return () => { active = false }
+  }, [imageUrl, sourceKey])
+  const document = loaded?.key === sourceKey && loaded.document ? loaded.document : fallback
+  const loadError = loaded?.key === sourceKey ? loaded.error : undefined
+  const art = <Scene document={document} onSelect={onEdit && !loadError ? id => onEdit(view, document, id) : undefined} />
   const { title, text, actionType, link } = banner.content
   const linkText = link?.iOS ?? link?.android ?? link?.web
   const phone = (
@@ -101,9 +106,9 @@ export function CreativePreview({ banner, bannerType, content, status, action }:
   return (
     <Dialog.Root>
     <div className="creative-preview">
-      {action}
+      <div className="preview-creative-actions">{onEdit && <Button className="preview-edit-button" disabled={Boolean(status) || Boolean(loadError)} onClick={() => onEdit(view, document)}><PencilLine size={17} />Редактировать</Button>}{action}</div>
       <div className="preview-toolbar">
-      <div className="flex min-w-0 flex-1 gap-1" role="group" aria-label="Что показать в телефоне">
+      <div className="flex min-w-0 flex-1 gap-1" role="group" aria-label="Что показать в креативе">
         <ViewTab selected={view === 'banner'} onClick={() => setRequestedView('banner')}>
           Баннер
         </ViewTab>
@@ -111,12 +116,13 @@ export function CreativePreview({ banner, bannerType, content, status, action }:
           Промо-экран
         </ViewTab>
       </div>
+      <Button size="icon" variant="ghost" aria-label={inApp ? 'Показать крупный макет' : 'Посмотреть в приложении'} title={inApp ? 'Крупный макет' : 'В приложении'} aria-pressed={inApp} onClick={() => setInApp(!inApp)}><Smartphone size={17} /></Button>
       <Dialog.Trigger render={<Button size="icon" variant="ghost" />} aria-label="Увеличить превью" title="Увеличить превью">
         <Maximize2 aria-hidden="true" />
       </Dialog.Trigger>
       </div>
 
-      {bannerType.code === 'SMART_BANNER' && view === 'banner' && (
+      {inApp && bannerType.code === 'SMART_BANNER' && view === 'banner' && (
         <div className="flex w-full gap-1" role="group" aria-label="Экран приложения">
           {SMART_BANNER_SIZES.map((option) => (
             <Button
@@ -133,14 +139,9 @@ export function CreativePreview({ banner, bannerType, content, status, action }:
         </div>
       )}
 
-      {status && (
-        <p role="status" className="m-0 flex items-center gap-2 text-[13px] leading-[18px] text-muted-foreground">
-          <LoaderCircle className="size-4 shrink-0 animate-spin" aria-hidden="true" />
-          {status}
-        </p>
-      )}
-
-      <FitPhone>{phone}</FitPhone>
+      {loadError && <p role="alert" className="preview-load-error">{loadError}</p>}
+      {status ? <GenerationScene label={status} /> : inApp ? <FitPhone>{phone}</FitPhone> : <FitPhone width={document.width} height={document.height} maxScale={2} minScale={.72}><div className="preview-artwork">{art}</div></FitPhone>}
+      {onEdit && !inApp && !status && <p className="preview-edit-hint">Нажмите на текст или предмет, чтобы изменить его вручную или с AI</p>}
 
       <details className="preview-inspector">
       <summary>О креативе<span>{bannerType.description}</span><ChevronDown size={14} aria-hidden="true" /></summary>
@@ -171,7 +172,7 @@ export function CreativePreview({ banner, bannerType, content, status, action }:
           <Dialog.Title className="text-sm font-medium">{view === 'content' ? 'Промо-экран' : 'Баннер'} · 100%</Dialog.Title>
           <Dialog.Close render={<Button size="icon" variant="ghost" />} aria-label="Закрыть увеличенное превью"><X aria-hidden="true" /></Dialog.Close>
         </div>
-        <div className="preview-full-size">{phone}</div>
+        <div className="preview-full-size">{inApp ? phone : art}</div>
       </Dialog.Popup>
     </Dialog.Portal>
     </Dialog.Root>

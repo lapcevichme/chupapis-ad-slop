@@ -2,12 +2,18 @@ import { useState } from 'react'
 import type { StudioDocument } from '@/api/studio'
 import type { StudioVariant } from './model'
 
-export function useStudioProject(key: string, initial: StudioDocument, origin: string) {
+export function useStudioProject(key: string, initial: StudioDocument, origin: string, focusInitial = false) {
   const [project, setProject] = useState<{ variants: StudioVariant[]; activeId: string; origin: string }>(() => {
     try {
       const value = JSON.parse(localStorage.getItem(key) ?? 'null')
       if (value?.variants?.length && value.variants.every((v: StudioVariant) => v.document?.version === 1 && Array.isArray(v.document.layers))) {
-        if (value.origin === origin) return value
+        if (value.origin === origin) {
+          if (!focusInitial) return value
+          const match = value.variants.find((variant: StudioVariant) => JSON.stringify(variant.document) === JSON.stringify(initial))
+          if (match) return { ...value, activeId: match.id }
+          const id = crypto.randomUUID()
+          return { ...value, variants: [...value.variants, { id, label: 'Из превью', document: initial }], activeId: id }
+        }
         const id = crypto.randomUUID()
         return { variants: [...value.variants, { id, label: 'В кампании', document: initial }], activeId: id, origin }
       }

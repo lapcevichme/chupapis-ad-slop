@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowUpRight, LayoutGrid, Menu, MessageSquare, Plus, Sparkles, X } from 'lucide-react'
+import { ArrowUpRight, LayoutGrid, Menu, MessageSquare, Plus, X } from 'lucide-react'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { getCampaign, getCampaignAudit, getCampaignWarnings, getDictionaries, listCampaigns, saveCampaignChange } from '@/api/campaigns'
 import type { CampaignChange } from '@/api/campaigns'
@@ -13,6 +13,7 @@ import { ImageUploadMenu } from '@/features/imageUpload/ImageUploadMenu'
 import { CreativePreview, DesignPlaceholder } from '@/features/preview/CreativePreview'
 import { voiceAudio } from '@/features/voice/voiceAudio'
 import { VoiceMode } from '@/features/voice/VoiceMode'
+import type { StudioDocument } from '@/api/studio'
 import type { CampaignState, EntityId } from '@/types/api'
 import { CampaignLifecycle } from './CampaignLifecycle'
 import { CampaignPassport } from './CampaignPassport'
@@ -54,6 +55,7 @@ export function CampaignWorkspace({ initialBrief, onSignOut }: CampaignWorkspace
   const [login, setLogin] = useState(() => getCurrentUser().login)
   const [requestedBannerId, setRequestedBannerId] = useState<EntityId>()
   const [voiceOpen, setVoiceOpen] = useState(false)
+  const [studioEntry, setStudioEntry] = useState<{ document: StudioDocument; layerId?: string }>()
   const [studioKind, setStudioKind] = useState<'banner' | 'content' | null>(null)
   const [pane, setPane] = useState<'creative' | 'details' | 'history'>('creative')
   const [mobilePane, setMobilePane] = useState<'dialog' | 'work'>('dialog')
@@ -168,19 +170,18 @@ export function CampaignWorkspace({ initialBrief, onSignOut }: CampaignWorkspace
       <div className="pilot-workspace">
         <header className="pilot-topbar">
           <button className="mobile-menu" aria-label="Открыть меню кампаний" onClick={() => setNavOpen(true)}><Menu size={21} /></button>
-          <div className="workspace-location"><span>Кампании</span><span className="location-divider">/</span><strong>{details?.name ?? (moderator ? 'На проверке' : 'Новая кампания')}</strong></div>
-          <div className="topbar-actions">{saved && <StatusBadge state={saved.state} />}{chat.confirmation && <span className="unsaved-label">Предложенные изменения</span>}{banner && bannerType && <Button className="studio-launch" onClick={() => setStudioKind('banner')}><Sparkles size={16} /><span>Студия</span></Button>}
-          </div>
+          <span className="mobile-workspace-label">adpilot.</span>
+
         </header>
         <div className="pilot-stage">
           {hasResult && <main className="campaign-canvas" data-pane={pane} aria-label="Рабочая область кампании">
-            <div className="canvas-heading"><div><p className="canvas-state">{saved ? 'Кампания' : 'Ваш новый черновик'}{saved?.published ? ' · Показ идёт' : ''}</p><h1>{details?.name ?? 'Собираем кампанию'}</h1>{(pane !== 'creative' || chat.confirmation) && <p className="canvas-description">{chat.confirmation ? 'Проверьте результат и состав изменений перед подтверждением.' : 'Ваш оффер, аудитория и креативы — в одном месте.'}</p>}</div><ArrowUpRight className="canvas-heading-mark" aria-hidden="true" /></div>
+            <div className="canvas-heading"><div><div className="canvas-status">{saved && <StatusBadge state={saved.state} />}{chat.confirmation && <span className="unsaved-label">Предложенные изменения</span>}</div><h1 title={details?.name}>{details?.name ?? 'Собираем кампанию'}</h1>{(pane !== 'creative' || chat.confirmation) && <p className="canvas-description">{chat.confirmation ? 'Проверьте результат и состав изменений перед подтверждением.' : 'Ваш оффер, аудитория и креативы — в одном месте.'}</p>}</div></div>
             <nav className="canvas-tabs" aria-label="Разделы кампании">{([['creative','Креативы'],['details','Параметры'],['history','Проверка и история']] as const).map(([id,label]) => <button key={id} aria-pressed={pane === id} onClick={() => setPane(id)}>{label}{id === 'creative' && banners.length > 0 && <span>{banners.length}</span>}</button>)}</nav>
             <div className="canvas-content">
               {failed && <div role="alert" className="workspace-error"><p>Не удалось загрузить часть данных.</p><Button variant="outline" onClick={() => {void campaign.refetch(); void warnings.refetch(); void dictionaries.refetch()}}>Повторить загрузку</Button></div>}
               {pane === 'creative' && <><div className="creative-gallery">
                 {creativeSelector}
-                <section className="creative-stage" aria-label="Превью">{banner && bannerType ? <CreativePreview key={banner.id} banner={banner} bannerType={bannerType} content={content} status={designStep?.label} action={imageAction(false)} /> : <DesignPlaceholder idle={!designStep} label={designStep?.label ?? 'Креатив появится здесь. Попросите ассистента собрать баннер.'} />}</section>
+                <section className="creative-stage" aria-label="Превью">{banner && bannerType ? <CreativePreview key={banner.id} banner={banner} bannerType={bannerType} content={content} status={designStep?.label} action={imageAction(false)} onEdit={!chat.busy ? (kind, document, layerId) => { setStudioEntry({ document, layerId }); setStudioKind(kind) } : undefined} /> : <DesignPlaceholder idle={!designStep} label={designStep?.label ?? 'Креатив появится здесь. Попросите ассистента собрать баннер.'} />}</section>
               </div>{validation && <div className="canvas-validation"><ValidationSummary validation={validation} /></div>}</>}
               {pane === 'details' && details && dictionaries.data && <div className="passport-sheet"><CampaignPassport key={campaignId ?? NEW_CAMPAIGN} campaign={details} dictionaries={dictionaries.data} selectedBannerId={banner?.id} onSelectBanner={(id) => {setRequestedBannerId(id); setPane('creative')}} edit={edit} /></div>}
               {pane === 'history' && details && <CampaignLifecycle key={`lifecycle-${saved?.id ?? NEW_CAMPAIGN}`} state={saved?.state ?? 'DRAFT'} audit={saved && audit.data} validation={validation} />}
@@ -204,7 +205,7 @@ export function CampaignWorkspace({ initialBrief, onSignOut }: CampaignWorkspace
           onClose={() => setVoiceOpen(false)}
         />
       )}
-      {studioSource && <Suspense fallback={<div role="status" className="studio-opening">Открываю студию…</div>}><CreativeStudio key={`${campaignId}-${studioSource.kind}-${studioSource.item.id}`} source={studioSource} campaignId={campaignId} editable={role === 'campaignManager' && !chat.busy} applyReason={studioApplyReason} notice={saved && EDIT_NOTICES[saved.state]} hasContent={Boolean(content)} onSource={setStudioKind} onClose={() => setStudioKind(null)} onApply={async (source, document, png, buttons) => {
+      {studioSource && <Suspense fallback={<div role="status" className="studio-opening">Открываю студию…</div>}><CreativeStudio key={`${campaignId}-${studioSource.kind}-${studioSource.item.id}`} source={studioSource} initialDocument={studioEntry?.document} initialSelection={studioEntry?.layerId} campaignId={campaignId} editable={role === 'campaignManager' && !chat.busy} applyReason={studioApplyReason} notice={saved && EDIT_NOTICES[saved.state]} hasContent={Boolean(content)} onSource={kind => { setStudioEntry(undefined); setStudioKind(kind) }} onClose={() => { setStudioKind(null); setStudioEntry(undefined) }} onApply={async (source, document, png, buttons) => {
         if (!saved || studioApplyReason) throw new Error(studioApplyReason ?? 'Кампания ещё не сохранена.')
         await applyStudioToCampaign(saved.id, source, document, png, buttons)
         chat.clearDraft()
