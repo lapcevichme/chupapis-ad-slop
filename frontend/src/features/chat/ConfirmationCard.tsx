@@ -45,7 +45,7 @@ function Change({ change, dictionaries }: { change: ConfirmationChange; dictiona
   const to = formatValue(change.field, change.to, dictionaries)
   return (
     <div className="text-[13px] leading-[18px] wrap-anywhere">
-      <dt className="inline opacity-80">{change.label}: </dt>
+      <dt className="inline text-muted-foreground">{change.label}: </dt>
       <dd className="m-0 inline">
         {!isEmpty(change.from) && <>{formatValue(change.field, change.from, dictionaries)} → </>}
         <span className="font-medium">{to}</span>
@@ -69,7 +69,7 @@ export function ConfirmationCard({ confirmation, dictionaries, onApprove, onReje
   const toModeration = confirmation.operations.some((operation) => operation.kind === 'to_moderation')
 
   return (
-    <section aria-label="Подтверждение записи" className="flex animate-rise flex-col gap-3 rounded-lg border border-accent-foreground/30 bg-accent p-4 text-accent-foreground">
+    <section aria-label="Подтверждение записи" className="flex animate-rise flex-col gap-3 rounded-lg border border-border bg-card p-4 text-card-foreground">
       <h3 className="m-0 text-sm leading-5 font-semibold wrap-anywhere">{confirmation.title}</h3>
       {confirmation.operations.length > 0 && (
         <ul className="m-0 flex list-disc flex-col gap-1 pl-5 text-[13px] leading-[18px]">
@@ -81,7 +81,7 @@ export function ConfirmationCard({ confirmation, dictionaries, onApprove, onReje
         </ul>
       )}
       {changes.length > 0 && (
-        <dl className="m-0 flex flex-col gap-1 border-t border-accent-foreground/30 pt-3">
+        <dl className="m-0 flex flex-col gap-1 border-t border-border pt-3">
           {changes.map((change) => (
             <Change key={change.field} change={change} dictionaries={dictionaries} />
           ))}
@@ -101,7 +101,7 @@ export function ConfirmationCard({ confirmation, dictionaries, onApprove, onReje
           Не подтверждать
         </Button>
       </div>
-      {!hideEditHint && <p className="m-0 text-xs leading-4 opacity-80">Или напишите ниже, что изменить: это отменит предложение.</p>}
+      {!hideEditHint && <p className="m-0 text-xs leading-4 text-muted-foreground">Или напишите ниже, что изменить: это отменит предложение.</p>}
     </section>
   )
 }

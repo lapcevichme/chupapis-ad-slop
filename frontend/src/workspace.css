@@ -58,16 +58,16 @@
 .is-start .chat-composer{background:var(--card);margin:24px 0 0}
 
 .campaign-canvas{overflow:auto;min-width:0;min-height:0;scrollbar-width:thin}
-.canvas-heading{padding:36px 36px 24px;display:flex;justify-content:space-between;gap:20px}
-.canvas-state{font-size:12px;color:var(--muted-foreground);margin:0 0 12px}
-.canvas-heading h1{font:400 32px/1.25 var(--font-editorial);letter-spacing:-.8px;max-width:650px;text-wrap:balance}
-.canvas-description{font-size:13px;line-height:1.6;color:var(--muted-foreground);margin-top:12px}
-.canvas-heading-mark{width:30px;height:30px;color:var(--primary);margin-top:28px;flex-shrink:0}
-.canvas-tabs{display:flex;gap:24px;border-bottom:1px solid var(--border);padding:0 36px;position:sticky;top:0;background:var(--background);z-index:5}
-.canvas-tabs button{min-height:48px;border-bottom:2px solid transparent;cursor:pointer;font-size:13px;white-space:nowrap;color:var(--muted-foreground);display:flex;align-items:center;gap:9px}
+.canvas-heading{padding:22px 28px 14px;display:flex;justify-content:space-between;gap:16px}
+.canvas-state{font-size:12px;color:var(--muted-foreground);margin:0 0 6px}
+.canvas-heading h1{font:400 28px/1.25 var(--font-editorial);letter-spacing:-.6px;max-width:650px;text-wrap:balance}
+.canvas-description{font-size:13px;line-height:1.6;color:var(--muted-foreground);margin-top:6px}
+.canvas-heading-mark{width:24px;height:24px;color:var(--primary);margin-top:24px;flex-shrink:0}
+.canvas-tabs{display:flex;gap:24px;border-bottom:1px solid var(--border);padding:0 28px;position:sticky;top:0;background:var(--background);z-index:5}
+.canvas-tabs button{min-height:44px;border-bottom:2px solid transparent;cursor:pointer;font-size:13px;white-space:nowrap;color:var(--muted-foreground);display:flex;align-items:center;gap:9px}
 .canvas-tabs button[aria-pressed=true]{border-color:var(--primary);color:var(--foreground)}
 .canvas-tabs button span{font-size:11px;color:var(--muted-foreground)}
-.canvas-content{padding:28px 36px 36px}
+.canvas-content{padding:20px 28px 28px}
 .creative-gallery{display:flex;gap:24px;justify-content:center}
 .creative-selector{display:flex;flex-direction:column;gap:10px;width:148px;flex-shrink:0}
 .creative-selector button{font-size:12px;text-align:left;padding:14px 12px;border:1px solid var(--border);border-radius:10px;cursor:pointer;line-height:1.5;background:var(--card)}
@@ -85,9 +85,9 @@
 .canvas-footer button{margin-left:auto;display:flex;align-items:center;gap:7px;cursor:pointer;color:var(--primary);min-height:44px}
 .canvas-validation{border-top:1px solid var(--border);padding-top:18px}
 .passport-sheet>div{gap:0}
-.passport-sheet>div>section{border:0;border-bottom:1px solid var(--border);border-radius:0;background:transparent;padding:24px 0}
+.passport-sheet>div>section{border:0;border-bottom:1px solid var(--border);border-radius:0;background:transparent;padding:16px 0;gap:10px}
 .passport-sheet>div>section:first-child{padding-top:0}
-.passport-sheet h2{font:400 24px/1.4 var(--font-editorial)}
+.passport-sheet h2{font:600 16px/1.5 var(--font-sans)}
 .workspace-error{padding:18px;background:var(--error);color:var(--error-foreground);border-radius:12px;margin-bottom:20px;font-size:14px}
 .workspace-error button{margin-top:12px}
 
@@ -97,8 +97,8 @@
 .pilot-shell textarea{caret-color:var(--primary)}
 
 @media(min-width:1700px){.pilot-stage{grid-template-columns:minmax(0,1fr) 430px}
-.canvas-heading,.canvas-content{padding-left:56px;padding-right:56px}
-.canvas-tabs{padding-left:56px}
+.canvas-heading,.canvas-content{padding-left:36px;padding-right:36px}
+.canvas-tabs{padding-left:36px}
 .creative-stage{padding:40px}
 .is-start .pilot-assistant{max-width:900px}
 }
@@ -135,10 +135,10 @@
 .attention-dot{width:6px;height:6px;border-radius:50%;background:var(--primary)}
 .is-start .pilot-assistant{padding:20px 18px 24px;max-width:720px;margin:0 auto}
 .chat-panel [role=log] h1{font-size:34px}
-.canvas-heading{padding:26px 22px 20px}
+.canvas-heading{padding:18px 20px 12px}
 .canvas-description{font-size:13px}
-.canvas-content{padding:22px}
-.canvas-tabs{padding:0 22px;gap:20px;overflow:auto}
+.canvas-content{padding:16px 20px 24px}
+.canvas-tabs{padding:0 20px;gap:20px;overflow:auto}
 .creative-stage{padding:20px 10px}
 .chat-composer textarea{font-size:16px}
 .topbar-actions{gap:3px}
