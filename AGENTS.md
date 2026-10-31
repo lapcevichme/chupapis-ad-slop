@@ -44,7 +44,19 @@ docs/       задание и наши документы
 docker compose up --build         # весь проект
 cd backend && uv run pytest       # тесты
 cd backend && uv run alembic upgrade head
+cd frontend && npm install && npm run dev   # http://localhost:5173
+cd frontend && npm run build && npm run lint
 ```
+
+Фронтенд:
+
+- `src/features/` — экраны и их компоненты, сейчас там `preview/`. `src/components/ui/` — компоненты shadcn, они правятся под наш дизайн (см. `docs/ours/design.md`).
+- `App.tsx` пока временный стенд превью на копии моков из `src/fixtures/`. Заменяется экраном чата и паспорта; фикстуры нужны, потому что Docker-образ фронта не видит `docs/`.
+- `src/types/creative.ts` — временные типы, написанные руками по §2.6–2.8. Когда появится OpenAPI, заменяем их сгенерированными; до этого новые типы API кладём туда же, а не по компонентам.
+- Запросы идут на `/api/*`: Vite проксирует их на бэкенд без префикса `/api`, адрес задаёт `API_PROXY_TARGET` (по умолчанию `http://localhost:8000`).
+- HTML из контента креатива не вставляем как разметку (`dangerouslySetInnerHTML` запрещён): текст приходит от LLM. Для `format: "html"` есть `parseRichText`, он понимает только `<b>`.
+- Ссылки в моках ведут на несуществующий домен, поэтому заглушка вместо картинки на стенде — норма. Она появляется через 1–3 секунды, после ошибки DNS.
+- `frontend/Dockerfile` ещё ни разу не собирался.
 
 ## Инварианты домена
 
