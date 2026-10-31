@@ -82,10 +82,12 @@ export function CampaignWorkspace() {
             disabled={chat.busy}
             onSelect={openCampaign}
           />
-          <Button variant="outline" disabled={chat.busy || (campaignId === null && !chat.draft && chat.messages.length === 0)} onClick={() => openCampaign(null)}>
-            <Plus aria-hidden="true" />
-            Новая
-          </Button>
+          {role !== 'campaignModerator' && (
+            <Button variant="outline" disabled={chat.busy || (campaignId === null && !chat.draft && chat.messages.length === 0)} onClick={() => openCampaign(null)}>
+              <Plus aria-hidden="true" />
+              Новая
+            </Button>
+          )}
           {saved?.published && <span className="text-[13px] leading-[18px] text-muted-foreground">Показ идёт</span>}
         </div>
         <div className="flex flex-wrap items-center gap-4">
@@ -127,6 +129,9 @@ export function CampaignWorkspace() {
             dictionaries={dictionaries.data}
             awaitsModeration={saved?.state === 'ON_MODERATION' && role === 'campaignModerator'}
             nextStep={nextStep}
+            role={role}
+            moderationQueue={campaigns.data?.filter((item) => item.state === 'ON_MODERATION') ?? []}
+            onOpenCampaign={openCampaign}
           />
         </section>
 
@@ -143,7 +148,7 @@ export function CampaignWorkspace() {
               onSelectBanner={setRequestedBannerId}
             />
           ) : (
-            !failed && !chat.busy && <Message>Паспорт кампании появится здесь, когда ассистент начнёт её собирать.</Message>
+            !failed && !chat.busy && <Message>{role === 'campaignModerator' ? 'Паспорт появится здесь, когда вы откроете кампанию.' : 'Паспорт кампании появится здесь, когда ассистент начнёт её собирать.'}</Message>
           )}
         </div>
 
@@ -153,7 +158,7 @@ export function CampaignWorkspace() {
           ) : designStep ? (
             <DesignPlaceholder label={designStep.label} />
           ) : (
-            <Message>Креативов пока нет, показывать нечего.</Message>
+            <Message>{campaignId === null && role === 'campaignModerator' ? 'Превью появится здесь, когда вы откроете кампанию.' : 'Креативов пока нет, показывать нечего.'}</Message>
           )}
         </section>
       </main>

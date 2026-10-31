@@ -4,10 +4,11 @@ import type { KeyboardEvent, SyntheticEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import type { NextStep } from '@/features/campaign/nextStep'
 import { cn } from '@/lib/utils'
-import type { ChatStep, ChatWarning, Dictionaries } from '@/types/api'
+import type { CampaignListItem, ChatStep, ChatWarning, Dictionaries, UserRole } from '@/types/api'
 import { ChatMarkdown } from './ChatMarkdown'
 import { ConfirmationCard } from './ConfirmationCard'
 import { ModerationBar } from './ModerationBar'
+import { ModerationQueue } from './ModerationQueue'
 import { NextStepBar } from './NextStepBar'
 import { SuggestionButton, Suggestions } from './Suggestions'
 import type { ChatMessage, useChat } from './useChat'
@@ -73,10 +74,13 @@ interface ChatPanelProps {
   dictionaries?: Dictionaries
   awaitsModeration: boolean
   nextStep: NextStep | null
+  role?: UserRole
+  moderationQueue: CampaignListItem[]
+  onOpenCampaign: (id: number) => void
 }
 
-export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep }: ChatPanelProps) {
-  const { busy, messages, suggestions, confirmation, error, send, answer, retry } = chat
+export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role, moderationQueue, onOpenCampaign }: ChatPanelProps) {
+  const { busy, campaignId, messages, suggestions, confirmation, error, send, answer, retry } = chat
   const [text, setText] = useState('')
   const log = useRef<HTMLDivElement>(null)
   const stickToBottom = useRef(true)
@@ -107,15 +111,26 @@ export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep }: Ch
 
   const last = messages.at(-1)
   const thinking = busy && last?.role === 'assistant' && !last.text && last.steps.every((step) => step.status !== 'running')
+  const moderator = role === 'campaignModerator'
+  const empty = messages.length === 0 && !busy
+  // Модератору без кампании обсуждать с агентом нечего: кампании создаёт менеджер.
+  const showQueue = empty && moderator && campaignId === null
 
   return (
     <div className="flex h-full flex-col">
       <div ref={log} role="log" aria-label="Сообщения" onScroll={handleScroll} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
-        {messages.length === 0 && !busy && (
+        {showQueue && <ModerationQueue campaigns={moderationQueue} onOpen={onOpenCampaign} />}
+        {empty && !moderator && campaignId === null && (
           <div className="flex flex-col gap-3">
             <p className="m-0 text-sm leading-5">Опишите кампанию своими словами: продукт, аудиторию, сроки. Я соберу черновик и покажу его перед сохранением.</p>
             <SuggestionButton onClick={() => submit(EXAMPLE_BRIEF)}>{EXAMPLE_BRIEF}</SuggestionButton>
           </div>
+        )}
+        {empty && !moderator && campaignId !== null && (
+          <p className="m-0 text-sm leading-5">Что поменять в кампании? Могу поправить поля и креативы, объяснить статус или ошибки проверки.</p>
+        )}
+        {empty && moderator && campaignId !== null && (
+          <p className="m-0 text-sm leading-5">Проверьте кампанию справа и примите решение. Можно спросить меня, что с ней не так.</p>
         )}
         {messages.map((message, index) => (
           <Message key={index} message={message} thinking={thinking && index === messages.length - 1} />
@@ -161,26 +176,28 @@ export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep }: Ch
           <NextStepBar step={nextStep} onSend={submit} />
         </div>
       )}
-      <form
-        className="flex items-end gap-2 border-t p-3"
-        onSubmit={(event) => {
-          event.preventDefault()
-          submit(text)
-        }}
-      >
-        <textarea
-          aria-label="Сообщение ассистенту"
-          rows={2}
-          value={text}
-          placeholder={confirmation ? 'Что изменить?' : 'Напишите сообщение'}
-          onChange={(event) => setText(event.target.value)}
-          onKeyDown={handleKeyDown}
-          className="min-h-11 min-w-0 flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm leading-5 outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
-        />
-        <Button type="submit" size="icon" aria-label="Отправить" disabled={busy || !text.trim()}>
-          <SendHorizontal aria-hidden="true" />
-        </Button>
-      </form>
+      {!showQueue && (
+        <form
+          className="flex items-end gap-2 border-t p-3"
+          onSubmit={(event) => {
+            event.preventDefault()
+            submit(text)
+          }}
+        >
+          <textarea
+            aria-label="Сообщение ассистенту"
+            rows={2}
+            value={text}
+            placeholder={confirmation ? 'Что изменить?' : 'Напишите сообщение'}
+            onChange={(event) => setText(event.target.value)}
+            onKeyDown={handleKeyDown}
+            className="min-h-11 min-w-0 flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm leading-5 outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          />
+          <Button type="submit" size="icon" aria-label="Отправить" disabled={busy || !text.trim()}>
+            <SendHorizontal aria-hidden="true" />
+          </Button>
+        </form>
+      )}
     </div>
   )
 }

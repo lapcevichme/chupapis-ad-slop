@@ -79,7 +79,7 @@ export function CampaignPicker({ campaigns, currentId, name, state, role, disabl
         disabled={disabled}
         render={
           <Button variant="outline" className="h-auto min-h-11 max-w-md min-w-0 justify-start gap-2 py-1 pr-3 pl-3 text-left whitespace-normal">
-            <span className="min-w-0 truncate text-sm leading-5 font-medium">{name ?? 'Новая кампания'}</span>
+            <span className="min-w-0 truncate text-sm leading-5 font-medium">{name ?? (role === 'campaignModerator' ? 'Выберите кампанию' : 'Новая кампания')}</span>
             {state && <StatusBadge state={state} />}
             {name && !state && <span className="shrink-0 text-[13px] leading-[18px] font-normal text-muted-foreground">Не сохранена</span>}
             <ChevronDown className="ml-auto" aria-hidden="true" />
