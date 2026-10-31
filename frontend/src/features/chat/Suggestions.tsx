@@ -1,5 +1,5 @@
-import { Check } from 'lucide-react'
-import { useState } from 'react'
+import { ArrowLeft, Check } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -40,15 +40,17 @@ interface QuestionProps {
   onPick: (value: string) => void
   onOwn: (text: string) => void
   onSubmitOwn: () => void
+  // В пошаговом блоке тема уже видна в переключателе вопросов.
+  showHeader: boolean
 }
 
-function QuestionBlock({ question, answer, onPick, onOwn, onSubmitOwn }: QuestionProps) {
+function QuestionBlock({ question, answer, onPick, onOwn, onSubmitOwn, showHeader }: QuestionProps) {
   const ownActive = answer.own.trim() !== ''
 
   return (
     <fieldset className="m-0 flex min-w-0 flex-col gap-2 border-0 p-0">
       <legend className="flex flex-col gap-1 p-0">
-        <span className="w-fit rounded-md bg-muted px-2 py-0.5 text-xs leading-4 font-medium text-muted-foreground">{question.header}</span>
+        {showHeader && <span className="w-fit rounded-md bg-muted px-2 py-0.5 text-xs leading-4 font-medium text-muted-foreground">{question.header}</span>}
         <span className="text-sm leading-5 font-semibold wrap-anywhere">{question.question}</span>
       </legend>
       <div className="flex flex-col gap-1.5">
@@ -110,14 +112,29 @@ interface SuggestionsProps {
   onSend: (text: string) => void
 }
 
+// Пауза даёт увидеть отмеченный вариант перед переходом к следующему вопросу.
+const ADVANCE_DELAY_MS = 220
+
 export function Suggestions({ questions, onSend }: SuggestionsProps) {
   const [answers, setAnswers] = useState<Record<number, Answer>>({})
+  const [page, setPage] = useState(0)
+  const advance = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const single = questions.length === 1 && !questions[0].multiSelect
+  const paged = questions.length > 1
+  const last = page === questions.length - 1
 
   const texts = questions.map((question, index) => answerText(question, answers[index] ?? EMPTY))
   const answered = texts.filter(Boolean).length
 
+  useEffect(() => () => clearTimeout(advance.current), [])
+
+  function goTo(index: number) {
+    clearTimeout(advance.current)
+    setPage(index)
+  }
+
   function submit() {
+    clearTimeout(advance.current)
     if (answered === 0) return
     if (questions.length === 1) {
       onSend(texts[0])
@@ -141,34 +158,83 @@ export function Suggestions({ questions, onSend }: SuggestionsProps) {
       onSend(value)
       return
     }
-    update(index, (answer) => {
-      if (questions[index].multiSelect) {
-        const picked = answer.picked.includes(value) ? answer.picked.filter((v) => v !== value) : [...answer.picked, value]
-        return { ...answer, picked }
-      }
-      return { picked: answer.picked[0] === value && !answer.own.trim() ? [] : [value], own: '' }
-    })
+    const question = questions[index]
+    const current = answers[index] ?? EMPTY
+    if (question.multiSelect) {
+      const picked = current.picked.includes(value) ? current.picked.filter((v) => v !== value) : [...current.picked, value]
+      update(index, () => ({ ...current, picked }))
+      return
+    }
+    const unpick = current.picked[0] === value && !current.own.trim()
+    update(index, () => ({ picked: unpick ? [] : [value], own: '' }))
+    // Одиночный выбор отвечает на вопрос целиком: сразу показываем следующий.
+    if (!unpick && paged && !last) {
+      clearTimeout(advance.current)
+      advance.current = setTimeout(() => setPage(index + 1), ADVANCE_DELAY_MS)
+    }
   }
+
+  const question = questions[page]
 
   return (
     <section aria-label="Вопросы ассистента" className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4">
-      {questions.map((question, index) => (
+      {paged && (
+        <nav aria-label="Вопросы" className="flex flex-wrap gap-1.5">
+          {questions.map((item, index) => {
+            const done = Boolean(texts[index])
+            return (
+              <button
+                key={`${item.header}-${item.question}`}
+                type="button"
+                aria-current={index === page ? 'step' : undefined}
+                aria-label={`Вопрос ${index + 1} из ${questions.length}: ${item.header}${done ? ', отвечен' : ''}`}
+                onClick={() => goTo(index)}
+                className={cn(
+                  'flex min-h-8 cursor-pointer items-center gap-1 rounded-md px-2.5 text-xs leading-4 font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  index === page ? 'bg-primary text-primary-foreground' : done ? 'bg-primary/15 text-foreground hover:bg-primary/25' : 'bg-muted text-muted-foreground hover:bg-secondary',
+                )}
+              >
+                {done && index !== page && <Check aria-hidden="true" className="size-3" />}
+                {item.header}
+              </button>
+            )
+          })}
+        </nav>
+      )}
+
+      <div key={page} className="animate-rise">
         <QuestionBlock
-          key={`${question.header}-${question.question}`}
           question={question}
-          answer={answers[index] ?? EMPTY}
-          onPick={(value) => pick(index, value)}
-          onOwn={(own) => update(index, (answer) => ({ ...answer, own }))}
-          onSubmitOwn={submit}
+          answer={answers[page] ?? EMPTY}
+          onPick={(value) => pick(page, value)}
+          onOwn={(own) => {
+            clearTimeout(advance.current)
+            update(page, (answer) => ({ ...answer, own }))
+          }}
+          onSubmitOwn={() => (paged && !last ? goTo(page + 1) : submit())}
+          showHeader={!paged}
         />
-      ))}
+      </div>
+
       {!single && (
-        <div className="flex flex-wrap items-center gap-3">
-          <Button disabled={answered === 0} onClick={submit}>
-            Отправить {questions.length > 1 ? 'ответы' : 'ответ'}
-          </Button>
-          {questions.length > 1 && (
-            <span className="text-[13px] leading-[18px] text-muted-foreground tabular-nums">
+        <div className="flex flex-wrap items-center gap-2">
+          {paged && page > 0 && (
+            <Button variant="ghost" onClick={() => goTo(page - 1)}>
+              <ArrowLeft aria-hidden="true" />
+              Назад
+            </Button>
+          )}
+          {paged && !last ? (
+            <Button variant={texts[page] ? 'default' : 'outline'} onClick={() => goTo(page + 1)}>
+              {texts[page] ? 'Далее' : 'Пропустить'}
+            </Button>
+          ) : (
+            <Button disabled={answered === 0} onClick={submit}>
+              Отправить {paged ? 'ответы' : 'ответ'}
+            </Button>
+          )}
+          {paged && (
+            <span className="ml-auto text-[13px] leading-[18px] text-muted-foreground tabular-nums">
               Отвечено {answered} из {questions.length}
             </span>
           )}
