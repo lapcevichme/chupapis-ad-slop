@@ -127,7 +127,9 @@ def test_ai_may_relayout_but_cannot_invent_offer_copy():
         )
     )
     with pytest.raises(Exception, match="несовместимый"):
-        asyncio.run(generator.generate(StudioGenerationBody(document=DOCUMENT, prompt="Ярче")))
+        asyncio.run(
+            generator.generate(StudioGenerationBody(document=DOCUMENT, prompt="Ярче", count=1))
+        )
 
 
 def test_ai_valid_scene_remains_editable():
