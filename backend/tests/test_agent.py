@@ -609,6 +609,43 @@ def test_request_prefix_is_stable_for_prompt_cache(client, chat):
     )
 
 
+def test_incomplete_schedule_goes_back_to_model_before_card(client, chat):
+    no_end_time = {**CAMPAIGN, "endTime": None}
+    model = chat(
+        [
+            tool_message(call("propose_create_campaign", {"campaign": no_end_time}, 1)),
+            tool_message(call("propose_create_campaign", {"campaign": CAMPAIGN}, 2)),
+            tool_message(call("request_confirmation", {"title": "Создать кампанию"}, 3)),
+        ]
+    )
+    sid = client.post("/chat", json={}, headers=MANAGER).json()["sessionId"]
+
+    reply = events(client.post(f"/chat/{sid}/messages", json={"text": "Вклад"}, headers=MANAGER))
+
+    assert "END_DATETIME_INCOMPLETE" in _text_of(model.seen[1][-2])
+    cards = [data for kind, data in reply if kind == "confirmation_required"]
+    assert len(cards) == 1 and len(cards[0]["operations"]) == 1
+
+
+def test_taken_campaign_name_goes_back_to_model_before_card(client, chat):
+    assert client.post("/campaigns", json=CAMPAIGN, headers=MANAGER).status_code == 201
+    renamed = {**CAMPAIGN, "name": "Вклад 16%: осень"}
+    model = chat(
+        [
+            tool_message(call("propose_create_campaign", {"campaign": CAMPAIGN}, 1)),
+            tool_message(call("propose_create_campaign", {"campaign": renamed}, 2)),
+            tool_message(call("request_confirmation", {"title": "Создать кампанию"}, 3)),
+        ]
+    )
+    sid = client.post("/chat", json={}, headers=MANAGER).json()["sessionId"]
+
+    reply = events(client.post(f"/chat/{sid}/messages", json={"text": "Вклад"}, headers=MANAGER))
+
+    assert "NAME_DUPLICATE" in _text_of(model.seen[1][-2])
+    cards = [data for kind, data in reply if kind == "confirmation_required"]
+    assert len(cards) == 1 and len(cards[0]["operations"]) == 1
+
+
 def test_bad_tool_arguments_go_back_to_model(client, chat):
     # Раньше лишняя кнопка роняла весь ход с AGENT_FAILED.
     options = [{"label": str(i)} for i in range(20)]

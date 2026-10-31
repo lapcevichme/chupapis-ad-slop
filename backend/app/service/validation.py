@@ -1,5 +1,3 @@
-from datetime import date, datetime
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.codes import WARNINGS
@@ -7,20 +5,7 @@ from app.core.errors import ApiError, api_error
 from app.db import models
 from app.domain.enums import AudienceType, PlaceState, SegmentState
 from app.infra.creative_validation import validate_banner_json, validate_content_json
-
-
-def check_schedule(
-    start_date: date, start_time: str, end_date: date | None, end_time: str | None
-) -> list[ApiError]:
-    if (end_date is None) != (end_time is None):
-        return [api_error("END_DATETIME_INCOMPLETE", "endDate" if end_date is None else "endTime")]
-    if end_date is None or end_time is None:
-        return []
-    start = datetime.combine(start_date, datetime.strptime(start_time, "%H:%M").time())
-    end = datetime.combine(end_date, datetime.strptime(end_time, "%H:%M").time())
-    if end <= start:
-        return [api_error("DATE_RANGE_INVALID", "endDate")]
-    return []
+from app.infra.schedule_validation import check_schedule
 
 
 async def check_segment_codes(

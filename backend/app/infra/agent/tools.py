@@ -5,7 +5,7 @@ from typing import Any, Callable, Literal
 
 from pydantic import BaseModel, Field, ValidationError
 
-from app.core.errors import ApiError
+from app.core.errors import ApiError, api_error
 from app.infra.agent.designer import (
     Designer,
     DesignError,
@@ -18,9 +18,11 @@ from app.infra.agent.operations import (
     WRITE_OPS_BY_KIND,
     WRITE_OPS_BY_TOOL,
     CreateBannerArgs,
+    CreateCampaignArgs,
     CreateContentArgs,
     Ref,
     UpdateBannerArgs,
+    UpdateCampaignArgs,
     UpdateContentArgs,
     WriteOp,
     apply_operations,
@@ -30,6 +32,7 @@ from app.infra.agent.operations import (
 from app.infra.campaigns_api import ApiCallError, CampaignsApi
 from app.infra.creative_validation import check_banner, check_content
 from app.infra.pydantic_errors import map_pydantic_errors
+from app.infra.schedule_validation import check_schedule
 
 
 class NoArgs(BaseModel):
@@ -301,6 +304,23 @@ async def _propose(ctx: ToolContext, spec: WriteOp, raw: dict[str, Any]) -> str:
         args = spec.args.model_validate(raw)
     except ValidationError as exc:
         return _errors_text(map_pydantic_errors(exc.errors()))
+
+    # Иначе человек подтвердит карточку, сервер откажет и придётся подтверждать заново.
+    if isinstance(args, (CreateCampaignArgs, UpdateCampaignArgs)):
+        campaign = args.campaign
+        errors = check_schedule(
+            campaign.startDate, campaign.startTime, campaign.endDate, campaign.endTime
+        )
+        own_id = (
+            args.campaignId or ctx.current_campaign()
+            if isinstance(args, UpdateCampaignArgs)
+            else None
+        )
+        existing = await ctx.client.get("/campaigns")
+        if any(item["name"] == campaign.name and item["id"] != own_id for item in existing):
+            errors.append(api_error("NAME_DUPLICATE", "name"))
+        if errors:
+            return _errors_text(errors)
 
     # Креатив проверяем до API теми же правилами, что и бэкенд (§6.2).
     if isinstance(args, (CreateBannerArgs, UpdateBannerArgs)):

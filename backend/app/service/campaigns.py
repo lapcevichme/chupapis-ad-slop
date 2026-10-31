@@ -16,6 +16,7 @@ from app.domain.lifecycle import (
     mark_edited,
 )
 from app.infra.cbro import export_campaign
+from app.infra.schedule_validation import check_schedule
 from app.service import audit
 from app.service.common import editable_campaign, get_campaign, info_snapshot
 from app.service.mappers import (
@@ -29,7 +30,6 @@ from app.service.mappers import (
 from app.service.validation import (
     campaign_errors,
     campaign_warnings,
-    check_schedule,
     check_segment_codes,
 )
 
