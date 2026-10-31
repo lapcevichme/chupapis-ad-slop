@@ -52,28 +52,28 @@
 
 /* Visual system: docs/DESIGN.md */
 :root {
-    --background: #f6f5f1;
-    --foreground: #282725;
+    --background: #f3f5fb;
+    --foreground: #17223b;
     --card: #ffffff;
-    --card-foreground: #282725;
+    --card-foreground: #17223b;
     --popover: #ffffff;
-    --popover-foreground: #282725;
-    --primary: #7b4d53;
-    --primary-hover: #653d43;
+    --popover-foreground: #17223b;
+    --primary: #3155ff;
+    --primary-hover: #2442dd;
     --primary-foreground: #ffffff;
-    --secondary: #eae7e0;
-    --secondary-hover: #e0dbd3;
-    --secondary-foreground: #393631;
-    --muted: #efede7;
-    --muted-foreground: #6b655e;
-    --accent: #eee3e4;
-    --accent-foreground: #673e46;
+    --secondary: #e7ecf7;
+    --secondary-hover: #dbe3f4;
+    --secondary-foreground: #253352;
+    --muted: #e9edf7;
+    --muted-foreground: #606c84;
+    --accent: #e7ecff;
+    --accent-foreground: #2945cb;
     --destructive: #a8312c;
     --destructive-hover: #852722;
     --destructive-foreground: #ffffff;
-    --border: #dedad2;
-    --input: #b5aea3;
-    --ring: #7b4d53;
+    --border: #d7deed;
+    --input: #9ba9c7;
+    --ring: #3155ff;
     --success: #e6ede7;
     --success-foreground: #355d42;
     --warning: #f5ecdc;
@@ -83,33 +83,33 @@
     --info: #e8ecf0;
     --info-foreground: #40576d;
     --radius: 0.75rem;
-    --font-editorial: "Lora Variable", Georgia, serif;
+    --font-editorial: "Onest Variable", system-ui, sans-serif;
 }
 
 .dark {
     color-scheme: dark;
-    --background: #242321;
-    --foreground: #f0ede6;
-    --card: #2c2a27;
-    --card-foreground: #f0ede6;
-    --popover: #33302d;
-    --popover-foreground: #f0ede6;
-    --primary: #c7949c;
-    --primary-hover: #dcadb4;
-    --primary-foreground: #292123;
-    --secondary: #38342f;
-    --secondary-hover: #454039;
-    --secondary-foreground: #eee9df;
-    --muted: #302e2a;
-    --muted-foreground: #bdb4a7;
-    --accent: #483338;
-    --accent-foreground: #edbcc4;
+    --background: #141e35;
+    --foreground: #eff3ff;
+    --card: #1b2843;
+    --card-foreground: #eff3ff;
+    --popover: #243453;
+    --popover-foreground: #eff3ff;
+    --primary: #91a6ff;
+    --primary-hover: #b5c3ff;
+    --primary-foreground: #122149;
+    --secondary: #263754;
+    --secondary-hover: #304364;
+    --secondary-foreground: #e5ecff;
+    --muted: #1e2d49;
+    --muted-foreground: #acbbd8;
+    --accent: #273c70;
+    --accent-foreground: #bdcaff;
     --destructive: #a8312c;
     --destructive-hover: #852722;
     --destructive-foreground: #ffffff;
-    --border: #49443d;
-    --input: #82766a;
-    --ring: #d1a0a8;
+    --border: #384b6e;
+    --input: #6b81a7;
+    --ring: #a3b4ff;
     --success: #293c31;
     --success-foreground: #aed0b6;
     --warning: #43351f;
@@ -119,7 +119,7 @@
     --info: #2b3742;
     --info-foreground: #b6ccdf;
     --radius: 0.75rem;
-    --font-editorial: "Lora Variable", Georgia, serif;
+    --font-editorial: "Onest Variable", system-ui, sans-serif;
 }
 
 @layer base {

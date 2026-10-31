@@ -190,8 +190,8 @@ export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role
         {empty && !moderator && campaignId === null && (
           <div className="chat-welcome my-auto flex animate-rise flex-col gap-4">
             <div className="flex flex-col gap-1">
-              <h1 className="m-0 text-xl leading-7 font-semibold">Хорошая кампания начинается с идеи.</h1>
-              <p className="m-0 text-sm leading-5 text-muted-foreground">Продукт, аудитория, сроки. Я соберу черновик и покажу его перед сохранением.</p>
+              <h1 className="m-0 text-xl leading-7 font-semibold">Давайте создадим яркую кампанию.</h1>
+              <p className="m-0 text-sm leading-5 text-muted-foreground">Расскажите о продукте. Соберём аудиторию, креативы и параметры — вы проверите результат перед сохранением.</p>
             </div>
             <div className="flex flex-col gap-2">
               <span className="text-xs leading-4 text-muted-foreground">Например</span>

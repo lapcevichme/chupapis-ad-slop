@@ -209,3 +209,33 @@ to{opacity:1;transform:translateY(0)}
 
 @media(prefers-reduced-motion:reduce){.pilot-shell *{animation:none!important;transition:none!important}
 }
+/* Creative studio direction: colour belongs to the workspace, artwork keeps its own palette. */
+.pilot-nav{--foreground:#f4f7ff;--muted-foreground:#bac9e8;--background:#142c5d;--secondary:#25477c;--border:#ffffff24;background:#142c5d;color:#f4f7ff}
+.pilot-brand{font-size:30px;font-weight:750;letter-spacing:-1.5px}
+.pilot-brand>span{color:#d6f45b}
+.pilot-nav .new-campaign{background:#d6f45b;border-color:#d6f45b;color:#17294c;font-weight:650}
+.pilot-nav .new-campaign:hover{background:#c9e849}
+.pilot-nav .campaign-link:hover{background:#25477c}
+.pilot-nav .campaign-link.selected{background:#3155ff;color:#fff}
+.pilot-nav .campaign-link.selected small{color:#e6ebff}
+.pilot-nav :focus-visible{outline-color:#d6f45b}
+.canvas-heading h1{font-weight:650;letter-spacing:-.9px;line-height:1.15}
+.canvas-state{font-weight:550;color:var(--primary)}
+.canvas-tabs button[aria-pressed=true]{font-weight:650;color:var(--primary)}
+.assistant-monogram{font-style:normal;font-weight:700;background:#3155ff;color:#fff;border-radius:8px}
+.message-avatar{font-style:normal;font-weight:700;background:var(--accent);border-color:transparent;color:var(--primary)}
+.studio-launch{font-size:12px;box-shadow:0 3px 8px #3155ff1a}
+.creative-stage{background:var(--muted)}
+.chat-panel [role=log] h1{font-family:'Onest Variable',sans-serif;font-weight:700;font-size:clamp(36px,3.2vw,48px);line-height:1.12;letter-spacing:-1.6px;max-width:660px;color:var(--foreground)}
+.is-start .pilot-assistant{width:min(900px,100%)}
+.chat-welcome>div>p{font-size:15px;line-height:1.7;max-width:570px;margin-top:12px}
+.chat-welcome>div:last-child>button{padding:16px 0;font-size:13px;color:var(--foreground);font-weight:500}
+.chat-welcome>div:last-child>button:hover{color:var(--primary);border-color:var(--primary)}
+.chat-composer{border-color:var(--border);box-shadow:0 5px 22px #15346b08}
+.chat-composer:has(textarea:focus-visible){outline:2px solid var(--ring);outline-offset:2px}
+@media(max-width:900px){.chat-panel [role=log] h1{font-size:36px;letter-spacing:-1.1px}.canvas-heading h1{font-size:26px}.studio-launch{padding:0 11px}.studio-launch svg{width:16px;height:16px}}
+.assistant-heading{background:var(--accent);border-bottom-color:var(--border);box-shadow:inset 3px 0 var(--primary)}
+.chat-user-message{background:var(--primary);color:var(--primary-foreground);border-radius:18px 18px 5px 18px;box-shadow:0 3px 10px #3155ff12}
+.message-author strong{font-weight:700;letter-spacing:-.2px}
+.message-state{background:#d6f45b;color:#243455;padding:3px 7px;border-radius:5px}
+.chat-welcome h1:after{content:'';display:block;width:64px;height:7px;border-radius:2px;background:#d6f45b;margin-top:22px}
