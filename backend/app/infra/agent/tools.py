@@ -384,13 +384,32 @@ async def _design(ctx: ToolContext, args: DesignArgs, progress: Callable[[str], 
     if args.replaceBannerId and previous is None:
         return f"Ошибка: баннера {args.replaceBannerId} нет в кампании"
 
+    chosen_places = draft.get("places") or []
+    if (
+        args.placeId is not None
+        and previous is None
+        and chosen_places
+        and args.placeId not in chosen_places
+    ):
+        # Модель путала похожие места на одном экране и делала креатив под место, которое не выбирали.
+        return (
+            f"Ошибка: места {args.placeId} нет в кампании, в ней места {', '.join(map(str, chosen_places))}. "
+            "Делай креативы только под выбранные места. Если пользователь просил это место, сначала добавь его в кампанию."
+        )
+    place = (await ctx.places()).get(args.placeId) if isinstance(args.placeId, int) else None
+    place_code = place.get("defaultBanner") if place else None
+    if args.bannerType and place_code and args.bannerType != place_code:
+        return (
+            f"Ошибка: место {args.placeId} показывает {place_code}, а не {args.bannerType}. "
+            "Передай placeId места нужного типа или не передавай bannerType."
+        )
+
     code: str | None = args.bannerType
     if code is None and previous is not None:
         # Правка: тип у баннера уже есть.
         code = banner_types.get(previous.get("bannerTypeId"), {}).get("code")
-    if code is None and args.placeId is not None:
-        place = (await ctx.places()).get(args.placeId) if isinstance(args.placeId, int) else None
-        code = place.get("defaultBanner") if place else None
+    if code is None:
+        code = place_code
     if code is None:
         return "Ошибка: не знаю тип баннера. Передай placeId места с defaultBanner или bannerType."
     banner_type = by_code[code]

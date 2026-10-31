@@ -686,3 +686,24 @@ def test_story_always_gets_promo_screen(client, chat):
     conf = next(data for kind, data in reply if kind == "confirmation_required")
     kinds = [op["kind"] for op in conf["operations"]]
     assert kinds.count("create_content") == 1 and kinds.count("create_creative") == 2
+
+
+@pytest.mark.parametrize(
+    ("args", "error"),
+    [
+        # У кампании 101 только смарт-баннер на главном (место 2): сторис-слот 1 не выбирали.
+        ({"placeId": 1}, "места 1 нет в кампании"),
+        ({"placeId": 2, "bannerType": "STORY"}, "показывает SMART_BANNER, а не STORY"),
+    ],
+)
+def test_creative_only_for_chosen_places(client, chat, args, error):
+    model = chat(
+        [
+            tool_message(call("design_creative", {"brief": "Вклад 16%", **args}, 1)),
+            AIMessage(content="Поправлю."),
+        ]
+    )
+    sid = client.post("/chat", json={"campaignId": 101}, headers=MANAGER).json()["sessionId"]
+    events(client.post(f"/chat/{sid}/messages", json={"text": "Сделай креатив"}, headers=MANAGER))
+    result = _text_of(next(m for m in reversed(model.seen[-1]) if isinstance(m, ToolMessage)))
+    assert error in result
