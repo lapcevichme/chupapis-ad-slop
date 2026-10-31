@@ -4,7 +4,12 @@ import { USERS } from '@/api/currentUser'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/features/campaign/ThemeToggle'
 import { Avatar } from '@/features/campaign/UserMenu'
-import photo from './entry-photo.webp'
+import { Orb } from '@/features/voice/Orb'
+
+// Размер буфера, а не вёрстки: на телефоне сфера маленькая, и большой шейдер ей не нужен.
+const ORB_SIZE = { phone: 260, desktop: 640 }
+const TYPING_LEVEL = 0.5
+const TYPING_DECAY_MS = 700
 
 interface EntryPageProps {
   onEnter: (login: string, brief?: string) => void
@@ -14,8 +19,16 @@ interface EntryPageProps {
 export function EntryPage({ onEnter }: EntryPageProps) {
   const [brief, setBrief] = useState('')
   const [missing, setMissing] = useState(false)
+  const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'))
+  const [orbSize] = useState(() => (matchMedia('(max-width: 900px)').matches ? ORB_SIZE.phone : ORB_SIZE.desktop))
   const field = useRef<HTMLTextAreaElement>(null)
+  const lastInput = useRef(-Infinity)
   const manager = USERS.find((user) => user.role === 'campaignManager') ?? USERS[0]
+
+  // Сфера откликается на ввод брифа так же, как в голосовом режиме на речь.
+  function typingLevel() {
+    return Math.max(0, TYPING_LEVEL * (1 - (performance.now() - lastInput.current) / TYPING_DECAY_MS))
+  }
 
   function submit(event?: FormEvent) {
     event?.preventDefault()
@@ -39,7 +52,7 @@ export function EntryPage({ onEnter }: EntryPageProps) {
     <div className="entry-page">
       <header className="entry-header">
         <div className="pilot-brand entry-brand">adpilot<span>.</span></div>
-        <ThemeToggle />
+        <ThemeToggle onChange={setDark} />
       </header>
       <main className="entry-main animate-stagger">
         <h1>От брифа<br />до модерации</h1>
@@ -66,6 +79,7 @@ export function EntryPage({ onEnter }: EntryPageProps) {
               onChange={(event) => {
                 setBrief(event.target.value)
                 setMissing(false)
+                lastInput.current = performance.now()
               }}
               onKeyDown={handleKeyDown}
             />
@@ -75,9 +89,9 @@ export function EntryPage({ onEnter }: EntryPageProps) {
           <p className="entry-note">Демо-стенд: данные синтетические, реальных показов нет.</p>
         </div>
       </main>
-      <figure className="entry-photo">
-        <img src={photo} alt="" width={1024} height={1536} fetchPriority="high" />
-      </figure>
+      <div className="entry-orb">
+        <Orb key={String(dark)} mode="idle" dark={dark} compact={false} size={orbSize} getLevel={typingLevel} />
+      </div>
     </div>
   )
 }

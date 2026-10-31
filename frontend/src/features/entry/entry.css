@@ -1,10 +1,10 @@
 /* Страница входа: docs/DESIGN.md, раздел «Вход». */
-.entry-page{min-height:100dvh;display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto minmax(0,1fr);column-gap:24px;padding:24px;background:var(--background);color:var(--foreground)}
+.entry-page{min-height:100dvh;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);column-gap:24px;padding:24px;background:var(--background);color:var(--foreground)}
 
-.entry-header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:8px 16px}
+.entry-header{position:relative;z-index:1;grid-column:1/-1;grid-row:1;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:8px 16px}
 .entry-brand{padding:0}
 
-.entry-main{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px 16px 24px;text-align:center}
+.entry-main{grid-column:1;grid-row:2;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px 16px 24px;text-align:center}
 .entry-main h1{margin:0;font:400 clamp(44px,min(5.2vw,8.4vh),80px)/1.14 var(--font-editorial);letter-spacing:-.025em}
 .entry-lead{margin:clamp(12px,2vh,20px) 0 clamp(20px,3.4vh,36px);max-width:30em;font:400 clamp(17px,2.4vh,20px)/1.45 var(--font-editorial);color:var(--muted-foreground);text-wrap:balance}
 
@@ -19,16 +19,13 @@
 .entry-hint{margin:-4px 0 0;font-size:13px;line-height:18px;color:var(--error-foreground);text-align:left}
 .entry-note{margin:4px 0 0;font-size:12px;line-height:18px;color:var(--muted-foreground);text-wrap:balance}
 
-/* Высота задаёт ширину снимка: кадр 2:3 не обрезается и не растягивается на широких экранах. */
-.entry-photo{position:sticky;top:24px;align-self:start;grid-column:2;grid-row:1/3;height:calc(100dvh - 48px);aspect-ratio:2/3;max-width:46vw;margin:0;overflow:hidden;border-radius:24px;background:#d9cfc0;animation:fade .5s ease-out backwards}
-.entry-photo img{display:block;width:100%;height:100%;object-fit:cover;object-position:50% 45%}
-.dark .entry-photo img{filter:brightness(.86)}
+/* Сфера занимает 80% холста, поэтому холст может быть шире колонки текста без ощущения тесноты. */
+.entry-orb{position:sticky;top:24px;align-self:center;justify-self:center;grid-column:2;grid-row:1/3;width:min(100%,calc(100dvh - 48px),800px);aspect-ratio:1;animation:fade .5s ease-out backwards}
 
 @media (max-width:900px){
   .entry-page{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto 1fr;column-gap:0;padding:12px 16px 24px}
   .entry-header{padding:0 0 12px}
-  .entry-photo{position:static;align-self:auto;grid-column:1;grid-row:2;width:100%;height:clamp(120px,19dvh,240px);max-width:none;aspect-ratio:auto;border-radius:18px}
-  .entry-photo img{object-position:50% 38%}
+  .entry-orb{position:static;grid-column:1;grid-row:2;width:auto;height:clamp(130px,21dvh,260px)}
   .entry-main{grid-row:3;padding:20px 0 0}
   .entry-main h1{font-size:clamp(36px,10.5vw,56px)}
   .entry-lead{margin:10px 0 18px;font-size:16px}
