@@ -29,8 +29,23 @@ export function splitSentences(text: string): string[] {
   return result.filter((sentence) => /[\p{L}\p{N}]/u.test(sentence))
 }
 
+function hours(value: number): string {
+  if (value % 10 === 1 && value !== 11) return `${value} час`
+  if (value % 10 >= 2 && value % 10 <= 4 && (value < 12 || value > 14)) return `${value} часа`
+  return `${value} часов`
+}
+
+// Голос спотыкается на латинице и двоеточии: «09:00 UTC» слышно как «ноль девять ноль». Часовой пояс остаётся на экране.
+function forSpeech(text: string): string {
+  return text
+    .replace(/\s*(?:по\s+)?\(?\bUTC\b\)?/g, '')
+    .replace(/(^|[^\d:.])(\d{1,2}):(\d\d)(?![\d:])/g, (_, before: string, hour: string, minute: string) =>
+      `${before}${minute === '00' ? hours(Number(hour)) : `${Number(hour)} ${minute}`}`,
+    )
+}
+
 // Вслух только суть: начало ответа и его конец, где обычно стоит вопрос. Остальное человек видит на экране.
-export function spokenText(markdown: string): string {
+function pickSentences(markdown: string): string {
   const sentences = splitSentences(plainText(markdown))
   if (sentences.length === 0) return ''
   // Приветствие вроде «Здравствуйте!» само по себе ничего не сообщает.
@@ -42,4 +57,8 @@ export function spokenText(markdown: string): string {
   if (first.length <= MAX_SPOKEN_CHARS) return first
   const cut = first.slice(0, MAX_SPOKEN_CHARS)
   return `${cut.slice(0, cut.lastIndexOf(' '))}…`
+}
+
+export function spokenText(markdown: string): string {
+  return forSpeech(pickSentences(markdown))
 }
