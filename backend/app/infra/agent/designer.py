@@ -1,5 +1,6 @@
 import json
 import math
+from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any, Callable, Literal
 
@@ -56,6 +57,105 @@ class DesignResult(BaseModel):
     )
 
 
+class EditChange(BaseModel):
+    op: Literal["set", "remove", "insert"] = Field(description="set — заменить или добавить значение, remove — убрать, insert — вставить элемент в список")
+    path: str = Field(
+        description='Путь в документе {"banner": ..., "content": ...} через «/»: "/banner/titleStyle/textColor", '
+        '"/content/component/components/1/text". Для insert последний шаг — индекс или «-» (в конец списка)'
+    )
+    value: Any = Field(None, description="Новое значение для set и insert")
+
+
+class DesignEdit(BaseModel):
+    """Точечная правка готового креатива: меняется только то, о чём просил пользователь."""
+
+    changes: list[EditChange] = Field(min_length=1, description="Изменения по порядку")
+    summary: str = Field(description="Что изменено, одной фразой по-русски")
+    bannerName: str | None = Field(None, description="Новое служебное название баннера, если оно больше не подходит")
+    imagePrompt: str | None = Field(None, description="Промпт новой картинки баннера, если needImagePrompt")
+    contentImagePrompt: str | None = Field(None, description="Промпт новой картинки промо-экрана, если needContentImagePrompt")
+
+
+class PatchError(Exception):
+    pass
+
+
+def apply_changes(document: dict[str, Any], changes: list[dict[str, Any]]) -> dict[str, Any]:
+    """Применяет правки дизайнера к копии документа {"banner", "content"}; кривой путь — PatchError с объяснением."""
+    doc = deepcopy(document)
+    for change in changes:
+        path, op = change.get("path", ""), change.get("op")
+        parts = [p.replace("~1", "/").replace("~0", "~") for p in path.strip("/").split("/")]
+        if len(parts) < 2 or doc.get(parts[0]) is None:
+            raise PatchError(f"{path}: путь должен начинаться с /banner/ или /content/ существующего документа")
+        if parts[:2] == ["banner", "image"]:
+            raise PatchError(f"{path}: картинку баннера подставляет система, её не трогай")
+        node: Any = doc
+        for part in parts[:-1]:
+            if isinstance(node, list):
+                node = node[_index(path, part, node)]
+            elif isinstance(node, dict):
+                if part not in node or node[part] is None:
+                    if op != "set":
+                        raise PatchError(f"{path}: такого поля нет")
+                    node[part] = {}
+                node = node[part]
+            else:
+                raise PatchError(f"{path}: {part} не объект и не список")
+        last = parts[-1]
+        if isinstance(node, list):
+            if op == "insert":
+                node.insert(len(node) if last == "-" else _index(path, last, node, allow_end=True), change.get("value"))
+            elif op == "set":
+                node[_index(path, last, node)] = change.get("value")
+            else:
+                node.pop(_index(path, last, node))
+        elif isinstance(node, dict):
+            if op == "remove":
+                if last not in node:
+                    raise PatchError(f"{path}: такого поля нет")
+                del node[last]
+            else:
+                node[last] = change.get("value")
+        else:
+            raise PatchError(f"{path}: родитель не объект и не список")
+    return doc
+
+
+def _index(path: str, part: str, items: list, allow_end: bool = False) -> int:
+    limit = len(items) + (1 if allow_end else 0)
+    if not part.isdigit() or int(part) >= limit:
+        raise PatchError(f"{path}: индекс {part} вне списка из {len(items)} элементов")
+    return int(part)
+
+
+def _style(image_style: str, target: Literal["banner", "content"]) -> Literal["illustration", "pattern"]:
+    if image_style == "mixed":
+        return "pattern" if target == "banner" else "illustration"
+    return image_style  # type: ignore[return-value]
+
+
+@dataclass
+class EditRequest:
+    instruction: str
+    banner_type: dict[str, Any]
+    banner_name: str
+    banner: dict[str, Any]
+    # Промо-экран баннера, если он есть: его тоже можно править.
+    content: dict[str, Any] | None = None
+    generate_image: bool = False
+    image_url: str | None = None
+    image_style: Literal["illustration", "pattern", "mixed"] = "illustration"
+
+    @property
+    def brief(self) -> str:
+        # Тема для фона-паттерна: о чём баннер и что просили поменять.
+        return " ".join(filter(None, [self.banner.get("title"), self.banner.get("text"), self.instruction]))
+
+    def style_for(self, target: Literal["banner", "content"]) -> Literal["illustration", "pattern"]:
+        return _style(self.image_style, target)
+
+
 @dataclass
 class DesignRequest:
     brief: str
@@ -76,9 +176,7 @@ class DesignRequest:
         return self.generate_image and wanted
 
     def style_for(self, target: Literal["banner", "content"]) -> Literal["illustration", "pattern"]:
-        if self.image_style == "mixed":
-            return "pattern" if target == "banner" else "illustration"
-        return self.image_style
+        return _style(self.image_style, target)
 
     @property
     def previous_image(self) -> str | None:
@@ -97,6 +195,8 @@ class DesignOutcome:
     content: dict[str, Any] | None
     notes: list[str] = field(default_factory=list)
     content_image: dict[str, Any] | None = None
+    # Что поменяла точечная правка, словами дизайнера.
+    summary: str | None = None
 
 
 class DesignError(Exception):
@@ -159,6 +259,7 @@ class Designer:
     ):
         # Без принудительного tool_choice: часть моделей (в том числе Claude 5.5) его не поддерживает.
         self.model = model.bind_tools([DesignResult])
+        self.editor = model.bind_tools([DesignEdit])
         self.images = images
         self.patterns = patterns
         self.cache_enabled = cache_enabled
@@ -223,6 +324,80 @@ class Designer:
                 ),
             ]
         raise DesignError("Не удалось собрать валидный JSON: " + "; ".join(problems))
+
+    async def edit(self, request: EditRequest, progress: Callable[[str], None] = lambda _: None) -> DesignOutcome:
+        """Правит готовый креатив точечно: модель возвращает список изменений, а не новый JSON целиком."""
+        t = request.banner_type
+        banner = {k: v for k, v in request.banner.items() if k != "image"}
+        illustration = request.generate_image and request.style_for("banner") == "illustration"
+        content_illustration = request.generate_image and request.content is not None and request.style_for("content") == "illustration"
+        task = {
+            "instruction": request.instruction,
+            "bannerType": t["code"],
+            "titleMaxLength": t["titleMaxLength"],
+            "textMaxLength": t["textMaxLength"],
+            "bannerName": request.banner_name,
+            "document": {"banner": banner, "content": request.content},
+            "needImagePrompt": illustration,
+            "imageSize": IMAGE_SIZES.get(t["code"]) if illustration else None,
+            "needContentImagePrompt": content_illustration,
+            "contentImageSize": CONTENT_IMAGE_SIZE if content_illustration else None,
+        }
+        messages: list[BaseMessage] = [SystemMessage(load_prompt("design_edit")), HumanMessage(json.dumps(task, ensure_ascii=False))]
+        problems: list[str] = []
+        for attempt in range(1, MAX_ATTEMPTS + 1):
+            progress(f"Дизайнер правит креатив, попытка {attempt}")
+            response: AIMessage = await self.editor.ainvoke(with_cache_breakpoints(messages, stable=1, enabled=self.cache_enabled))
+            call = next((c for c in response.tool_calls if c["name"] == "DesignEdit"), None)
+            if call is None:
+                problems = ["модель ответила текстом вместо вызова DesignEdit"]
+                messages += [response, HumanMessage("Верни правку только вызовом инструмента DesignEdit.")]
+                continue
+            args = call["args"]
+            try:
+                edited = apply_changes({"banner": banner, "content": request.content}, args.get("changes") or [])
+                name = args.get("bannerName") or request.banner_name
+                problems = _validate(
+                    {**edited, "bannerName": name}, t, request.content is not None, media_base_url=self.media_base_url
+                )
+            except PatchError as exc:
+                problems = [str(exc)]
+            if not problems:
+                return await self._finish_edit(args, edited, name, request, progress)
+            messages += [
+                response,
+                ToolMessage(tool_call_id=call["id"], content="Правка не применилась, исправь и верни все изменения заново:\n" + "\n".join(problems)),
+            ]
+        raise DesignError("Не удалось применить правку: " + "; ".join(problems))
+
+    async def _finish_edit(self, args: dict[str, Any], edited: dict[str, Any], name: str, request: EditRequest, progress) -> DesignOutcome:
+        code = request.banner_type["code"]
+        banner = BannerContent.model_validate(edited["banner"]).model_dump(mode="json", exclude_none=True)
+        content = None
+        if request.content is not None:
+            content = PromoContent.model_validate(edited["content"]).model_dump(mode="json", exclude_none=True)
+        notes: list[str] = []
+        banner_url = (request.banner.get("image") or {}).get("url")
+        content_image = None
+        if request.image_url:
+            banner_url = request.image_url
+            content_image = {"url": request.image_url, "aspectRatio": USER_IMAGE_ASPECT}
+        elif request.generate_image:
+            progress("Генерирую картинки" if content is not None else "Генерирую картинку")
+            banner_url = await self._picture(request, banner, args.get("imagePrompt"), IMAGE_SIZES[code], PATTERN_KINDS[code], request.style_for("banner"), "Картинка баннера", notes) or banner_url
+            if content is not None:
+                url = await self._picture(request, banner, args.get("contentImagePrompt"), CONTENT_IMAGE_SIZE, "WIDE", request.style_for("content"), "Картинка промо-экрана", notes)
+                if url:
+                    content_image = {"url": url, "aspectRatio": CONTENT_IMAGE_ASPECT}
+        elif banner_url and banner_url.endswith(".svg") and _colors(banner) != _colors(request.banner):
+            # Паттерн нарисован тон в тон с фоном: после смены цветов старый фон выбивается, а новый стоит копейки.
+            progress("Перекрашиваю фон баннера")
+            banner_url = await self._pattern(request, banner, PATTERN_KINDS[code], IMAGE_SIZES[code]) or banner_url
+        if banner_url:
+            banner["image"] = {"url": banner_url}
+        if content is not None and content_image:
+            set_content_image(content, content_image)
+        return DesignOutcome(name[:100], banner, None, content, notes, content_image, args.get("summary"))
 
     async def _picture(
         self,
@@ -331,6 +506,19 @@ class Designer:
         return DesignOutcome(
             args["bannerName"][:100], banner, content_name, content, notes, content_image
         )
+
+
+def _colors(banner: dict[str, Any]) -> tuple[Any, Any]:
+    return (banner.get("background") or {}).get("color"), (banner.get("titleStyle") or {}).get("textColor")
+
+
+def set_content_image(content: dict[str, Any], image: dict[str, Any]) -> None:
+    """Заменяет картинку промо-экрана или ставит её первой, если картинки ещё нет."""
+    existing = next((c for c in content["component"]["components"] if c["role"] == "image"), None)
+    if existing is not None:
+        existing.update(image)
+    else:
+        insert_content_image(content, image)
 
 
 def insert_content_image(content: dict[str, Any], image: dict[str, Any]) -> None:

@@ -2,7 +2,7 @@ import json
 from typing import Any
 
 from app.core.config import BACKEND_DIR
-from app.infra.agent.designer import DesignResult
+from app.infra.agent.designer import DesignEdit, DesignResult
 from app.infra.agent.tools import tool_schemas
 
 TARGET = BACKEND_DIR.parent / "docs" / "tools.json"
@@ -15,11 +15,12 @@ def export() -> dict[str, Any]:
             {
                 "type": "function",
                 "function": {
-                    "name": "DesignResult",
-                    "description": DesignResult.__doc__,
-                    "parameters": DesignResult.model_json_schema(),
+                    "name": model.__name__,
+                    "description": model.__doc__,
+                    "parameters": model.model_json_schema(),
                 },
             }
+            for model in (DesignResult, DesignEdit)
         ],
     }
 

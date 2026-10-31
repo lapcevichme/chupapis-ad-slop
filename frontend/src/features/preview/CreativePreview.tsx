@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import type { Banner, BannerType, Content } from '@/types/api'
 import { BannerPreview } from './BannerPreview'
 import { PromoPreview } from './PromoPreview'
+import { SMART_BANNER_SIZES, type SmartBannerSize } from './smartBannerSizes'
 
 type View = 'banner' | 'content'
 
@@ -77,6 +78,7 @@ function LengthCounter({ label, value, max }: { label: string; value?: string | 
 
 export function CreativePreview({ banner, bannerType, content, status }: CreativePreviewProps) {
   const [requestedView, setRequestedView] = useState<View>('banner')
+  const [size, setSize] = useState<SmartBannerSize>('card')
   const view = content ? requestedView : 'banner'
   const { title, text, actionType, link } = banner.content
   const linkText = link?.iOS ?? link?.android ?? link?.web
@@ -91,6 +93,23 @@ export function CreativePreview({ banner, bannerType, content, status }: Creativ
           Промо-экран
         </ViewTab>
       </div>
+
+      {bannerType.code === 'SMART_BANNER' && view === 'banner' && (
+        <div className="flex w-full gap-1" role="group" aria-label="Экран приложения">
+          {SMART_BANNER_SIZES.map((option) => (
+            <Button
+              key={option.value}
+              size="sm"
+              variant={size === option.value ? 'secondary' : 'ghost'}
+              aria-pressed={size === option.value}
+              className="flex-1"
+              onClick={() => setSize(option.value)}
+            >
+              {option.label}
+            </Button>
+          ))}
+        </div>
+      )}
 
       {status && (
         <p role="status" className="m-0 flex items-center gap-2 text-[13px] leading-[18px] text-muted-foreground">
@@ -107,6 +126,7 @@ export function CreativePreview({ banner, bannerType, content, status }: Creativ
             <BannerPreview
               content={banner.content}
               type={bannerType.code}
+              size={size}
               onOpen={content ? () => setRequestedView('content') : undefined}
             />
           )}

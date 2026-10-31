@@ -2928,8 +2928,14 @@
                 }
               ],
               "default": null,
-              "description": "Правка: id баннера, который нужно переделать, вместо создания нового",
+              "description": "Правка готового баннера по id вместо создания нового: дизайнер точечно меняет то, что просили в brief (тексты, цвета, кнопку, промо-экран), остальное сохраняет",
               "title": "Replacebannerid"
+            },
+            "redesign": {
+              "default": false,
+              "description": "Правка: собрать баннер заново с нуля. Только если пользователь просит новый дизайн целиком",
+              "title": "Redesign",
+              "type": "boolean"
             },
             "promoImageOnly": {
               "default": false,
@@ -3623,6 +3629,109 @@
             "banner"
           ],
           "title": "DesignResult",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "DesignEdit",
+        "description": "Точечная правка готового креатива: меняется только то, о чём просил пользователь.",
+        "parameters": {
+          "$defs": {
+            "EditChange": {
+              "properties": {
+                "op": {
+                  "description": "set — заменить или добавить значение, remove — убрать, insert — вставить элемент в список",
+                  "enum": [
+                    "set",
+                    "remove",
+                    "insert"
+                  ],
+                  "title": "Op",
+                  "type": "string"
+                },
+                "path": {
+                  "description": "Путь в документе {\"banner\": ..., \"content\": ...} через «/»: \"/banner/titleStyle/textColor\", \"/content/component/components/1/text\". Для insert последний шаг — индекс или «-» (в конец списка)",
+                  "title": "Path",
+                  "type": "string"
+                },
+                "value": {
+                  "default": null,
+                  "description": "Новое значение для set и insert",
+                  "title": "Value"
+                }
+              },
+              "required": [
+                "op",
+                "path"
+              ],
+              "title": "EditChange",
+              "type": "object"
+            }
+          },
+          "description": "Точечная правка готового креатива: меняется только то, о чём просил пользователь.",
+          "properties": {
+            "changes": {
+              "description": "Изменения по порядку",
+              "items": {
+                "$ref": "#/$defs/EditChange"
+              },
+              "minItems": 1,
+              "title": "Changes",
+              "type": "array"
+            },
+            "summary": {
+              "description": "Что изменено, одной фразой по-русски",
+              "title": "Summary",
+              "type": "string"
+            },
+            "bannerName": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Новое служебное название баннера, если оно больше не подходит",
+              "title": "Bannername"
+            },
+            "imagePrompt": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Промпт новой картинки баннера, если needImagePrompt",
+              "title": "Imageprompt"
+            },
+            "contentImagePrompt": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Промпт новой картинки промо-экрана, если needContentImagePrompt",
+              "title": "Contentimageprompt"
+            }
+          },
+          "required": [
+            "changes",
+            "summary"
+          ],
+          "title": "DesignEdit",
           "type": "object"
         }
       }
