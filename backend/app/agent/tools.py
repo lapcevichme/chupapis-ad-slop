@@ -7,7 +7,7 @@ from typing import Any, Callable, Literal
 from pydantic import BaseModel, Field, ValidationError
 
 from app.agent.api_client import ApiCallError, CampaignsApi
-from app.agent.designer import Designer, DesignError, DesignRequest
+from app.agent.designer import Designer, DesignError, DesignRequest, image_aspect_ratio
 from app.agent.operations import (
     WRITE_OPS,
     WRITE_OPS_BY_KIND,
@@ -242,7 +242,7 @@ async def _design(ctx: ToolContext, args: DesignArgs, progress: Callable[[str], 
         for op in ctx.pending:
             components = op["body"]["content"]["component"]["components"] if op["kind"] == "create_content" and op["ref"] in linked else None
             if image and components is not None and len(components) < 6 and not any(c["role"] == "image" for c in components):
-                components.insert(0, {"role": "image", "url": image["url"], "aspectRatio": 1.5})
+                components.insert(0, {"role": "image", "url": image["url"], "aspectRatio": image_aspect_ratio(code)})
         ctx.draft_changed = True
         lines.append(f"Операция {pending_banner['ref']} в пакете обновлена, дублей нет.")
     elif previous:

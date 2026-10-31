@@ -18,8 +18,14 @@ from app.domain.creatives import validate_banner_json, validate_content_json
 from app.schemas.creative_json import BannerContent, PromoContent
 
 MAX_ATTEMPTS = 3
-# Сторис занимает экран целиком, смарт-баннер — горизонтальная плашка.
-IMAGE_SIZES = {"STORY": "1024x1536", "SMART_BANNER": "1536x1024"}
+# Сторис: картинка — фон всего экрана, текст поверх. Смарт-баннер: картинка — квадратная иконка в карточке.
+IMAGE_SIZES = {"STORY": "1024x1536", "SMART_BANNER": "1024x1024"}
+
+
+def image_aspect_ratio(type_code: str) -> float:
+    """aspectRatio картинки на промо-экране (ширина / высота), как у кадра, который сгенерировали."""
+    width, height = map(int, IMAGE_SIZES.get(type_code, "1024x1024").split("x"))
+    return round(width / height, 2)
 
 
 class DesignResult(BaseModel):
@@ -137,5 +143,5 @@ class Designer:
             banner["image"] = {"url": url}
             components = content["component"]["components"] if content else None
             if components is not None and len(components) < 6 and not any(c["role"] == "image" for c in components):
-                components.insert(0, {"role": "image", "url": url, "aspectRatio": 1.5})
+                components.insert(0, {"role": "image", "url": url, "aspectRatio": image_aspect_ratio(request.banner_type["code"])})
         return DesignOutcome(args["bannerName"][:100], banner, (args.get("contentName") or "Промо-экран")[:100] if content else None, content, notes)
