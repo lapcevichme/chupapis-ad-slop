@@ -203,3 +203,20 @@ class AuditEntry(Base):
     at: Mapped[datetime] = mapped_column(DateTime)
     actor: Mapped[str] = mapped_column(String(100))
     comment: Mapped[str | None] = mapped_column(Text)
+
+
+class ChatSession(Base):
+    """Диалог агента: у каждой пары «кампания + логин» он один (docs/ours/chat-api.md §10).
+
+    Само состояние диалога хранит checkpointer LangGraph, здесь только связь. У новой кампании
+    campaign_id пустой, пока она не сохранена в API.
+    """
+
+    __tablename__ = "chat_sessions"
+    __table_args__ = (UniqueConstraint("campaign_id", "user_login"),)
+
+    session_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    user_login: Mapped[str] = mapped_column(String(100))
+    # Без внешнего ключа: кампанию могут удалить, а диалог о ней остаётся.
+    campaign_id: Mapped[int | None] = mapped_column(Integer, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime)

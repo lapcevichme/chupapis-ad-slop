@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-import uuid
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -14,7 +13,8 @@ from langgraph.types import Command
 
 from app.agent.api_client import CampaignsApi
 from app.agent.events import sse
-from app.agent.graph import AgentState, draft_report
+from app.agent.graph import AgentState, draft_report, refresh_campaign
+from app.agent.sessions import SessionRegistry
 from app.errors import not_found
 
 KEEP_ALIVE_SECONDS = 15
@@ -52,23 +52,36 @@ def _text(message) -> str:
 
 
 class ChatService:
-    def __init__(self, graph, api_factory):
+    def __init__(self, graph, api_factory, sessions: SessionRegistry | None = None):
         self.graph = graph
         self.api_factory = api_factory
+        self.sessions = sessions or SessionRegistry()
 
     @staticmethod
     def _config(session_id: str, user: str = "", role: str = "") -> dict[str, Any]:
         return {"configurable": {"thread_id": session_id, "user": user, "role": role}, "recursion_limit": 60}
 
     async def create_session(self, campaign_id: int | None, user: str, role: str) -> str:
+        """У пары «кампания + логин» один диалог: повторный вызов возвращает существующий."""
         base = None
         if campaign_id is not None:
             async with self.api_factory(user, role) as client:
                 base = await client.get(f"/campaigns/{campaign_id}")
-        session_id = uuid.uuid4().hex
+            existing = await self.sessions.find(campaign_id, user)
+            if existing is not None:
+                snapshot = await self.graph.aget_state(self._config(existing))
+                if snapshot.values and "pending" in snapshot.values:
+                    return existing
+                # Связь есть, а состояние диалога потеряно (например, удалили checkpoints.db): начинаем заново под тем же id.
+                await self._init_state(existing, campaign_id, base)
+                return existing
+        session_id = await self.sessions.create(campaign_id, user)
+        await self._init_state(session_id, campaign_id, base)
+        return session_id
+
+    async def _init_state(self, session_id: str, campaign_id: int | None, base: dict[str, Any] | None) -> None:
         values: AgentState = {"messages": [], "campaign_id": campaign_id, "base": base, "pending": [], "id_map": {}, "counter": 0, "awaiting": None}
         await self.graph.aupdate_state(self._config(session_id), values, as_node="__start__")
-        return session_id
 
     async def _state(self, session_id: str):
         snapshot = await self.graph.aget_state(self._config(session_id))
@@ -91,6 +104,8 @@ class ChatService:
             elif isinstance(message, AIMessage) and text:
                 messages.append({"role": "assistant", "text": text})
         async with self.api_factory(user, role) as client:
+            # Кампанию могли изменить из другого диалога (решение модератора), поэтому берём её из API.
+            values = values | await refresh_campaign(client, values.get("campaign_id"))
             draft, validation = await draft_report(client, values)
         return {
             "campaignId": values.get("campaign_id"),
@@ -122,6 +137,10 @@ class ChatService:
         await self._state(session_id)
         return self._stream(session_id, None, user, role)
 
+    async def _bind_campaign(self, session_id: str) -> None:
+        snapshot = await self.graph.aget_state(self._config(session_id))
+        await self.sessions.bind(session_id, (snapshot.values or {}).get("campaign_id"))
+
     async def _stream(self, session_id: str, payload: Any, user: str, role: str) -> AsyncIterator[str]:
         queue: asyncio.Queue[str | None] = asyncio.Queue()
         config = self._config(session_id, user, role)
@@ -145,6 +164,11 @@ class ChatService:
                 code, message = describe_failure(exc)
                 await queue.put(sse("error", {"code": code, "message": message}))
             finally:
+                # Привязываем и после сбоя: кампания могла сохраниться до того, как упал следующий шаг.
+                try:
+                    await self._bind_campaign(session_id)
+                except Exception:
+                    logger.exception("Не удалось привязать сессию %s к кампании", session_id)
                 await queue.put(None)
 
         task = asyncio.create_task(produce())

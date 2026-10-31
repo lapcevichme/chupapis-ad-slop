@@ -218,3 +218,38 @@ def test_model_failure_is_human_readable(client, chat):
     error = next(data for kind, data in events(client.post(f"/chat/{sid}/messages", json={"text": "Привет"}, headers=MANAGER)) if kind == "error")
     assert error["code"] == "LLM_UNAVAILABLE"
     assert "500" not in error["message"] and "Повторить" in error["message"]
+
+
+def test_one_session_per_campaign_and_user(client, chat):
+    chat([])
+    manager = client.post("/chat", json={"campaignId": 103}, headers=MANAGER).json()["sessionId"]
+    assert client.post("/chat", json={"campaignId": 103}, headers=MANAGER).json()["sessionId"] == manager
+    moderator = client.post("/chat", json={"campaignId": 103}, headers=MODERATOR).json()["sessionId"]
+    assert moderator != manager
+    # Диалог без кампании каждый раз новый.
+    assert client.post("/chat", json={}, headers=MANAGER).json()["sessionId"] != client.post("/chat", json={}, headers=MANAGER).json()["sessionId"]
+
+
+def test_new_campaign_session_is_bound_after_save(client, chat):
+    chat(
+        [
+            tool_message(call("propose_create_campaign", {"campaign": CAMPAIGN}, 1), call("request_confirmation", {"title": "Создать"}, 2)),
+            AIMessage(content="Создано."),
+        ]
+    )
+    sid = client.post("/chat", json={}, headers=MANAGER).json()["sessionId"]
+    conf = next(d for k, d in events(client.post(f"/chat/{sid}/messages", json={"text": "Создай"}, headers=MANAGER)) if k == "confirmation_required")
+    second = events(client.post(f"/chat/{sid}/confirmations/{conf['id']}", json={"approved": True}, headers=MANAGER))
+    campaign_id = next(d for k, d in second if k == "campaign_updated")["campaignId"]
+    assert client.post("/chat", json={"campaignId": campaign_id}, headers=MANAGER).json()["sessionId"] == sid
+
+
+def test_manager_sees_moderator_decision_from_other_chat(client, chat):
+    model = chat([AIMessage(content="Кампания на модерации."), AIMessage(content="Её вернули на правки.")])
+    sid = client.post("/chat", json={"campaignId": 103}, headers=MANAGER).json()["sessionId"]
+    client.post(f"/chat/{sid}/messages", json={"text": "Что с кампанией?"}, headers=MANAGER)
+    assert "состояние ON_MODERATION" in model.seen[-1][0].content
+
+    client.post("/campaigns/103/decline", json={"comment": "Добавьте теги"}, headers=MODERATOR)
+    client.post(f"/chat/{sid}/messages", json={"text": "А сейчас?"}, headers=MANAGER)
+    assert "состояние NEEDS_WORK" in model.seen[-1][0].content

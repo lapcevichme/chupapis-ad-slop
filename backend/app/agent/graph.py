@@ -54,6 +54,18 @@ def actor(config: RunnableConfig) -> tuple[str, str]:
     return configurable.get("user", ""), configurable.get("role", "")
 
 
+async def refresh_campaign(client: CampaignsApi, campaign_id: int | None) -> dict[str, Any]:
+    """Свежая кампания из API. Её меняют и вне этого диалога: модератор решает судьбу в своём чате."""
+    if campaign_id is None:
+        return {}
+    try:
+        return {"base": await client.get(f"/campaigns/{campaign_id}")}
+    except ApiCallError as exc:
+        if exc.status == 404:
+            return {"campaign_id": None, "base": None}
+        raise
+
+
 async def draft_report(client: CampaignsApi, state: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str, Any]]:
     """Черновик для превью и его проверка: у сохранённой кампании без правок — ответ API, иначе локальные правила."""
     pending = state.get("pending") or []
@@ -94,10 +106,14 @@ def _context_note(state: AgentState, config: RunnableConfig) -> str:
 
 def build_graph(deps: AgentDeps, checkpointer):
     async def agent_node(state: AgentState, config: RunnableConfig):
+        user, role = actor(config)
+        async with deps.api_factory(user, role) as client:
+            fresh = await refresh_campaign(client, state.get("campaign_id"))
+        state = {**state, **fresh}
         model = deps.chat_model.bind_tools(tool_schemas())
         prompt = SystemMessage(load_prompt("chat") + _context_note(state, config))
         response = await model.ainvoke([prompt, *state["messages"]], config)
-        return {"messages": [response]}
+        return {"messages": [response], **fresh}
 
     async def tools_node(state: AgentState, config: RunnableConfig):
         writer = get_stream_writer()
