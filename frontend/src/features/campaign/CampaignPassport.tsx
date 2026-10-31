@@ -116,8 +116,8 @@ export function CampaignPassport({ campaign, dictionaries, selectedBannerId, onS
         <div className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3.5">
           <Field label="Название" value={campaign.name ?? NOT_SET} />
           {campaign.marketingName && <Field label="Маркетинговое название" value={campaign.marketingName} />}
-          <Field label="Начало" value={campaign.startDate ? formatDateTime(campaign.startDate, campaign.startTime) : NOT_SET} />
-          <Field label="Конец" value={campaign.endDate ? formatDateTime(campaign.endDate, campaign.endTime) : 'Бессрочно'} />
+          <Field label="Начало, UTC" value={campaign.startDate ? formatDateTime(campaign.startDate, campaign.startTime) : NOT_SET} />
+          <Field label="Конец, UTC" value={campaign.endDate ? formatDateTime(campaign.endDate, campaign.endTime) : 'Бессрочно'} />
           <Field label="Тема" value={topic?.label ?? campaign.topic ?? NOT_SET} code={campaign.topic ?? undefined} />
           <Field label="Теги" value={tagNames.length > 0 ? tagNames.join(', ') : 'Не заданы'} />
           {campaign.keywords && <Field label="Ключевые слова" value={campaign.keywords.split(';').join(', ')} />}

@@ -141,7 +141,7 @@ export function CampaignWorkspace() {
         <header className="pilot-topbar">
           <button className="mobile-menu" aria-label="Открыть меню кампаний" onClick={() => setNavOpen(true)}><Menu size={21} /></button>
           <div className="workspace-location"><span>Кампании</span><span className="location-divider">/</span><strong>{details?.name ?? (moderator ? 'На проверке' : 'Новая кампания')}</strong></div>
-          <div className="topbar-actions">{saved && <StatusBadge state={saved.state} />}{chat.draft && <span className="unsaved-label">Предложенные изменения</span>}
+          <div className="topbar-actions">{saved && <StatusBadge state={saved.state} />}{chat.confirmation && <span className="unsaved-label">Предложенные изменения</span>}
           {VOICE_ENABLED && role === 'campaignManager' && dictationSupported() && <Button variant="ghost" aria-label="Открыть голосовой режим" onClick={() => {voiceAudio.unlock(); setVoiceOpen(true)}}><AudioLines /><span className="voice-label">Голосом</span></Button>}</div>
         </header>
         <div className="pilot-stage">
