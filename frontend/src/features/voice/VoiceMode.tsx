@@ -2,6 +2,7 @@ import { CircleAlert, LoaderCircle, Mic, Square, Volume2, VolumeX, X } from 'luc
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
+import { TO_MODERATION } from '@/features/campaign/nextStep'
 import type { NextStep } from '@/features/campaign/nextStep'
 import { ChatMarkdown } from '@/features/chat/ChatMarkdown'
 import { ConfirmationCard } from '@/features/chat/ConfirmationCard'
@@ -210,7 +211,8 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview
   const talkLabel = dictation.status === 'starting' ? 'Включаю микрофон' : recording ? 'Закончить' : waiting ? 'Думаю…' : speaking ? 'Перебить' : 'Говорить'
 
   const reply = lastAnswer?.text.trim()
-  const askNext = nextStep && !confirmation && !questionnaire
+  // Остальные шаги в разговоре ведёт агент, а кнопка рядом с его вопросом только сбивает.
+  const askNext = nextStep && !confirmation && !questionnaire && nextStep.actions.some((action) => action.message === TO_MODERATION)
 
   return (
     <div role="dialog" aria-modal="true" aria-label="Голосовой режим" className="fixed inset-0 z-50 overflow-hidden bg-background text-foreground">
@@ -238,10 +240,10 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview
             {onModeration ? (
               <p className="m-0 text-xl leading-7 font-medium text-balance">Решение примет модератор. Это ещё не показ клиентам.</p>
             ) : (
-              settled || speaking ? reply && <div className="text-left text-[15px] leading-6"><ChatMarkdown text={reply} /></div> : null
+              !waiting ? reply && <div className="text-left text-[15px] leading-6"><ChatMarkdown text={reply} /></div> : null
             )}
-            {!messages.length && settled && !onModeration && <p className="m-0 text-xl leading-7 font-medium text-balance">Здравствуйте! Расскажите, что будем рекламировать.</p>}
-            {(speaking || settled) &&
+            {!messages.length && !waiting && !speaking && !onModeration && <p className="m-0 text-xl leading-7 font-medium text-balance">Здравствуйте! Расскажите, что будем рекламировать.</p>}
+            {!waiting &&
               lastAnswer?.warnings.map((warning) => (
                 <p key={warning.message} className="m-0 rounded-md bg-warning px-3 py-2 text-left text-[13px] leading-[18px] text-warning-foreground">
                   {warning.message}

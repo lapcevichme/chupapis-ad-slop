@@ -5,7 +5,7 @@ export interface NextStep {
   actions: { label: string; message: string }[]
 }
 
-const TO_MODERATION = 'Отправь кампанию на модерацию'
+export const TO_MODERATION = 'Отправь кампанию на модерацию'
 const MAKE_CREATIVE = { label: 'Сделать креатив', message: 'Сделай креатив для кампании' }
 
 // Кнопки только формулируют просьбу к агенту: запись всё равно идёт через карточку подтверждения.
