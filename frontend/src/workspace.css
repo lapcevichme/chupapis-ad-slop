@@ -49,6 +49,10 @@
 .chat-composer textarea:focus-visible{outline:none}
 .chat-composer>button{border-radius:50%}
 .chat-composer>button svg{width:20px;height:20px}
+.composer-action{position:relative;overflow:hidden}
+.composer-action>span{position:absolute;inset:0;display:grid;place-items:center;transition:transform .22s cubic-bezier(.16,1,.3,1),opacity .16s,filter .16s}
+.composer-action[data-mode=voice] .action-send{opacity:0;transform:translateY(8px) rotate(35deg) scale(.5);filter:blur(2px)}
+.composer-action[data-mode=send] .action-voice{opacity:0;transform:translateY(-8px) rotate(-35deg) scale(.5);filter:blur(2px)}
 .chat-panel [role=log] h1{font-family:var(--font-editorial);font-weight:400;font-size:38px;line-height:1.25;letter-spacing:-1px}
 .chat-welcome>div>p{font-size:15px;line-height:1.7;max-width:540px}
 .chat-welcome>div:last-child{margin-top:16px}

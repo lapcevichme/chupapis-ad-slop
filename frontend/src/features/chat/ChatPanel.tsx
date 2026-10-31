@@ -127,6 +127,7 @@ export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role
   const asking = last?.role === 'assistant' && last.text.trim().endsWith('?')
   // Модератору без кампании обсуждать с агентом нечего: кампании создаёт менеджер.
   const showQueue = empty && moderator && campaignId === null
+  const voiceAction = !text.trim() && Boolean(onOpenVoiceMode)
 
   useLayoutEffect(() => {
     const field = input.current
@@ -251,15 +252,19 @@ export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role
             className="min-w-0 flex-1 resize-none outline-none placeholder:text-muted-foreground"
           />
           <MicButton status={dictation.status} onToggle={dictation.toggle} />
-          {!text.trim() && onOpenVoiceMode ? (
-            <Button type="button" size="icon" aria-label="Открыть голосовой режим" title="Голосовой режим" disabled={dictation.status !== 'idle'} onClick={onOpenVoiceMode}>
-              <AudioLines aria-hidden="true" />
-            </Button>
-          ) : (
-            <Button type="submit" size="icon" aria-label="Отправить" disabled={busy || !text.trim()}>
-              <ArrowUp aria-hidden="true" />
-            </Button>
-          )}
+          <Button
+            type={voiceAction ? 'button' : 'submit'}
+            size="icon"
+            className="composer-action"
+            data-mode={voiceAction ? 'voice' : 'send'}
+            aria-label={voiceAction ? 'Открыть голосовой режим' : 'Отправить'}
+            title={voiceAction ? 'Голосовой режим' : 'Отправить'}
+            disabled={voiceAction ? dictation.status !== 'idle' : busy || !text.trim()}
+            onClick={voiceAction ? onOpenVoiceMode : undefined}
+          >
+            <span className="action-voice" aria-hidden="true"><AudioLines /></span>
+            <span className="action-send" aria-hidden="true"><ArrowUp /></span>
+          </Button>
         </form>
       )}
     </div>
