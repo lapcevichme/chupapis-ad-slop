@@ -20,14 +20,22 @@ import { VoiceSummary } from './VoiceSummary'
 import { buildPages, discussionMessage, formatAnswers, mergeOptions } from './questionnaire'
 import type { Answers, QuestionPage } from './questionnaire'
 import { spokenText } from './spokenText'
+import { useLiveNarration } from './useLiveNarration'
 import { useLiveVoice } from './useLiveVoice'
 import { voiceAudio } from './voiceAudio'
 
 const MORE_CUE_DELAY_MS = 6000
-const LIVE_CONFIRM_REPORT = 'На экране карточка. Попроси проверить её и нажать кнопку: голосом запись не выполняется.'
-const LIVE_FORM_REPORT = 'На экране вопросы. Попроси ответить на них там.'
+const NO_WARNINGS: { message: string }[] = []
 const LIVE_FAILED_REPORT = 'Бэкенд не ответил, ничего не записано. Предложи повторить.'
-const LIVE_MORE_REPORT = 'Работа ещё идёт. Скажи об этом одной короткой фразой.'
+
+// Состав передаём дословно: без него модель додумывает содержимое карточки.
+function liveCardReport(title: string, operations: string[]) {
+  return `На экране карточка «${title}». В ней только это: ${operations.join('; ')}. Ничего другого о её содержимом не говори. Одной фразой попроси проверить и нажать кнопку на карточке.`
+}
+
+function liveFormReport(topics: string[]) {
+  return `На экране вопросы: ${topics.join(', ')}. Коротко назови эти темы и попроси ответить на экране или нажать «Обсудить голосом».`
+}
 const PILL_ORB_PX = 36
 const PILL_WIDTH_PX = 340
 const PILL_TOP_PX = 12
@@ -128,12 +136,20 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, imageUp
 
   const lastAnswer = messages.findLast((message) => message.role === 'assistant')
   const lastHeard = messages.findLast((message) => message.role === 'user')
+  useLiveNarration({
+    active: live.active,
+    busy,
+    step: lastAnswer?.steps.filter((step) => step.status === 'running').at(-1)?.label,
+    warnings: lastAnswer?.warnings ?? NO_WARNINGS,
+    request: lastHeard ? userMessageSummary(lastHeard.text) : '',
+    report: liveReport,
+  })
   const startedEmpty = useRef(messages.length === 0)
   const waitCuePlayed = useRef(false)
   const wasBusy = useRef(busy)
-  const latest = useRef({ text: lastAnswer?.text ?? '', hasConfirmation: confirmation !== null, hasSuggestions: suggestions.length > 0, failed: error !== null })
+  const latest = useRef({ text: lastAnswer?.text ?? '', hasConfirmation: confirmation !== null, hasSuggestions: suggestions.length > 0, failed: error !== null, cardTitle: confirmation?.title ?? '', cardOperations: confirmation?.operations.map((operation) => operation.label) ?? [], topics: suggestions.map((question) => question.header) })
   useEffect(() => {
-    latest.current = { text: lastAnswer?.text ?? '', hasConfirmation: confirmation !== null, hasSuggestions: suggestions.length > 0, failed: error !== null }
+    latest.current = { text: lastAnswer?.text ?? '', hasConfirmation: confirmation !== null, hasSuggestions: suggestions.length > 0, failed: error !== null, cardTitle: confirmation?.title ?? '', cardOperations: confirmation?.operations.map((operation) => operation.label) ?? [], topics: suggestions.map((question) => question.header) }
   })
 
   useEffect(() => {
@@ -175,16 +191,13 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, imageUp
     wasBusy.current = busy
     // В разговоре с GPT-Live говорит только модель: заготовка и озвучка наложились бы на её голос.
     if (liveActive.current) {
-      if (busy) {
-        const timer = setTimeout(() => liveReport(LIVE_MORE_REPORT, false), MORE_CUE_DELAY_MS)
-        return () => clearTimeout(timer)
-      }
-      const { text, hasConfirmation, hasSuggestions, failed } = latest.current
+      if (busy) return
+      const { text, hasConfirmation, hasSuggestions, failed, cardTitle, cardOperations, topics } = latest.current
       const spoken = spokenText(text)
+      const next = hasConfirmation ? liveCardReport(cardTitle, cardOperations) : hasSuggestions ? liveFormReport(topics) : ''
+      const content = [spoken, next].filter(Boolean).join(' ')
       if (failed) liveReport(LIVE_FAILED_REPORT)
-      else if (hasConfirmation) liveReport(spoken ? `${spoken} ${LIVE_CONFIRM_REPORT}` : LIVE_CONFIRM_REPORT)
-      else if (spoken) liveReport(spoken)
-      else if (hasSuggestions) liveReport(LIVE_FORM_REPORT)
+      else if (content) liveReport(content)
       return
     }
     if (busy) {
@@ -322,6 +335,12 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, imageUp
         <div className="absolute inset-0 flex flex-col items-center gap-3 overflow-y-auto px-4 pt-20 data-[sheet=true]:min-[900px]:right-1/2 data-[sheet=true]:min-[900px]:items-end data-[sheet=true]:min-[900px]:pr-6" data-sheet={sheet !== null}>
           <div className="flex flex-none justify-center">{preview}</div>
           <div className="sticky bottom-0 mt-auto flex w-full max-w-110 shrink-0 flex-col gap-2 bg-background py-3 data-[sheet=true]:min-[900px]:hidden" data-sheet={sheet !== null}>
+            {sheet === null &&
+              lastAnswer?.warnings.map((warning) => (
+                <p key={warning.message} className="m-0 rounded-md bg-warning px-3 py-2 text-left text-[13px] leading-[18px] text-warning-foreground">
+                  {warning.message}
+                </p>
+              ))}
             {askNext && <NextStepBar step={nextStep} onSend={handleText} />}
             <Button variant="secondary" className="w-full" onClick={talk}>
               {live.active && micOpen ? <MicOff aria-hidden="true" /> : <Mic aria-hidden="true" />}
