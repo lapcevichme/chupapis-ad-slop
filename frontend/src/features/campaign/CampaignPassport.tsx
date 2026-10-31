@@ -3,11 +3,10 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import type { CampaignDraft, CampaignValidation, Dictionaries, EntityId } from '@/types/api'
+import type { CampaignDraft, Dictionaries, EntityId } from '@/types/api'
 import { Flash } from './Flash'
 import { AudienceForm, MainForm, PlacesForm, RulesForm } from './PassportForms'
 import type { PassportEdit } from './PassportForms'
-import { ValidationSummary } from './ValidationSummary'
 import { formatCount, formatDateTime } from './format'
 
 const NOT_SET = 'Не задано'
@@ -97,14 +96,13 @@ function SegmentList({ title, codes, dictionaries }: { title: string; codes: str
 
 interface CampaignPassportProps {
   campaign: CampaignDraft
-  validation: CampaignValidation
   dictionaries: Dictionaries
   selectedBannerId?: EntityId
   onSelectBanner: (id: EntityId) => void
   edit?: PassportEdit
 }
 
-export function CampaignPassport({ campaign, validation, dictionaries, selectedBannerId, onSelectBanner, edit }: CampaignPassportProps) {
+export function CampaignPassport({ campaign, dictionaries, selectedBannerId, onSelectBanner, edit }: CampaignPassportProps) {
   const formProps = edit && { campaign, dictionaries, edit }
   const topic = dictionaries.topics.find((item) => item.value === campaign.topic)
   const places = campaign.places ?? []
@@ -207,10 +205,6 @@ export function CampaignPassport({ campaign, validation, dictionaries, selectedB
             <p className="m-0 text-[13px] leading-[18px] text-muted-foreground">Креативов пока нет</p>
           )}
         </Flash>
-      </Section>
-
-      <Section title="Проверка">
-        <ValidationSummary validation={validation} />
       </Section>
     </div>
   )

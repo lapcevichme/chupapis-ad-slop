@@ -1,8 +1,9 @@
 import { Check, Circle, CircleDot, MessageSquareWarning } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { AuditRecord, CampaignState } from '@/types/api'
+import type { AuditRecord, CampaignState, CampaignValidation } from '@/types/api'
 import { Flash } from './Flash'
 import { formatTimestamp, STATE_LABELS } from './format'
+import { ValidationSummary } from './ValidationSummary'
 
 // Основной поток из §2.3 задания. Возвраты и остановка занимают тот же шаг под своей подписью.
 const STEPS: CampaignState[][] = [['DRAFT', 'NEEDS_WORK'], ['ON_MODERATION'], ['APPROVED'], ['ACTIVE', 'ACTIVE_EDITING', 'STOPPED', 'ARCHIVED']]
@@ -58,9 +59,10 @@ function Steps({ state }: { state: CampaignState }) {
 interface CampaignLifecycleProps {
   state: CampaignState
   audit?: AuditRecord[]
+  validation?: CampaignValidation
 }
 
-export function CampaignLifecycle({ state, audit = [] }: CampaignLifecycleProps) {
+export function CampaignLifecycle({ state, audit = [], validation }: CampaignLifecycleProps) {
   // Сервер отдаёт журнал от старых записей к новым, а записи одного пакета могут совпасть по времени.
   // Номер в журнале не меняется при появлении новых записей, поэтому годится как ключ.
   const records = audit
@@ -86,6 +88,11 @@ export function CampaignLifecycle({ state, audit = [] }: CampaignLifecycleProps)
             </span>
           </div>
         </div>
+      )}
+      {validation && (
+        <Flash value={JSON.stringify(validation)}>
+          <ValidationSummary validation={validation} />
+        </Flash>
       )}
       {records.length > 0 && (
         <details>

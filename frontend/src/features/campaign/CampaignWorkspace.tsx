@@ -14,6 +14,7 @@ import { CampaignPassport } from './CampaignPassport'
 import { CampaignPicker } from './CampaignPicker'
 import { managerNextStep } from './nextStep'
 import type { PassportEdit } from './PassportForms'
+import { StartGuide } from './StartGuide'
 import { ThemeToggle } from './ThemeToggle'
 import { UserMenu } from './UserMenu'
 
@@ -66,8 +67,10 @@ export function CampaignWorkspace() {
   const content = details?.contents?.find((item) => item.id === contentId)
   const failed = campaign.isError || warnings.isError || dictionaries.isError
   const role = USERS.find((user) => user.login === login)?.role
-  const nextStep = role === 'campaignManager' && saved && warnings.data ? managerNextStep(saved.state, warnings.data.errors.length > 0, (saved.creatives?.length ?? 0) > 0) : null
+  const nextStep = role === 'campaignManager' && saved && warnings.data ? managerNextStep(saved.state, warnings.data.errors.length, (saved.creatives?.length ?? 0) > 0) : null
   const designStep = chat.messages.at(-1)?.steps.find((step) => step.status === 'running' && DESIGN_STEP.test(step.label))
+  const blank = campaignId === null && !chat.draft && chat.messages.length === 0
+  const moderator = role === 'campaignModerator'
 
   async function applyChange(change: CampaignChange) {
     if (!saved) {
@@ -117,8 +120,8 @@ export function CampaignWorkspace() {
             disabled={chat.busy}
             onSelect={openCampaign}
           />
-          {role !== 'campaignModerator' && (
-            <Button variant="outline" disabled={chat.busy || (campaignId === null && !chat.draft && chat.messages.length === 0)} onClick={() => openCampaign(null)}>
+          {!moderator && !blank && (
+            <Button variant="outline" disabled={chat.busy} onClick={() => openCampaign(null)}>
               <Plus aria-hidden="true" />
               Новая
             </Button>
@@ -159,19 +162,19 @@ export function CampaignWorkspace() {
 
         <div className="flex min-w-0 flex-[1_1_400px] flex-col gap-3 xl:overflow-y-auto">
           {failed && <Message>Не удалось загрузить данные с сервера. Обновите страницу.</Message>}
-          {saved && <CampaignLifecycle key={`lifecycle-${saved.id}`} state={saved.state} audit={audit.data} />}
-          {details && validation && dictionaries.data ? (
+          {/* У несохранённого черновика статуса ещё нет, но готовность уже важна. */}
+          {details && <CampaignLifecycle key={`lifecycle-${saved?.id ?? NEW_CAMPAIGN}`} state={saved?.state ?? 'DRAFT'} audit={saved && audit.data} validation={validation} />}
+          {details && dictionaries.data ? (
             <CampaignPassport
               key={campaignId ?? NEW_CAMPAIGN}
               campaign={details}
-              validation={validation}
               dictionaries={dictionaries.data}
               selectedBannerId={banner?.id}
               onSelectBanner={setRequestedBannerId}
               edit={edit}
             />
           ) : (
-            !failed && !chat.busy && <Message>{role === 'campaignModerator' ? 'Паспорт появится здесь, когда вы откроете кампанию.' : 'Паспорт кампании появится здесь, когда ассистент начнёт её собирать.'}</Message>
+            !failed && !chat.busy && (moderator ? <Message>Паспорт появится здесь, когда вы откроете кампанию.</Message> : blank ? <StartGuide /> : <Message>Паспорт кампании появится здесь, когда ассистент начнёт её собирать.</Message>)
           )}
         </div>
 
@@ -181,7 +184,7 @@ export function CampaignWorkspace() {
           ) : designStep ? (
             <DesignPlaceholder label={designStep.label} />
           ) : (
-            <Message>{campaignId === null && role === 'campaignModerator' ? 'Превью появится здесь, когда вы откроете кампанию.' : 'Креативов пока нет, показывать нечего.'}</Message>
+            <DesignPlaceholder idle label={campaignId === null ? (moderator ? 'Превью появится, когда вы откроете кампанию' : 'Здесь появится превью креатива') : 'Креативов пока нет'} />
           )}
         </section>
       </main>

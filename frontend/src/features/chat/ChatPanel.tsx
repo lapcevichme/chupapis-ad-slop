@@ -13,8 +13,12 @@ import { NextStepBar } from './NextStepBar'
 import { SuggestionButton, Suggestions } from './Suggestions'
 import type { ChatMessage, useChat } from './useChat'
 
-// Бриф из §9 задания: с него начинается демо.
-const EXAMPLE_BRIEF = 'Кампания по вкладу для клиентов 26–45 в Москве и СПб, промо на главном, ставка 16%, с 5 ноября до конца года'
+// Первый бриф из §9 задания: с него начинается демо.
+const EXAMPLE_BRIEFS = [
+  'Кампания по вкладу для клиентов 26–45 в Москве и СПб, промо на главном, ставка 16%, с 5 ноября до конца года',
+  'Смарт-баннер про кэшбэк по карте для всех пользователей на главном экране, с 10 ноября по 10 декабря',
+  'Сторис про страхование путешествий для клиентов из Москвы, с 1 по 31 декабря',
+]
 
 const STICK_THRESHOLD_PX = 48
 
@@ -123,9 +127,19 @@ export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role
       <div ref={log} role="log" aria-label="Сообщения" onScroll={handleScroll} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
         {showQueue && <ModerationQueue campaigns={moderationQueue} onOpen={onOpenCampaign} />}
         {empty && !moderator && campaignId === null && (
-          <div className="flex animate-rise flex-col gap-3">
-            <p className="m-0 text-sm leading-5">Опишите кампанию своими словами: продукт, аудиторию, сроки. Я соберу черновик и покажу его перед сохранением.</p>
-            <SuggestionButton onClick={() => submit(EXAMPLE_BRIEF)}>{EXAMPLE_BRIEF}</SuggestionButton>
+          <div className="my-auto flex animate-rise flex-col gap-4">
+            <div className="flex flex-col gap-1">
+              <h1 className="m-0 text-xl leading-7 font-semibold">Опишите кампанию своими словами</h1>
+              <p className="m-0 text-sm leading-5 text-muted-foreground">Продукт, аудитория, сроки. Я соберу черновик и покажу его перед сохранением.</p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <span className="text-xs leading-4 text-muted-foreground">Например</span>
+              {EXAMPLE_BRIEFS.map((brief) => (
+                <SuggestionButton key={brief} onClick={() => submit(brief)}>
+                  {brief}
+                </SuggestionButton>
+              ))}
+            </div>
           </div>
         )}
         {empty && !moderator && campaignId !== null && (
@@ -202,7 +216,8 @@ export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role
             onKeyDown={handleKeyDown}
             className="min-h-11 min-w-0 flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm leading-5 outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
           />
-          <Button type="submit" size="icon" aria-label="Отправить" disabled={busy || !text.trim()}>
+          {/* Пустая кнопка не зелёная: зелёным на экране выделено одно главное действие. */}
+          <Button type="submit" size="icon" variant={text.trim() ? 'default' : 'secondary'} aria-label="Отправить" disabled={busy || !text.trim()}>
             <SendHorizontal aria-hidden="true" />
           </Button>
         </form>

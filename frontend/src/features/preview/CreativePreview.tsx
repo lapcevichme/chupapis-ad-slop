@@ -26,22 +26,37 @@ function PhoneFrame({ children }: { children: ReactNode }) {
   )
 }
 
-export function DesignPlaceholder({ label }: { label: string }) {
+// idle: креатива пока нет и никто его не собирает, поэтому заглушка стоит на месте.
+export function DesignPlaceholder({ label, idle = false }: { label: string; idle?: boolean }) {
   return (
     <PhoneFrame>
-      <div role="status" className="flex h-full flex-col justify-end gap-3 p-4 text-sm leading-5 text-black/60">
-        <div aria-hidden="true" className="flex animate-pulse flex-col gap-2">
+      <div role={idle ? undefined : 'status'} className="flex h-full flex-col justify-end gap-3 p-4 text-sm leading-5 text-black/60">
+        <div aria-hidden="true" className={cn('flex flex-col gap-2', !idle && 'animate-pulse')}>
           <div className="h-7 w-4/5 rounded-md bg-black/10" />
           <div className="h-4 w-full rounded-md bg-black/10" />
           <div className="h-4 w-2/3 rounded-md bg-black/10" />
           <div className="mt-2 h-11 rounded-xl bg-black/10" />
         </div>
         <p className="m-0 flex items-center gap-2">
-          <LoaderCircle className="size-4 shrink-0 animate-spin" aria-hidden="true" />
+          {!idle && <LoaderCircle className="size-4 shrink-0 animate-spin" aria-hidden="true" />}
           {label}
         </p>
       </div>
     </PhoneFrame>
+  )
+}
+
+function ViewTab({ selected, disabled, onClick, children }: { selected: boolean; disabled?: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <Button
+      variant="ghost"
+      aria-pressed={selected}
+      disabled={disabled}
+      className={cn('flex-1', selected ? 'border-input bg-card font-semibold text-card-foreground hover:bg-card' : 'text-muted-foreground')}
+      onClick={onClick}
+    >
+      {children}
+    </Button>
   )
 }
 
@@ -68,24 +83,13 @@ export function CreativePreview({ banner, bannerType, content, status }: Creativ
 
   return (
     <div className="flex w-full max-w-80 flex-col items-center gap-4">
-      <div className="flex w-full gap-2" role="group" aria-label="Что показать в телефоне">
-        <Button
-          variant={view === 'banner' ? 'default' : 'outline'}
-          aria-pressed={view === 'banner'}
-          className="flex-1"
-          onClick={() => setRequestedView('banner')}
-        >
+      <div className="flex w-full gap-1" role="group" aria-label="Что показать в телефоне">
+        <ViewTab selected={view === 'banner'} onClick={() => setRequestedView('banner')}>
           Баннер
-        </Button>
-        <Button
-          variant={view === 'content' ? 'default' : 'outline'}
-          aria-pressed={view === 'content'}
-          disabled={!content}
-          className="flex-1"
-          onClick={() => setRequestedView('content')}
-        >
+        </ViewTab>
+        <ViewTab selected={view === 'content'} disabled={!content} onClick={() => setRequestedView('content')}>
           Промо-экран
-        </Button>
+        </ViewTab>
       </div>
 
       {status && (
