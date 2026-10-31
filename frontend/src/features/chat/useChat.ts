@@ -4,7 +4,6 @@ import { answerChatConfirmation, createChatSession, getChatSession, retryChat, s
 import type { CampaignDraft, ChatEvent, ChatSession, ChatStep, ChatWarning, Confirmation, ConfirmationAnswer, DraftValidation, Suggestion } from '@/types/api'
 
 const SESSION_KEY = 'adpilot.chat.session'
-const CAMPAIGN_SESSIONS_KEY = 'adpilot.chat.campaignSessions'
 const CONNECTION_ERROR = 'Не удалось получить ответ. Проверьте соединение и попробуйте ещё раз.'
 
 export interface ChatMessage {
@@ -45,15 +44,6 @@ const EMPTY: Omit<ChatState, 'busy'> = {
   draft: null,
   validation: null,
   error: null,
-}
-
-function campaignSessions(): Record<number, string> {
-  return JSON.parse(localStorage.getItem(CAMPAIGN_SESSIONS_KEY) ?? '{}') as Record<number, string>
-}
-
-// У кампании один диалог: при возврате к ней открываем его, а не начинаем заново.
-function rememberCampaignSession(campaignId: number, sessionId: string) {
-  localStorage.setItem(CAMPAIGN_SESSIONS_KEY, JSON.stringify({ ...campaignSessions(), [campaignId]: sessionId }))
 }
 
 function settleSteps(messages: ChatMessage[], status: ChatStep['status']) {
@@ -155,6 +145,7 @@ export function useChat() {
   const lastRequest = useRef<() => AsyncIterable<ChatEvent>>(null)
   // Сервер ответил потоком, значит, сообщение уже в истории: повторять его нельзя, нужен /retry.
   const streamOpened = useRef(false)
+  const openRequest = useRef(0)
   const [state, dispatch] = useReducer(reducer, null, () => ({ ...EMPTY, busy: localStorage.getItem(SESSION_KEY) !== null }))
 
   useEffect(() => {
@@ -167,8 +158,6 @@ export function useChat() {
         if (!session) {
           localStorage.removeItem(SESSION_KEY)
           sessionId.current = null
-        } else if (session.campaignId !== null) {
-          rememberCampaignSession(session.campaignId, stored)
         }
         dispatch({ type: 'restore', session })
       })
@@ -187,7 +176,6 @@ export function useChat() {
         for await (const event of request()) {
           dispatch({ type: 'event', event })
           if (event.event === 'campaign_updated') {
-            if (event.data.campaignId != null && sessionId.current) rememberCampaignSession(event.data.campaignId, sessionId.current)
             void queryClient.invalidateQueries({ queryKey: ['campaigns'] })
             void queryClient.invalidateQueries({ queryKey: ['campaign'] })
           }
@@ -237,20 +225,22 @@ export function useChat() {
     return run(request)
   }, [run, markOpened])
 
-  // Открыть кампанию или, если campaignId === null, начать новый диалог. Сессию новой кампании создаст первое сообщение.
+  // Открыть диалог текущего пользователя по кампании (его хранит бэкенд) или, если campaignId === null, начать новый.
+  // Сессию новой кампании создаст первое сообщение.
   const open = useCallback(async (campaignId: number | null) => {
     lastRequest.current = null
+    const request = ++openRequest.current
     try {
-      const known = campaignId === null ? null : (campaignSessions()[campaignId] ?? null)
-      // Сессии может уже не быть, если базу пересоздали.
-      const session = known ? await getChatSession(known) : null
-      const id = session ? known : campaignId === null ? null : await createChatSession(campaignId)
+      const id = campaignId === null ? null : await createChatSession(campaignId)
+      const session = id ? await getChatSession(id) : null
+      // Пока ждали ответ, пользователь мог выбрать другую кампанию или сменить роль.
+      if (request !== openRequest.current) return
       sessionId.current = id
       if (id) localStorage.setItem(SESSION_KEY, id)
       else localStorage.removeItem(SESSION_KEY)
-      if (id && campaignId !== null) rememberCampaignSession(campaignId, id)
       dispatch(session ? { type: 'restore', session } : { type: 'reset', campaignId })
     } catch {
+      if (request !== openRequest.current) return
       dispatch({ type: 'fail', error: { message: 'Не удалось открыть кампанию. Попробуйте ещё раз.', retryable: false } })
     }
   }, [])

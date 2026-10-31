@@ -101,6 +101,8 @@ export function CampaignWorkspace() {
                 setCurrentUser(event.target.value)
                 setLogin(event.target.value)
                 void queryClient.invalidateQueries()
+                // У каждого пользователя свой диалог по кампании: docs/ours/chat-api.md §10.
+                openCampaign(campaignId)
               }}
               className={SELECT_CLASS}
             >
