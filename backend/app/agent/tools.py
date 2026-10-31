@@ -16,6 +16,7 @@ from app.agent.operations import (
     WriteOp,
     apply_operations,
     build_operation,
+    segments_label,
 )
 from app.domain.creatives import check_banner, check_content
 from app.domain.pydantic_errors import map_pydantic_errors
@@ -183,6 +184,10 @@ async def _propose(ctx: ToolContext, spec: WriteOp, raw: dict[str, Any]) -> str:
             return _errors_text(errors)
 
     op = build_operation(spec, args, ref=ctx.next_ref() if spec.creates else None, current_campaign=ctx.current_campaign())
+    if spec.kind == "set_segments":
+        # В карточке подтверждения пользователь видит названия сегментов, а не коды.
+        names = {segment["code"]: segment["name"] for segment in await ctx.dictionary("/segments")}
+        op["label"] = segments_label(op["body"], names)
     if "campaignId" in op["params"] and op["params"]["campaignId"] is None:
         return "Ошибка: кампании ещё нет. Сначала propose_create_campaign."
     ctx.pending.append(op)

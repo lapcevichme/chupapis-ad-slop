@@ -1,11 +1,15 @@
 """Сессии чата поверх графа: создание, снимок для восстановления и SSE-поток ответа."""
 
 import asyncio
+import logging
 import uuid
 from collections.abc import AsyncIterator
 from typing import Any
 
+import httpx
+import openai
 from langchain_core.messages import AIMessage, HumanMessage
+from langgraph.errors import GraphRecursionError
 from langgraph.types import Command
 
 from app.agent.api_client import CampaignsApi
@@ -14,6 +18,30 @@ from app.agent.graph import AgentState, draft_report
 from app.errors import not_found
 
 KEEP_ALIVE_SECONDS = 15
+logger = logging.getLogger(__name__)
+
+
+def describe_failure(exc: Exception) -> tuple[str, str]:
+    """Сбой хода → код и сообщение для пользователя. Сырой текст ошибки уходит только в лог сервера."""
+    status = getattr(exc, "status_code", None) or getattr(getattr(exc, "response", None), "status_code", None)
+    text = str(exc)
+    if isinstance(exc, GraphRecursionError):
+        return "AGENT_LOOP", "Агент зациклился и остановился. Переформулируйте запрос или нажмите «Повторить»."
+    if isinstance(exc, (openai.APITimeoutError, httpx.TimeoutException, TimeoutError)):
+        return "LLM_TIMEOUT", "Модель слишком долго не отвечает. Нажмите «Повторить»."
+    if isinstance(exc, (openai.APIConnectionError, httpx.TransportError)):
+        return "LLM_UNAVAILABLE", "Нет связи с сервисом модели. Проверьте интернет и нажмите «Повторить»."
+    if status == 401:
+        return "LLM_AUTH", "Ключ модели не подходит: проверьте LLM_API_KEY в .env."
+    if status in (402, 403) and ("limit" in text.lower() or "credit" in text.lower()):
+        return "LLM_LIMIT", "Закончился лимит ключа модели. Поднимите лимит в OpenRouter и нажмите «Повторить»."
+    if status == 429:
+        return "LLM_RATE_LIMIT", "Сервис модели перегружен запросами. Подождите немного и нажмите «Повторить»."
+    if status is not None and status >= 500:
+        return "LLM_UNAVAILABLE", "Сервис модели временно недоступен. Нажмите «Повторить»."
+    if status is not None:
+        return "LLM_REJECTED", "Сервис модели отклонил запрос. Нажмите «Повторить»; если не поможет, начните новый диалог."
+    return "AGENT_FAILED", "Агент не смог продолжить из-за внутренней ошибки. Нажмите «Повторить»."
 
 
 def _text(message) -> str:
@@ -113,10 +141,9 @@ class ChatService:
                         await queue.put(sse("confirmation_required", chunk["__interrupt__"][0].value))
                 await queue.put(sse("done", {}))
             except Exception as exc:  # сбой LLM или сети: фронт покажет «Повторить»
-                message = str(exc)[:500] or "Агент не смог продолжить"
-                if "Authentication" in type(exc).__name__ or "401" in message:
-                    message = "LLM недоступна: проверьте LLM_API_KEY в .env"
-                await queue.put(sse("error", {"code": type(exc).__name__, "message": message}))
+                logger.exception("Ход агента в сессии %s упал", session_id)
+                code, message = describe_failure(exc)
+                await queue.put(sse("error", {"code": code, "message": message}))
             finally:
                 await queue.put(None)
 

@@ -164,6 +164,15 @@ def build_operation(spec: WriteOp, args: BaseModel, *, ref: str | None, current_
     return {"ref": ref, "kind": spec.kind, "params": params, "body": body, "label": op_label(spec.kind, body, params)}
 
 
+def segments_label(body: dict[str, Any], names: dict[str, str]) -> str:
+    """«Сегменты: включить Москва, Возраст 26–45; исключить —». Без справочника — коды."""
+
+    def join(codes: list[str]) -> str:
+        return ", ".join(names.get(code, code) for code in codes) or "—"
+
+    return f"Сегменты: включить {join(body['included'])}; исключить {join(body['excluded'])}"
+
+
 def op_label(kind: str, body: Any, params: dict[str, Any]) -> str:
     b = body or {}
     match kind:
@@ -172,7 +181,7 @@ def op_label(kind: str, body: Any, params: dict[str, Any]) -> str:
         case "update_campaign":
             return f"Обновить шапку кампании «{b.get('name')}»"
         case "set_segments":
-            return f"Сегменты: включить {', '.join(b['included']) or '—'}; исключить {', '.join(b['excluded']) or '—'}"
+            return segments_label(b, {})
         case "create_banner" | "update_banner":
             action = "Создать" if kind.startswith("create") else "Заменить"
             kind_name = {1: "STORY", 2: "SMART_BANNER"}.get(b.get("bannerTypeId"), "")

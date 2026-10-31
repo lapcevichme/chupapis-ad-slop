@@ -126,6 +126,7 @@ def test_brief_to_moderation_with_confirmation(client, chat):
     assert draft["validation"]["warnings"] == ["У кампании отсутствуют теги"]
     confirmation = next(data for kind, data in first if kind == "confirmation_required")
     assert len(confirmation["operations"]) == 6
+    assert confirmation["operations"][1]["label"] == "Сегменты: включить Возраст 26–45, Москва; исключить Исключение. Отписались от рекламы"
 
     # До подтверждения в API ничего нет.
     names = [c["name"] for c in client.get("/campaigns").json()]
@@ -200,3 +201,20 @@ def test_suggestions_keep_groups(client, chat):
 
     suggestions = next(data for kind, data in reply if kind == "suggestions")
     assert suggestions["items"] == items
+
+
+def test_model_failure_is_human_readable(client, chat):
+    import openai
+    import httpx as _httpx
+
+    class Failing(ScriptedModel):
+        def _generate(self, *args, **kwargs):
+            request = _httpx.Request("POST", "https://openrouter.ai/api/v1/chat/completions")
+            raise openai.InternalServerError("Error code: 500 - upstream", response=_httpx.Response(500, request=request), body=None)
+
+    app.state.chat = build_chat_service(InMemorySaver(), chat=Failing(script=[]), design=ScriptedModel(script=[]), images=NoImageGenerator(),
+                                        api_factory=lambda u, r: CampaignsApi(u, r, base_url="http://api", transport=httpx.ASGITransport(app=app)))
+    sid = client.post("/chat", json={}, headers=MANAGER).json()["sessionId"]
+    error = next(data for kind, data in events(client.post(f"/chat/{sid}/messages", json={"text": "Привет"}, headers=MANAGER)) if kind == "error")
+    assert error["code"] == "LLM_UNAVAILABLE"
+    assert "500" not in error["message"] and "Повторить" in error["message"]
