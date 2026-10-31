@@ -1,16 +1,29 @@
 import { synthesizeSpeech } from '@/api/speech'
 
 // Заготовки лежат в public/voice, их создаёт backend/app/generate_voice_cues.py: первый звук не должен ждать агента.
-// У заполняющих фраз несколько вариантов, иначе на третьем ходе слышно, что это запись.
+// Вариантов много: фраза не повторится, пока не прозвучат все остальные в этой группе.
+function numbered(name: string, count: number) {
+  return Array.from({ length: count }, (_, index) => `${name}-${index + 1}`)
+}
+
 const CUES = {
-  greet: ['greet'],
-  wait: ['wait-1', 'wait-2', 'wait-3', 'wait-4', 'wait-5'],
-  more: ['more-1', 'more-2', 'more-3'],
-  form: ['form'],
-  confirm: ['confirm'],
+  greet: ['greet', ...numbered('greet', 4).slice(1)],
+  wait: numbered('wait', 16),
+  more: numbered('more', 10),
+  form: ['form', ...numbered('form', 5).slice(1)],
+  confirm: ['confirm', ...numbered('confirm', 4).slice(1)],
 } as const
 export type VoiceCue = keyof typeof CUES
-const CUE_FILES: string[] = Object.values(CUES).flat()
+const CUE_NAMES = Object.keys(CUES) as VoiceCue[]
+
+function shuffled(files: readonly string[]) {
+  const result = [...files]
+  for (let index = result.length - 1; index > 0; index--) {
+    const other = Math.floor(Math.random() * (index + 1))
+    ;[result[index], result[other]] = [result[other], result[index]]
+  }
+  return result
+}
 
 function createAnalyser(context: AudioContext) {
   const analyser = context.createAnalyser()
@@ -27,7 +40,7 @@ class VoiceAudio {
   private playing: AudioBufferSourceNode | null = null
   private abort: AbortController | null = null
   private cues = new Map<string, Promise<AudioBuffer>>()
-  private lastFile = new Map<VoiceCue, string>()
+  private queues = new Map<VoiceCue, string[]>()
   private samples = new Uint8Array(512)
   muted = false
 
@@ -38,16 +51,30 @@ class VoiceAudio {
       this.output = createAnalyser(this.context)
       this.output.connect(this.context.destination)
       this.microphone = createAnalyser(this.context)
-      for (const file of CUE_FILES) this.loadFile(file)
+      // Заранее грузим только следующую фразу каждой группы: все сразу — лишний мегабайт на телефоне.
+      for (const cue of CUE_NAMES) void this.loadFile(this.nextFile(cue)).catch(() => undefined)
     }
     void this.context.resume()
   }
 
+  private nextFile(cue: VoiceCue) {
+    const queue = this.queues.get(cue)
+    if (queue?.length) return queue[0]
+    const fresh = shuffled(CUES[cue])
+    this.queues.set(cue, fresh)
+    return fresh[0]
+  }
+
   private pickFile(cue: VoiceCue) {
-    const files: readonly string[] = CUES[cue]
-    const fresh = files.filter((file) => file !== this.lastFile.get(cue))
-    const file = fresh[Math.floor(Math.random() * fresh.length)] ?? files[0]
-    this.lastFile.set(cue, file)
+    const file = this.nextFile(cue)
+    this.queues.get(cue)?.shift()
+    // Новый круг не начинаем с только что сказанной фразы.
+    if (this.queues.get(cue)?.length === 0) {
+      const fresh = shuffled(CUES[cue])
+      if (fresh[0] === file) fresh.push(fresh.shift() as string)
+      this.queues.set(cue, fresh)
+    }
+    void this.loadFile(this.nextFile(cue)).catch(() => undefined)
     return file
   }
 
