@@ -22,7 +22,7 @@ function ComparisonArt({ document }: { document: StudioDocument }) {
   useLayoutEffect(() => {
     const element = viewport.current
     if (!element) return
-    const observer = new ResizeObserver(([entry]) => setScale(Math.max(.1, Math.min((entry.contentRect.width - 24) / document.width, (entry.contentRect.height - 24) / document.height, 1))))
+    const observer = new ResizeObserver(([entry]) => setScale(Math.max(.1, Math.min((entry.contentRect.width - 24) / document.width, (entry.contentRect.height - 24) / document.height, 1.5))))
     observer.observe(element)
     return () => observer.disconnect()
   }, [document.width, document.height])
@@ -30,7 +30,7 @@ function ComparisonArt({ document }: { document: StudioDocument }) {
 }
 
 export function StudioComparison({ variants, activeId, onSelect }: { variants: StudioVariant[]; activeId: string; onSelect: (id: string) => void }) {
-  return <section className="studio-comparison" aria-label="Сравнение креативов"><div className="studio-comparison-title"><p>Посмотрите рядом. Выберите своё.</p><span>Выбор откроет вариант в редакторе. В кампании пока ничего не меняется.</span></div><div className="studio-comparison-grid">
+  return <section className="studio-comparison" aria-label="Сравнение креативов"><div className="studio-comparison-title"><p>Посмотрите рядом. Выберите своё.</p><span>До трёх вариантов рядом. Выбор откроет редактор; кампания пока не меняется.</span></div><div className="studio-comparison-grid">
     {variants.map((variant, index) => <article key={variant.id} className={`studio-compare-card ${activeId === variant.id ? 'active' : ''}`}><header><span>{String.fromCharCode(65 + index)}</span><h3>{variant.label}</h3></header><ComparisonArt document={variant.document} /><button type="button" onClick={() => onSelect(variant.id)}>{activeId === variant.id && <Check size={17} />}{activeId === variant.id ? 'Продолжить с этим' : 'Выбрать вариант'}</button></article>)}
   </div></section>
 }

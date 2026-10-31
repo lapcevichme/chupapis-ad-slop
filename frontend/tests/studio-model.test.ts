@@ -36,7 +36,7 @@ test('hidden text cannot silently bypass the banking copy limit', () => {
 })
 
 test('PROMO import retains text while bank buttons stay separate', () => {
-  const document = importSource({ kind: 'content', item: { id: 1, name: 'Тест', contentType: 'PROMO', content: { role: 'promo', component: { role: 'linearContainer', axis: 'v', components: [{ role: 'text', format: 'html', text: '<b>Вклад</b> 16%' }, { role: 'button', text: 'Подробнее', actionType: 'default' }] } } } })
-  assert.deepEqual(document.layers.filter(x => x.kind === 'text').map(x => x.text), ['Вклад 16%'])
+  const document = importSource({ kind: 'content', item: { id: 1, name: 'Тест', contentType: 'PROMO', content: { role: 'promo', component: { role: 'linearContainer', axis: 'v', components: [{ role: 'text', format: 'html', text: '<b>Вклад</b> 16%' }, { role: 'text', format: 'none', text: 'До конца ноября' }, { role: 'button', text: 'Подробнее', actionType: 'default' }] } } } })
+  assert.deepEqual(document.layers.filter(x => x.kind === 'text').map(x => [x.text, x.role]), [['Вклад 16%', 'title'], ['До конца ноября', 'body']])
   assert.equal(document.format, 'PROMO')
 })

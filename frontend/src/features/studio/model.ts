@@ -4,6 +4,7 @@ import type { Banner, BannerType, Content, PromoComponent } from '@/types/api'
 export type StudioSource = { kind: 'banner'; item: Banner; type: BannerType } | { kind: 'content'; item: Content }
 export interface StudioVariant { id: string; label: string; document: StudioDocument }
 export type PromoButton = Extract<PromoComponent, { role: 'button' }>
+export const buttonActionLabel = (action: PromoButton['actionType']) => ({ default: 'Основное действие', externalLink: 'Открыть ссылку', openSmartLink: 'Открыть ссылку приложения', closeCampaign: 'Закрыть кампанию', doneCampaign: 'Завершить кампанию' })[action]
 
 export function newLayer(kind: StudioLayer['kind'], values: Partial<StudioLayer> = {}): StudioLayer {
   return { id: crypto.randomUUID(), name: kind === 'text' ? 'Текст' : kind === 'image' ? 'Изображение' : 'Фигура', kind, role: kind === 'text' ? 'body' : 'decoration', x: 24, y: 24, width: 220, height: 64, rotation: 0, opacity: 1, hidden: false, locked: false, text: kind === 'text' ? 'Ваш текст' : '', fontSize: 24, fontWeight: 600, textAlign: 'left', fill: '#ffffff', shape: 'rect', radius: 0, src: '', fit: 'cover', ...values }
@@ -34,6 +35,7 @@ export function importSource(source: StudioSource): StudioDocument {
     const container = source.item.content.component
     document.background = color(container.style?.backgroundColor, '#ffffff')
     let y = 24
+    let textIndex = 0
     for (const item of container.components) {
       if (item.role === 'button') continue
       if (item.role === 'image') {
@@ -41,9 +43,10 @@ export function importSource(source: StudioSource): StudioDocument {
         document.layers.push(newLayer('image', { src: item.url, x: 24, y, width: 252, height }))
         y += height + 20
       } else {
+        const title = textIndex++ === 0
         const size = item.textStyle?.fontSize ?? 20
         const height = Math.max(50, Math.ceil(plain(item.text).length * size * .55 / 252) * size * 1.15)
-        document.layers.push(newLayer('text', { name: y < 100 ? 'Заголовок' : 'Текст', role: y < 100 ? 'title' : 'body', text: plain(item.text), x: 24, y, width: 252, height, fontSize: Math.min(120, Math.max(8, size)), fill: color(item.textStyle?.textColor, '#172033') }))
+        document.layers.push(newLayer('text', { name: title ? 'Заголовок' : 'Текст', role: title ? 'title' : 'body', text: plain(item.text), x: 24, y, width: 252, height, fontSize: Math.min(120, Math.max(8, size)), fill: color(item.textStyle?.textColor, '#172033') }))
         y += height + 20
       }
     }

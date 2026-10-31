@@ -24,7 +24,7 @@ export function StudioCanvas({ document, selected, onSelect, onChange, editable,
     if (!element) return
     const observer = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect
-      if (width && height) setFitScale(Math.max(.15, Math.min(1.5, (width - 80) / document.width, (height - 64) / document.height)))
+      if (width && height) setFitScale(Math.max(.15, Math.min(1.5, (width - 80) / document.width, (height - 80) / document.height)))
     })
     observer.observe(element)
     return () => observer.disconnect()

@@ -165,3 +165,9 @@
 .studio-color input.studio-color-code{width:84px;height:30px;min-height:30px;font-size:10px;border:1px solid var(--studio-line);padding:4px 6px;margin-left:0;border-radius:6px;color:var(--studio-ink);background:var(--studio-ground);font-variant-numeric:tabular-nums}
 .studio-native-button-editor{display:flex;flex-direction:column;gap:10px;padding:12px 0;border-bottom:1px solid var(--studio-line)}
 .studio-native-button-editor .studio-help{overflow-wrap:anywhere}
+
+.studio-review>.studio-review-buttons{display:flex;flex-direction:column;gap:8px}.studio-review-buttons>span{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:44px;padding:8px 14px;border-radius:10px;text-align:center}.studio-review-buttons small{font-size:9px;opacity:.8}
+.dark .studio-layer-row.selected,.dark .studio-layer-row.selected:hover,.dark .studio-variant-tile.active{background:#2a4072;color:#edf2ff}
+.dark .studio-canvas-viewport{background-color:#263b3a;background-image:radial-gradient(#c6d9c52b .7px,transparent .7px)}
+.dark .studio-canvas-caption{color:#d8e6cc}.dark .studio-canvas-caption span{color:#b3c7b0}
+.dark .creative-studio :focus-visible{outline-color:#9aafff}

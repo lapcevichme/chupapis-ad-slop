@@ -27,6 +27,7 @@ export function useStudioProject(key: string, initial: StudioDocument, origin: s
   }
 
   function change(document: StudioDocument, remember = true) {
+    if (JSON.stringify(document) === JSON.stringify(active.document)) return
     if (remember) { setPast(old => [...old.slice(-59), active.document]); setFuture([]) }
     store({ ...project, variants: project.variants.map(v => v.id === active.id ? { ...v, document } : v) })
   }
