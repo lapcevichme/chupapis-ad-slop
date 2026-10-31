@@ -11,11 +11,10 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.errors import GraphRecursionError
 from langgraph.types import Command
 
-from app.agent.api_client import CampaignsApi
 from app.agent.events import sse
 from app.agent.graph import AgentState, draft_report, refresh_campaign
 from app.agent.sessions import SessionRegistry
-from app.errors import not_found
+from app.core.errors import not_found
 
 KEEP_ALIVE_SECONDS = 15
 logger = logging.getLogger(__name__)
@@ -23,24 +22,41 @@ logger = logging.getLogger(__name__)
 
 def describe_failure(exc: Exception) -> tuple[str, str]:
     """Сбой хода → код и сообщение для пользователя. Сырой текст ошибки уходит только в лог сервера."""
-    status = getattr(exc, "status_code", None) or getattr(getattr(exc, "response", None), "status_code", None)
+    status = getattr(exc, "status_code", None) or getattr(
+        getattr(exc, "response", None), "status_code", None
+    )
     text = str(exc)
     if isinstance(exc, GraphRecursionError):
-        return "AGENT_LOOP", "Агент зациклился и остановился. Переформулируйте запрос или нажмите «Повторить»."
+        return (
+            "AGENT_LOOP",
+            "Агент зациклился и остановился. Переформулируйте запрос или нажмите «Повторить».",
+        )
     if isinstance(exc, (openai.APITimeoutError, httpx.TimeoutException, TimeoutError)):
         return "LLM_TIMEOUT", "Модель слишком долго не отвечает. Нажмите «Повторить»."
     if isinstance(exc, (openai.APIConnectionError, httpx.TransportError)):
-        return "LLM_UNAVAILABLE", "Нет связи с сервисом модели. Проверьте интернет и нажмите «Повторить»."
+        return (
+            "LLM_UNAVAILABLE",
+            "Нет связи с сервисом модели. Проверьте интернет и нажмите «Повторить».",
+        )
     if status == 401:
         return "LLM_AUTH", "Ключ модели не подходит: проверьте LLM_API_KEY в .env."
     if status in (402, 403) and ("limit" in text.lower() or "credit" in text.lower()):
-        return "LLM_LIMIT", "Закончился лимит ключа модели. Поднимите лимит в OpenRouter и нажмите «Повторить»."
+        return (
+            "LLM_LIMIT",
+            "Закончился лимит ключа модели. Поднимите лимит в OpenRouter и нажмите «Повторить».",
+        )
     if status == 429:
-        return "LLM_RATE_LIMIT", "Сервис модели перегружен запросами. Подождите немного и нажмите «Повторить»."
+        return (
+            "LLM_RATE_LIMIT",
+            "Сервис модели перегружен запросами. Подождите немного и нажмите «Повторить».",
+        )
     if status is not None and status >= 500:
         return "LLM_UNAVAILABLE", "Сервис модели временно недоступен. Нажмите «Повторить»."
     if status is not None:
-        return "LLM_REJECTED", "Сервис модели отклонил запрос. Нажмите «Повторить»; если не поможет, начните новый диалог."
+        return (
+            "LLM_REJECTED",
+            "Сервис модели отклонил запрос. Нажмите «Повторить»; если не поможет, начните новый диалог.",
+        )
     return "AGENT_FAILED", "Агент не смог продолжить из-за внутренней ошибки. Нажмите «Повторить»."
 
 
@@ -59,7 +75,10 @@ class ChatService:
 
     @staticmethod
     def _config(session_id: str, user: str = "", role: str = "") -> dict[str, Any]:
-        return {"configurable": {"thread_id": session_id, "user": user, "role": role}, "recursion_limit": 60}
+        return {
+            "configurable": {"thread_id": session_id, "user": user, "role": role},
+            "recursion_limit": 60,
+        }
 
     async def create_session(self, campaign_id: int | None, user: str, role: str) -> str:
         """У пары «кампания + логин» один диалог: повторный вызов возвращает существующий."""
@@ -79,8 +98,18 @@ class ChatService:
         await self._init_state(session_id, campaign_id, base)
         return session_id
 
-    async def _init_state(self, session_id: str, campaign_id: int | None, base: dict[str, Any] | None) -> None:
-        values: AgentState = {"messages": [], "campaign_id": campaign_id, "base": base, "pending": [], "id_map": {}, "counter": 0, "awaiting": None}
+    async def _init_state(
+        self, session_id: str, campaign_id: int | None, base: dict[str, Any] | None
+    ) -> None:
+        values: AgentState = {
+            "messages": [],
+            "campaign_id": campaign_id,
+            "base": base,
+            "pending": [],
+            "id_map": {},
+            "counter": 0,
+            "awaiting": None,
+        }
         await self.graph.aupdate_state(self._config(session_id), values, as_node="__start__")
 
     async def _state(self, session_id: str):
@@ -117,7 +146,9 @@ class ChatService:
 
     # --- Поток
 
-    async def send_message(self, session_id: str, text: str, user: str, role: str) -> AsyncIterator[str]:
+    async def send_message(
+        self, session_id: str, text: str, user: str, role: str
+    ) -> AsyncIterator[str]:
         await self._state(session_id)
         if await self.pending_confirmation(session_id):
             # Сообщение без ответа на подтверждение = отказ, текст уходит агенту как правка (chat-api.md §2).
@@ -126,10 +157,20 @@ class ChatService:
             payload = {"messages": [HumanMessage(text)], "asked": False}
         return self._stream(session_id, payload, user, role)
 
-    async def answer_confirmation(self, session_id: str, confirmation_id: str, approved: bool, comment: str | None, user: str, role: str) -> AsyncIterator[str]:
+    async def answer_confirmation(
+        self,
+        session_id: str,
+        confirmation_id: str,
+        approved: bool,
+        comment: str | None,
+        user: str,
+        role: str,
+    ) -> AsyncIterator[str]:
         pending = await self.pending_confirmation(session_id)
         if pending and pending["id"] == confirmation_id:
-            return self._stream(session_id, Command(resume={"approved": approved, "comment": comment}), user, role)
+            return self._stream(
+                session_id, Command(resume={"approved": approved, "comment": comment}), user, role
+            )
         # Подтверждение уже выполнено: второй раз не пишем, а продолжаем ход как retry.
         return self._stream(session_id, None, user, role)
 
@@ -141,23 +182,31 @@ class ChatService:
         snapshot = await self.graph.aget_state(self._config(session_id))
         await self.sessions.bind(session_id, (snapshot.values or {}).get("campaign_id"))
 
-    async def _stream(self, session_id: str, payload: Any, user: str, role: str) -> AsyncIterator[str]:
+    async def _stream(
+        self, session_id: str, payload: Any, user: str, role: str
+    ) -> AsyncIterator[str]:
         queue: asyncio.Queue[str | None] = asyncio.Queue()
         config = self._config(session_id, user, role)
 
         async def produce():
             try:
-                async for mode, chunk in self.graph.astream(payload, config, stream_mode=["messages", "custom", "updates"]):
+                async for mode, chunk in self.graph.astream(
+                    payload, config, stream_mode=["messages", "custom", "updates"]
+                ):
                     if mode == "messages":
                         message, metadata = chunk
-                        if metadata.get("langgraph_node") == "agent" and isinstance(message, AIMessage):
+                        if metadata.get("langgraph_node") == "agent" and isinstance(
+                            message, AIMessage
+                        ):
                             text = _text(message)
                             if text:
                                 await queue.put(sse("message_delta", {"text": text}))
                     elif mode == "custom":
                         await queue.put(sse(chunk["event"], chunk["data"]))
                     elif mode == "updates" and "__interrupt__" in chunk:
-                        await queue.put(sse("confirmation_required", chunk["__interrupt__"][0].value))
+                        await queue.put(
+                            sse("confirmation_required", chunk["__interrupt__"][0].value)
+                        )
                 await queue.put(sse("done", {}))
             except Exception as exc:  # сбой LLM или сети: фронт покажет «Повторить»
                 logger.exception("Ход агента в сессии %s упал", session_id)

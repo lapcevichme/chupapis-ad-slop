@@ -2,7 +2,7 @@
 
 Эти модели — единственная схема креативов: по ним валидирует API, по ним же агент проверяет
 сгенерированный JSON до отправки. Правила, зависящие от типа баннера и от конфигурации
-(лимиты длины, ссылки, домен картинок), живут в `app.domain.creatives`.
+(лимиты длины, ссылки, домен картинок), живут в `app.infra.creative_validation`.
 """
 
 from typing import Annotated, Literal
@@ -39,16 +39,21 @@ class ActionLink(StrictModel):
 
 
 class BannerContent(StrictModel):
-    title: str | None = Field(None, description="Лимит длины зависит от типа: STORY 100, SMART_BANNER 250")
+    title: str | None = Field(
+        None, description="Лимит длины зависит от типа: STORY 100, SMART_BANNER 250"
+    )
     titleStyle: TextStyle | None = None
-    text: str | None = Field(None, description="Лимит длины зависит от типа: STORY 500, SMART_BANNER 1000")
+    text: str | None = Field(
+        None, description="Лимит длины зависит от типа: STORY 500, SMART_BANNER 1000"
+    )
     textStyle: TextStyle | None = None
     background: Background | None = None
     image: Image | None = None
     buttonName: str | None = None
     actionType: ActionType
     link: ActionLink | None = Field(
-        None, description="Обязателен при externalLink/openSmartLink, запрещён при closeCampaign/doneCampaign"
+        None,
+        description="Обязателен при externalLink/openSmartLink, запрещён при closeCampaign/doneCampaign",
     )
     voiceOver: str | None = Field(None, max_length=200)
 

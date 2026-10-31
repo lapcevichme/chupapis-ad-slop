@@ -28,7 +28,9 @@ def chat_model(settings: Settings, model: str, *, temperature: float = 0.3) -> B
         # SDK OpenAI сам повторяет сетевые сбои, 429 и 5xx с экспоненциальной паузой: 1 + 3 повтора.
         max_retries=3,
         # Всегда сначала один и тот же провайдер, чтобы попадать в его кеш. Запасной — только если он упал.
-        extra_body={"provider": {"order": providers, "allow_fallbacks": True}} if providers else None,
+        extra_body={"provider": {"order": providers, "allow_fallbacks": True}}
+        if providers
+        else None,
     )
 
 
@@ -38,7 +40,11 @@ CACHE_CONTROL = {"type": "ephemeral"}
 def _text_of(message: BaseMessage) -> str:
     if isinstance(message.content, str):
         return message.content
-    return "".join(block.get("text", "") for block in message.content if isinstance(block, dict) and block.get("type") == "text")
+    return "".join(
+        block.get("text", "")
+        for block in message.content
+        if isinstance(block, dict) and block.get("type") == "text"
+    )
 
 
 def _mark(message: BaseMessage) -> BaseMessage:
@@ -47,12 +53,18 @@ def _mark(message: BaseMessage) -> BaseMessage:
         content = [{"type": "text", "text": message.content, "cache_control": CACHE_CONTROL}]
     else:
         content = [dict(block) for block in message.content]
-        last = max(i for i, block in enumerate(content) if isinstance(block, dict) and block.get("type") == "text" and block.get("text"))
+        last = max(
+            i
+            for i, block in enumerate(content)
+            if isinstance(block, dict) and block.get("type") == "text" and block.get("text")
+        )
         content[last]["cache_control"] = CACHE_CONTROL
     return message.model_copy(update={"content": content})
 
 
-def with_cache_breakpoints(messages: list[BaseMessage], stable: int, *, enabled: bool = True) -> list[BaseMessage]:
+def with_cache_breakpoints(
+    messages: list[BaseMessage], stable: int, *, enabled: bool = True
+) -> list[BaseMessage]:
     """Точки кеша Anthropic: на первом сообщении (системный промпт, перед ним в кеш попадают инструменты)
     и на последнем непустом из первых `stable` сообщений — это история, которая между шагами только растёт.
     Всё после `stable` меняется каждый шаг и в кеш не идёт.
@@ -60,7 +72,12 @@ def with_cache_breakpoints(messages: list[BaseMessage], stable: int, *, enabled:
     if not enabled or not messages:
         return messages
     result = list(messages)
-    marks = {0} | {next((i for i in range(min(stable, len(result)) - 1, 0, -1) if _text_of(result[i]).strip()), 0)}
+    marks = {0} | {
+        next(
+            (i for i in range(min(stable, len(result)) - 1, 0, -1) if _text_of(result[i]).strip()),
+            0,
+        )
+    }
     for i in marks:
         if _text_of(result[i]).strip():
             result[i] = _mark(result[i])
@@ -75,7 +92,9 @@ class ImageGenerator(Protocol):
 class OpenRouterImageGenerator:
     """Картинка через OpenAI-совместимый /images/generations. Бэкенд сохраняет файл в /media и отдаёт ссылку."""
 
-    def __init__(self, model: str, settings: Settings, transport: httpx.AsyncBaseTransport | None = None):
+    def __init__(
+        self, model: str, settings: Settings, transport: httpx.AsyncBaseTransport | None = None
+    ):
         self.model = model
         self.settings = settings
         self.transport = transport
@@ -96,7 +115,9 @@ class OpenRouterImageGenerator:
     async def _post_with_retries(self, body: dict) -> httpx.Response:
         """Сетевые сбои, 429 и 5xx повторяем с растущей паузой; остальные 4xx — ошибка запроса, повторять бессмысленно."""
         last_error: Exception | None = None
-        async with httpx.AsyncClient(timeout=self.settings.llm_timeout_seconds, transport=self.transport) as client:
+        async with httpx.AsyncClient(
+            timeout=self.settings.llm_timeout_seconds, transport=self.transport
+        ) as client:
             for attempt in range(IMAGE_ATTEMPTS):
                 if attempt:
                     await asyncio.sleep(IMAGE_RETRY_DELAYS[attempt - 1])
@@ -110,7 +131,9 @@ class OpenRouterImageGenerator:
                     last_error = exc
                     continue
                 if response.status_code == 429 or response.status_code >= 500:
-                    last_error = httpx.HTTPStatusError(f"HTTP {response.status_code}", request=response.request, response=response)
+                    last_error = httpx.HTTPStatusError(
+                        f"HTTP {response.status_code}", request=response.request, response=response
+                    )
                     continue
                 response.raise_for_status()
                 return response

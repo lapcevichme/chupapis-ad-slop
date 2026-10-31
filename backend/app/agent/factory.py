@@ -20,6 +20,7 @@ def build_chat_service(
     api_factory=None,
 ) -> ChatService:
     if api_factory is None:
+
         def api_factory(user: str, role: str) -> CampaignsApi:
             return CampaignsApi(user, role, base_url=settings.campaigns_api_url)
 

@@ -1,20 +1,22 @@
 """Прогон валидации всей кампании (§4): GET /warnings и проверка перед to-moderation."""
 
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import models
-from app.domain.creatives import validate_banner_json, validate_content_json
+from app.core.codes import WARNINGS
+from app.core.errors import ApiError, api_error
+from app.db import models
 from app.domain.enums import AudienceType, PlaceState, SegmentState
-from app.domain.rules import WARNINGS
-from app.errors import ApiError, api_error
+from app.infra.creative_validation import validate_banner_json, validate_content_json
 
 
-def check_schedule(start_date, start_time, end_date, end_time) -> list[ApiError]:
+def check_schedule(
+    start_date: date, start_time: str, end_date: date | None, end_time: str | None
+) -> list[ApiError]:
     if (end_date is None) != (end_time is None):
         return [api_error("END_DATETIME_INCOMPLETE", "endDate" if end_date is None else "endTime")]
-    if end_date is None:
+    if end_date is None or end_time is None:
         return []
     start = datetime.combine(start_date, datetime.strptime(start_time, "%H:%M").time())
     end = datetime.combine(end_date, datetime.strptime(end_time, "%H:%M").time())
@@ -23,12 +25,18 @@ def check_schedule(start_date, start_time, end_date, end_time) -> list[ApiError]
     return []
 
 
-def check_segment_codes(session: Session, codes: list[str], field: str) -> list[ApiError]:
+async def check_segment_codes(
+    session: AsyncSession, codes: list[str], field: str
+) -> list[ApiError]:
     errors: list[ApiError] = []
     for index, code in enumerate(codes):
-        segment = session.get(models.Segment, code)
+        segment = await session.get(models.Segment, code)
         if segment is None:
-            errors.append(api_error("SEGMENT_NOT_FOUND", f"{field}[{index}]", f"Сегмента {code} нет в справочнике"))
+            errors.append(
+                api_error(
+                    "SEGMENT_NOT_FOUND", f"{field}[{index}]", f"Сегмента {code} нет в справочнике"
+                )
+            )
         elif segment.state != SegmentState.ACTIVE:
             errors.append(
                 api_error(
@@ -40,7 +48,7 @@ def check_segment_codes(session: Session, codes: list[str], field: str) -> list[
     return errors
 
 
-def campaign_errors(session: Session, c: models.Campaign) -> list[ApiError]:
+async def campaign_errors(session: AsyncSession, c: models.Campaign) -> list[ApiError]:
     errors = check_schedule(c.start_date, c.start_time, c.end_date, c.end_time)
 
     included, excluded = c.segment_codes("included"), c.segment_codes("excluded")
@@ -48,8 +56,8 @@ def campaign_errors(session: Session, c: models.Campaign) -> list[ApiError]:
         errors.append(api_error("SEGMENTS_REQUIRED", "segments.included"))
     if c.audience_type == AudienceType.ALL_USERS and (included or excluded):
         errors.append(api_error("SEGMENTS_FORBIDDEN_FOR_ALL_USERS", "segments"))
-    errors += check_segment_codes(session, included, "segments.included")
-    errors += check_segment_codes(session, excluded, "segments.excluded")
+    errors += await check_segment_codes(session, included, "segments.included")
+    errors += await check_segment_codes(session, excluded, "segments.excluded")
 
     if not c.place_links:
         errors.append(api_error("PLACES_REQUIRED", "places"))

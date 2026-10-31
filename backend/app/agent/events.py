@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.errors import ApiError
+from app.core.errors import ApiError
 
 
 class ChatEventMessageDelta(BaseModel):

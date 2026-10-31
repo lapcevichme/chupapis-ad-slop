@@ -7,10 +7,16 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from app.contracts.creative_json import (
+    ActionLink,
+    BannerContent,
+    PromoButton,
+    PromoContent,
+    PromoImage,
+)
+from app.core.errors import ApiError, api_error
 from app.domain.enums import ActionType
-from app.domain.pydantic_errors import map_pydantic_errors
-from app.errors import ApiError, api_error
-from app.schemas.creative_json import ActionLink, BannerContent, PromoButton, PromoContent, PromoImage
+from app.infra.pydantic_errors import map_pydantic_errors
 
 LINK_REQUIRED_ACTIONS = {ActionType.EXTERNAL_LINK, ActionType.OPEN_SMART_LINK}
 LINK_FORBIDDEN_ACTIONS = {ActionType.CLOSE_CAMPAIGN, ActionType.DONE_CAMPAIGN}
@@ -22,9 +28,21 @@ def _has_link(link: ActionLink | None) -> bool:
 
 def check_link(action_type: ActionType, link: ActionLink | None, field: str) -> list[ApiError]:
     if action_type in LINK_REQUIRED_ACTIONS and not _has_link(link):
-        return [api_error("LINK_REQUIRED", field, f"Для actionType={action_type} нужна ссылка хотя бы для одной платформы")]
+        return [
+            api_error(
+                "LINK_REQUIRED",
+                field,
+                f"Для actionType={action_type} нужна ссылка хотя бы для одной платформы",
+            )
+        ]
     if action_type in LINK_FORBIDDEN_ACTIONS and link is not None:
-        return [api_error("LINK_FORBIDDEN", field, f"Для actionType={action_type} ссылка запрещена, уберите link")]
+        return [
+            api_error(
+                "LINK_FORBIDDEN",
+                field,
+                f"Для actionType={action_type} ссылка запрещена, уберите link",
+            )
+        ]
     return []
 
 
@@ -35,7 +53,12 @@ def check_image_url(url: str, field: str) -> list[ApiError]:
 
 
 def check_banner(
-    content: BannerContent, *, type_code: str, title_max: int, text_max: int, prefix: str = "content"
+    content: BannerContent,
+    *,
+    type_code: str,
+    title_max: int,
+    text_max: int,
+    prefix: str = "content",
 ) -> list[ApiError]:
     errors: list[ApiError] = []
     if content.title is not None and len(content.title) > title_max:
@@ -77,13 +100,21 @@ def validate_banner_json(
     try:
         content = BannerContent.model_validate(raw)
     except ValidationError as exc:
-        return None, map_pydantic_errors(exc.errors(), prefix=prefix, fallback="BANNER_SCHEMA_INVALID")
-    return content, check_banner(content, type_code=type_code, title_max=title_max, text_max=text_max, prefix=prefix)
+        return None, map_pydantic_errors(
+            exc.errors(), prefix=prefix, fallback="BANNER_SCHEMA_INVALID"
+        )
+    return content, check_banner(
+        content, type_code=type_code, title_max=title_max, text_max=text_max, prefix=prefix
+    )
 
 
-def validate_content_json(raw: Any, *, prefix: str = "content") -> tuple[PromoContent | None, list[ApiError]]:
+def validate_content_json(
+    raw: Any, *, prefix: str = "content"
+) -> tuple[PromoContent | None, list[ApiError]]:
     try:
         content = PromoContent.model_validate(raw)
     except ValidationError as exc:
-        return None, map_pydantic_errors(exc.errors(), prefix=prefix, fallback="CONTENT_SCHEMA_INVALID")
+        return None, map_pydantic_errors(
+            exc.errors(), prefix=prefix, fallback="CONTENT_SCHEMA_INVALID"
+        )
     return content, check_content(content, prefix=prefix)

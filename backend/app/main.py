@@ -1,23 +1,23 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from dataclasses import asdict
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
-from fastapi.routing import APIRoute
 from fastapi.staticfiles import StaticFiles
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from app.agent.events import EVENT_MODELS
 from app.agent.factory import build_chat_service
 from app.agent.sessions import SessionRegistry
+from app.api.router import api_router
 from app.core.config import Settings
-from app.db import Database
-from app.domain.pydantic_errors import map_pydantic_errors
-from app.errors import ApiException
-from app.routers import campaigns, cbro, chat, children, dictionaries
+from app.core.errors import DomainError
+from app.db.database import Database
+from app.infra.pydantic_errors import map_pydantic_errors
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -30,12 +30,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         settings.checkpoint_db.parent.mkdir(parents=True, exist_ok=True)
         try:
             async with AsyncSqliteSaver.from_conn_string(str(settings.checkpoint_db)) as saver:
-                app.state.chat = build_chat_service(
-                    saver, settings, SessionRegistry(app.state.db.sessions)
-                )
+                app.state.chat = build_chat_service(saver, settings, SessionRegistry(app.state.db))
                 yield
         finally:
-            app.state.db.dispose()
+            await app.state.db.dispose()
 
     app = FastAPI(
         title="AdPilot AI — API кампаний",
@@ -45,8 +43,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = settings
     app.add_middleware(
-        CORSMiddleware, allow_origins=settings.cors_origins,
-        allow_methods=["*"], allow_headers=["*"],
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     @app.middleware("http")
@@ -57,17 +57,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 response.headers[header] = value
         return response
 
-    @app.exception_handler(ApiException)
-    async def handle_api_exception(_request: Request, exc: ApiException):
-        return JSONResponse(status_code=exc.status_code, content={"errors": [e.model_dump() for e in exc.errors]})
+    @app.exception_handler(DomainError)
+    async def handle_api_exception(_request: Request, exc: DomainError):
+        return JSONResponse(
+            status_code=exc.status_code, content={"errors": [asdict(e) for e in exc.errors]}
+        )
 
     @app.exception_handler(RequestValidationError)
     async def handle_validation_error(_request: Request, exc: RequestValidationError):
         errors = map_pydantic_errors(exc.errors(), strip=1)
-        return JSONResponse(status_code=400, content={"errors": [e.model_dump() for e in errors]})
+        return JSONResponse(status_code=400, content={"errors": [asdict(e) for e in errors]})
 
-    for router in (dictionaries.router, campaigns.router, children.router, cbro.router, chat.router):
-        app.include_router(router)
+    app.include_router(api_router)
 
     def custom_openapi():
         if app.openapi_schema:
@@ -75,10 +76,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         schema = get_openapi(title=app.title, version=app.version, routes=app.routes)
         components = schema.setdefault("components", {}).setdefault("schemas", {})
         for model in EVENT_MODELS.values():
-            model_schema = model.model_json_schema(ref_template="#/components/schemas/{model}", mode="serialization")
+            model_schema = model.model_json_schema(
+                ref_template="#/components/schemas/{model}", mode="serialization"
+            )
             components.update(model_schema.pop("$defs", {}))
             components[model.__name__] = model_schema
-        schema["x-chat-events"] = {event: f"#/components/schemas/{model.__name__}" for event, model in EVENT_MODELS.items()}
+        schema["x-chat-events"] = {
+            event: f"#/components/schemas/{model.__name__}" for event, model in EVENT_MODELS.items()
+        }
         app.openapi_schema = schema
         return schema
 

@@ -27,7 +27,11 @@ def generator(responses: list, tmp_path):
             raise item
         return item
 
-    return llm.OpenRouterImageGenerator("test/model", Settings(_env_file=None, media_dir=tmp_path), transport=httpx.MockTransport(handler)), calls
+    return llm.OpenRouterImageGenerator(
+        "test/model",
+        Settings(_env_file=None, media_dir=tmp_path),
+        transport=httpx.MockTransport(handler),
+    ), calls
 
 
 def test_retries_until_success(tmp_path):
@@ -37,7 +41,8 @@ def test_retries_until_success(tmp_path):
             httpx.Response(502),
             httpx.Response(429),
             httpx.Response(200, json={"data": [{"b64_json": PNG}]}),
-        ], tmp_path
+        ],
+        tmp_path,
     )
     url = asyncio.run(gen.generate("coins", "1024x1536"))
     assert url.endswith(".png") and len(calls) == 4

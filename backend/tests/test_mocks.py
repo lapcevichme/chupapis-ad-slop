@@ -3,7 +3,7 @@
 import json
 
 from app.core.config import BACKEND_DIR
-from app.domain.creatives import validate_banner_json, validate_content_json
+from app.infra.creative_validation import validate_banner_json, validate_content_json
 
 LIMITS = {1: ("STORY", 100, 500), 2: ("SMART_BANNER", 250, 1000)}
 
@@ -15,7 +15,9 @@ def _seed(name):
 def test_mock_banners_pass_schema():
     for banner in _seed("campaign_banners"):
         code, title_max, text_max = LIMITS[banner["bannerTypeId"]]
-        _, errors = validate_banner_json(banner["content"], type_code=code, title_max=title_max, text_max=text_max)
+        _, errors = validate_banner_json(
+            banner["content"], type_code=code, title_max=title_max, text_max=text_max
+        )
         assert errors == [], (banner["id"], errors)
 
 
@@ -38,7 +40,10 @@ def test_details_shape(client):
     assert details["topic"] == "SALES"
     assert details["tags"] == [4, 3]
     assert details["places"] == [2]
-    assert details["segments"] == {"included": ["CHANNEL_VIP", "CITY_MSK"], "excluded": ["EXC_UNSUBSCRIBED"]}
+    assert details["segments"] == {
+        "included": ["CHANNEL_VIP", "CITY_MSK"],
+        "excluded": ["EXC_UNSUBSCRIBED"],
+    }
     assert [b["id"] for b in details["banners"]] == [201]
     assert [c["id"] for c in details["creatives"]] == [401, 402]
 

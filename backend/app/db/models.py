@@ -16,7 +16,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db import Base
+from app.db.base import Base
 
 # Перечисления хранятся строками, а не нативными enum: так схема одинакова в SQLite и PostgreSQL.
 
@@ -103,17 +103,23 @@ class Campaign(Base):
     last_edit_author: Mapped[str] = mapped_column(String(100))
 
     tag_links: Mapped[list["CampaignTag"]] = relationship(
-        cascade="all, delete-orphan", order_by="CampaignTag.position"
+        lazy="raise", cascade="all, delete-orphan", order_by="CampaignTag.position"
     )
     place_links: Mapped[list["CampaignPlace"]] = relationship(
-        cascade="all, delete-orphan", order_by="CampaignPlace.position"
+        lazy="raise", cascade="all, delete-orphan", order_by="CampaignPlace.position"
     )
     segment_links: Mapped[list["CampaignSegment"]] = relationship(
-        cascade="all, delete-orphan", order_by="CampaignSegment.position"
+        lazy="raise", cascade="all, delete-orphan", order_by="CampaignSegment.position"
     )
-    banners: Mapped[list["Banner"]] = relationship(cascade="all, delete-orphan", order_by="Banner.id")
-    contents: Mapped[list["Content"]] = relationship(cascade="all, delete-orphan", order_by="Content.id")
-    creatives: Mapped[list["Creative"]] = relationship(cascade="all, delete-orphan", order_by="Creative.id")
+    banners: Mapped[list["Banner"]] = relationship(
+        lazy="raise", cascade="all, delete-orphan", order_by="Banner.id"
+    )
+    contents: Mapped[list["Content"]] = relationship(
+        lazy="raise", cascade="all, delete-orphan", order_by="Content.id"
+    )
+    creatives: Mapped[list["Creative"]] = relationship(
+        lazy="raise", cascade="all, delete-orphan", order_by="Creative.id"
+    )
 
     @property
     def tag_ids(self) -> list[int]:
@@ -130,7 +136,9 @@ class Campaign(Base):
 class CampaignTag(Base):
     __tablename__ = "campaign_tags"
 
-    campaign_id: Mapped[int] = mapped_column(ForeignKey("campaigns.id", ondelete="CASCADE"), primary_key=True)
+    campaign_id: Mapped[int] = mapped_column(
+        ForeignKey("campaigns.id", ondelete="CASCADE"), primary_key=True
+    )
     tag_id: Mapped[int] = mapped_column(ForeignKey("tags.id"), primary_key=True)
     position: Mapped[int] = mapped_column(Integer, default=0)
 
@@ -138,7 +146,9 @@ class CampaignTag(Base):
 class CampaignPlace(Base):
     __tablename__ = "campaign_places"
 
-    campaign_id: Mapped[int] = mapped_column(ForeignKey("campaigns.id", ondelete="CASCADE"), primary_key=True)
+    campaign_id: Mapped[int] = mapped_column(
+        ForeignKey("campaigns.id", ondelete="CASCADE"), primary_key=True
+    )
     place_id: Mapped[int] = mapped_column(ForeignKey("places.id"), primary_key=True)
     position: Mapped[int] = mapped_column(Integer, default=0)
     place: Mapped[Place] = relationship(lazy="joined")
@@ -147,7 +157,9 @@ class CampaignPlace(Base):
 class CampaignSegment(Base):
     __tablename__ = "campaign_segments"
 
-    campaign_id: Mapped[int] = mapped_column(ForeignKey("campaigns.id", ondelete="CASCADE"), primary_key=True)
+    campaign_id: Mapped[int] = mapped_column(
+        ForeignKey("campaigns.id", ondelete="CASCADE"), primary_key=True
+    )
     segment_code: Mapped[str] = mapped_column(ForeignKey("segments.code"), primary_key=True)
     # included | excluded
     kind: Mapped[str] = mapped_column(String(16))

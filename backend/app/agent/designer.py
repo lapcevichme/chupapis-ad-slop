@@ -1,6 +1,6 @@
 """Дизайн-агент: по задаче от чат-агента собирает JSON баннера и PROMO-контента.
 
-Результат проверяется теми же схемами и правилами, что и в API (`app.domain.creatives`).
+Результат проверяется теми же схемами и правилами, что и в API (`app.infra.creative_validation`).
 Ошибки возвращаются модели, и она исправляет JSON, пока он не пройдёт проверку.
 """
 
@@ -14,8 +14,8 @@ from pydantic import BaseModel, Field
 
 from app.agent.llm import ImageGenerator, with_cache_breakpoints
 from app.agent.prompts import load_prompt
-from app.domain.creatives import validate_banner_json, validate_content_json
-from app.schemas.creative_json import BannerContent, PromoContent
+from app.contracts.creative_json import BannerContent, PromoContent
+from app.infra.creative_validation import validate_banner_json, validate_content_json
 
 MAX_ATTEMPTS = 3
 # Сторис: картинка — фон всего экрана, текст поверх. Смарт-баннер: картинка — квадратная иконка в карточке.
@@ -37,13 +37,19 @@ class DesignResult(BaseModel):
 
     bannerName: str = Field(description="Короткое служебное название баннера, до 100 символов")
     banner: BannerContent
-    contentName: str | None = Field(None, description="Название промо-экрана; null, если экран не нужен")
-    content: PromoContent | None = Field(None, description="PROMO-экран после тапа по баннеру; null, если не нужен")
+    contentName: str | None = Field(
+        None, description="Название промо-экрана; null, если экран не нужен"
+    )
+    content: PromoContent | None = Field(
+        None, description="PROMO-экран после тапа по баннеру; null, если не нужен"
+    )
     imagePrompt: str | None = Field(
-        None, description="Промпт на английском для генерации картинки баннера: без людей и без текста на картинке"
+        None,
+        description="Промпт на английском для генерации картинки баннера: без людей и без текста на картинке",
     )
     contentImagePrompt: str | None = Field(
-        None, description="Только для STORY с промо-экраном: промпт квадратной картинки промо-экрана, предмет на весь кадр"
+        None,
+        description="Только для STORY с промо-экраном: промпт квадратной картинки промо-экрана, предмет на весь кадр",
     )
 
 
@@ -118,7 +124,9 @@ class Designer:
         self.images = images
         self.cache_enabled = cache_enabled
 
-    async def design(self, request: DesignRequest, progress: Callable[[str], None] = lambda _: None) -> DesignOutcome:
+    async def design(
+        self, request: DesignRequest, progress: Callable[[str], None] = lambda _: None
+    ) -> DesignOutcome:
         t = request.banner_type
         task = {
             "brief": request.brief,
@@ -127,18 +135,29 @@ class Designer:
             "textMaxLength": t["textMaxLength"],
             "withContent": request.with_content,
             "needImagePrompt": request.generates_banner_image(t["code"]),
-            "imageSize": IMAGE_SIZES.get(t["code"]) if request.generates_banner_image(t["code"]) else None,
-            "needContentImagePrompt": request.wants_content_image and needs_own_content_image(t["code"]),
+            "imageSize": IMAGE_SIZES.get(t["code"])
+            if request.generates_banner_image(t["code"])
+            else None,
+            "needContentImagePrompt": request.wants_content_image
+            and needs_own_content_image(t["code"]),
             "previousVersion": request.previous,
         }
-        messages: list = [SystemMessage(load_prompt("design")), HumanMessage(json.dumps(task, ensure_ascii=False))]
+        messages: list = [
+            SystemMessage(load_prompt("design")),
+            HumanMessage(json.dumps(task, ensure_ascii=False)),
+        ]
         for attempt in range(1, MAX_ATTEMPTS + 1):
             progress(f"Дизайнер собирает креатив, попытка {attempt}")
-            response: AIMessage = await self.model.ainvoke(with_cache_breakpoints(messages, stable=1, enabled=self.cache_enabled))
+            response: AIMessage = await self.model.ainvoke(
+                with_cache_breakpoints(messages, stable=1, enabled=self.cache_enabled)
+            )
             call = next((c for c in response.tool_calls if c["name"] == "DesignResult"), None)
             if call is None:
                 problems = ["модель ответила текстом вместо вызова DesignResult"]
-                messages += [response, HumanMessage("Верни результат только вызовом инструмента DesignResult.")]
+                messages += [
+                    response,
+                    HumanMessage("Верни результат только вызовом инструмента DesignResult."),
+                ]
                 continue
             problems = _validate(call["args"], t, request.with_content)
             if not problems:
@@ -147,29 +166,40 @@ class Designer:
                 response,
                 ToolMessage(
                     tool_call_id=call["id"],
-                    content="JSON не прошёл проверку, исправь и верни заново:\n" + "\n".join(problems),
+                    content="JSON не прошёл проверку, исправь и верни заново:\n"
+                    + "\n".join(problems),
                 ),
             ]
         raise DesignError("Не удалось собрать валидный JSON: " + "; ".join(problems))
 
-    async def _generate(self, prompt: str | None, size: str, what: str, notes: list[str]) -> str | None:
+    async def _generate(
+        self, prompt: str | None, size: str, what: str, notes: list[str]
+    ) -> str | None:
         if not prompt:
             return None
         try:
             url = await self.images.generate(prompt, size)
         except Exception as exc:  # генерация — бонус, сценарий без неё не ломается
-            notes.append(f"{what}: сгенерировать не удалось ({type(exc).__name__}), осталось без изображения")
+            notes.append(
+                f"{what}: сгенерировать не удалось ({type(exc).__name__}), осталось без изображения"
+            )
             return None
         if url is None:
             notes.append(f"{what}: генерация картинок недоступна, осталось без изображения")
         return url
 
-    async def _finish(self, args: dict[str, Any], request: DesignRequest, progress) -> DesignOutcome:
+    async def _finish(
+        self, args: dict[str, Any], request: DesignRequest, progress
+    ) -> DesignOutcome:
         code = request.banner_type["code"]
-        banner = BannerContent.model_validate(args["banner"]).model_dump(mode="json", exclude_none=True)
+        banner = BannerContent.model_validate(args["banner"]).model_dump(
+            mode="json", exclude_none=True
+        )
         content = None
         if request.with_content and args.get("content"):
-            content = PromoContent.model_validate(args["content"]).model_dump(mode="json", exclude_none=True)
+            content = PromoContent.model_validate(args["content"]).model_dump(
+                mode="json", exclude_none=True
+            )
         notes: list[str] = []
 
         banner_url, content_image = request.image_url, None
@@ -181,8 +211,15 @@ class Designer:
             # Промо-экрану сторис нужна своя квадратная картинка. Генерируем по очереди, а не параллельно:
             # OpenRouter заранее резервирует деньги под каждый запрос, и два сразу упираются в небольшой лимит ключа.
             if request.generates_banner_image(code):
-                banner_url = await self._generate(args.get("imagePrompt"), IMAGE_SIZES[code], "Картинка баннера", notes)
-            own_url = await self._generate(args.get("contentImagePrompt") if own else None, CONTENT_IMAGE_SIZE, "Картинка промо-экрана", notes)
+                banner_url = await self._generate(
+                    args.get("imagePrompt"), IMAGE_SIZES[code], "Картинка баннера", notes
+                )
+            own_url = await self._generate(
+                args.get("contentImagePrompt") if own else None,
+                CONTENT_IMAGE_SIZE,
+                "Картинка промо-экрана",
+                notes,
+            )
             icon = banner_url or request.previous_image
             if own_url:
                 content_image = {"url": own_url, "aspectRatio": CONTENT_IMAGE_ASPECT}
@@ -197,7 +234,9 @@ class Designer:
         if content is not None and content_image:
             insert_content_image(content, content_image)
         content_name = (args.get("contentName") or "Промо-экран")[:100] if content else None
-        return DesignOutcome(args["bannerName"][:100], banner, content_name, content, notes, content_image)
+        return DesignOutcome(
+            args["bannerName"][:100], banner, content_name, content, notes, content_image
+        )
 
 
 def insert_content_image(content: dict[str, Any], image: dict[str, Any]) -> None:

@@ -10,11 +10,11 @@ from langgraph.checkpoint.memory import InMemorySaver
 
 from app.agent.api_client import CampaignsApi
 from app.agent.factory import build_chat_service
-from app.core.config import BACKEND_DIR, Settings
-from app.db import Base
 from app.agent.sessions import SessionRegistry
+from app.core.config import BACKEND_DIR, Settings
+from app.db.base import Base
+from app.db.seed import seed
 from app.main import create_app
-from app.seed import seed
 
 DIALOGS = BACKEND_DIR.parent / "docs" / "dialogs"
 TRANSCRIPTS = DIALOGS / "transcripts"
@@ -24,7 +24,11 @@ ROLE_NAMES = {"campaignManager": "Менеджер", "campaignModerator": "Мо�
 def _events(body: str) -> list[tuple[str, dict]]:
     result = []
     for block in body.split("\n\n"):
-        lines = dict(line.split(": ", 1) for line in block.splitlines() if ": " in line and not line.startswith(":"))
+        lines = dict(
+            line.split(": ", 1)
+            for line in block.splitlines()
+            if ": " in line and not line.startswith(":")
+        )
         if "event" in lines:
             result.append((lines["event"], json.loads(lines["data"])))
     return result
@@ -39,7 +43,11 @@ def _render_turn(events: list[tuple[str, dict]]) -> tuple[list[str], dict | None
     def flush() -> None:
         nonlocal text, steps
         if steps:
-            out.append("_" + " · ".join(f"{marks.get(s['status'], '')} {s['label']}" for s in steps.values()) + "_")
+            out.append(
+                "_"
+                + " · ".join(f"{marks.get(s['status'], '')} {s['label']}" for s in steps.values())
+                + "_"
+            )
         if text.strip():
             out.append(f"**Агент:** {text.strip()}")
         text, steps = "", {}
@@ -59,7 +67,10 @@ def _render_turn(events: list[tuple[str, dict]]) -> tuple[list[str], dict | None
             groups: dict[str, list[str]] = {}
             for item in data["items"]:
                 groups.setdefault(item.get("group") or "Варианты", []).append(item["label"])
-            out += [f"> 🔘 {group}: " + " · ".join(f"[{label}]" for label in labels) for group, labels in groups.items()]
+            out += [
+                f"> 🔘 {group}: " + " · ".join(f"[{label}]" for label in labels)
+                for group, labels in groups.items()
+            ]
         elif kind == "confirmation_required":
             flush()
             confirmation = data
@@ -75,17 +86,22 @@ def _render_turn(events: list[tuple[str, dict]]) -> tuple[list[str], dict | None
 async def run_dialog(path: Path) -> Path:
     settings = Settings(
         database_url=f"sqlite:///{Path(tempfile.mkdtemp()) / 'dialogs.db'}",
-        checkpoint_db=Path(tempfile.mkdtemp()) / 'checkpoints.db',
+        checkpoint_db=Path(tempfile.mkdtemp()) / "checkpoints.db",
     )
     app = create_app(settings)
     async with app.router.lifespan_context(app):
-        Base.metadata.create_all(app.state.db.engine)
-        with app.state.db.sessions() as session:
-            seed(session, settings.seed_dir)
+        async with app.state.db.engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        async with app.state.db.unit_of_work() as uow:
+            await uow.session.run_sync(seed, settings.seed_dir)
         transport = httpx.ASGITransport(app=app)
         app.state.chat = build_chat_service(
-            InMemorySaver(), settings, SessionRegistry(app.state.db.sessions),
-            api_factory=lambda user, role: CampaignsApi(user, role, base_url="http://api", transport=transport),
+            InMemorySaver(),
+            settings,
+            SessionRegistry(app.state.db),
+            api_factory=lambda user, role: CampaignsApi(
+                user, role, base_url="http://api", transport=transport
+            ),
         )
         return await _run_dialog(path, settings, transport)
 
@@ -109,26 +125,40 @@ async def _run_dialog(path, settings, transport) -> Path:
             headers = {"X-User": user, "X-Role": role}
             if user not in sessions:
                 body = {"campaignId": scenario["campaignId"]} if scenario.get("campaignId") else {}
-                sessions[user] = (await client.post("/chat", json=body, headers=headers)).json()["sessionId"]
+                sessions[user] = (await client.post("/chat", json=body, headers=headers)).json()[
+                    "sessionId"
+                ]
             sid, who = sessions[user], f"{ROLE_NAMES.get(role, role)} ({user})"
             lines.append(f"## {number}.")
             lines.append("")
             if "say" in step:
                 lines.append(f"**{who}:** {step['say']}")
-                response = await client.post(f"/chat/{sid}/messages", json={"text": step["say"]}, headers=headers)
+                response = await client.post(
+                    f"/chat/{sid}/messages", json={"text": step["say"]}, headers=headers
+                )
             else:
                 card = pending.get(user)
                 if card is None:
                     lines += ["_Карточки подтверждения нет, шаг пропущен._", ""]
                     continue
                 approved = bool(step["confirm"])
-                lines.append(f"**{who}** нажимает «{'Подтвердить' if approved else 'Не подтверждать'}» в карточке «{card['title']}».")
-                response = await client.post(f"/chat/{sid}/confirmations/{card['id']}", json={"approved": approved}, headers=headers)
+                lines.append(
+                    f"**{who}** нажимает «{'Подтвердить' if approved else 'Не подтверждать'}» в карточке «{card['title']}»."
+                )
+                response = await client.post(
+                    f"/chat/{sid}/confirmations/{card['id']}",
+                    json={"approved": approved},
+                    headers=headers,
+                )
             rendered, pending[user] = _render_turn(_events(response.text))
             lines += [""] + rendered + [""]
             print(f"  {path.stem}: шаг {number} готов", flush=True)
 
-        snapshot = (await client.get(f"/chat/{sessions[scenario['user']]}", headers={"X-User": scenario["user"]})).json()
+        snapshot = (
+            await client.get(
+                f"/chat/{sessions[scenario['user']]}", headers={"X-User": scenario["user"]}
+            )
+        ).json()
         if snapshot.get("campaignId"):
             campaign = (await client.get(f"/campaigns/{snapshot['campaignId']}")).json()
             audit = (await client.get(f"/campaigns/{snapshot['campaignId']}/audit")).json()
@@ -138,7 +168,8 @@ async def _run_dialog(path, settings, transport) -> Path:
                 f"Кампания {campaign['id']} «{campaign['name']}»: состояние `{campaign['state']}`, "
                 f"баннеров {len(campaign['banners'])}, промо-экранов {len(campaign['contents'])}, креативов {len(campaign['creatives'])}.",
                 "",
-                "Журнал аудита: " + ", ".join(f"{a['entity']} {a['action']} ({a['actor']})" for a in audit),
+                "Журнал аудита: "
+                + ", ".join(f"{a['entity']} {a['action']} ({a['actor']})" for a in audit),
                 "",
             ]
     TRANSCRIPTS.mkdir(parents=True, exist_ok=True)

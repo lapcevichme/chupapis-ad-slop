@@ -1,41 +1,48 @@
 """DTO API кампаний (§3 task.md). Имена полей — как в контракте, в camelCase."""
 
+from dataclasses import asdict
 from datetime import date, datetime
-from typing import Any, Literal
+from typing import Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.contracts.creative_json import BannerContent, PromoContent
+from app.core.errors import ApiError
 from app.domain.enums import AudienceType, CampaignState, Topic
-from app.errors import ApiError
-from app.schemas.creative_json import BannerContent, PromoContent
 
 TIME_PATTERN = r"^([01]\d|2[0-3]):[0-5]\d$"
 
 
-class Body(BaseModel):
+class ContractModel(BaseModel):
+    @classmethod
+    def from_domain(cls, value: Any) -> Self:
+        return cls.model_validate(asdict(value))
+
+
+class Body(ContractModel):
     model_config = ConfigDict(extra="forbid")
 
 
 # --- Справочники
 
 
-class TopicDto(BaseModel):
+class TopicDto(ContractModel):
     value: Topic
     label: str
 
 
-class TagDto(BaseModel):
+class TagDto(ContractModel):
     id: int
     name: str
 
 
-class ChannelDto(BaseModel):
+class ChannelDto(ContractModel):
     id: int
     code: str
     description: str
 
 
-class BannerTypeDto(BaseModel):
+class BannerTypeDto(ContractModel):
     id: int
     code: str
     description: str
@@ -45,12 +52,12 @@ class BannerTypeDto(BaseModel):
     channels: list[str]
 
 
-class SegmentTypeDto(BaseModel):
+class SegmentTypeDto(ContractModel):
     code: str
     name: str
 
 
-class SegmentDto(BaseModel):
+class SegmentDto(ContractModel):
     code: str
     name: str
     type: str
@@ -58,7 +65,7 @@ class SegmentDto(BaseModel):
     count: int
 
 
-class PlaceDto(BaseModel):
+class PlaceDto(ContractModel):
     id: int
     code: str
     description: str
@@ -106,7 +113,7 @@ class CampaignInfo(Body):
     places: list[IdRef] = Field(min_length=1)
 
 
-class CampaignRef(BaseModel):
+class CampaignRef(ContractModel):
     """Короткий ответ на запись и переходы жизненного цикла."""
 
     id: int
@@ -116,7 +123,7 @@ class CampaignRef(BaseModel):
     lastEditAuthor: str
 
 
-class CampaignListItem(BaseModel):
+class CampaignListItem(ContractModel):
     id: int
     name: str
     state: CampaignState
@@ -128,7 +135,7 @@ class CampaignListItem(BaseModel):
     endTime: str | None
 
 
-class CampaignHeader(BaseModel):
+class CampaignHeader(ContractModel):
     id: int
     name: str
     marketingName: str | None
@@ -162,7 +169,7 @@ class BannerCreate(Body):
     content: BannerContent
 
 
-class BannerDto(BaseModel):
+class BannerDto(ContractModel):
     id: int
     campaignId: int
     name: str
@@ -176,7 +183,7 @@ class ContentCreate(Body):
     content: PromoContent
 
 
-class ContentDto(BaseModel):
+class ContentDto(ContractModel):
     id: int
     campaignId: int
     name: str
@@ -191,7 +198,7 @@ class CreativeCreate(Body):
     channelCode: str = Field(description="iOS | ANDROID | WEB, регистр важен")
 
 
-class CreativeDto(BaseModel):
+class CreativeDto(ContractModel):
     id: int
     campaignId: int
     name: str
@@ -211,12 +218,12 @@ class CampaignDetails(CampaignHeader):
 # --- Проверка, аудит, переходы
 
 
-class ValidationReport(BaseModel):
+class ValidationReport(ContractModel):
     errors: list[ApiError]
     warnings: list[str]
 
 
-class AuditRecord(BaseModel):
+class AuditRecord(ContractModel):
     entity: str
     entityId: int
     action: str
@@ -235,6 +242,6 @@ class CbroExportRequest(Body):
     campaignId: int
 
 
-class CbroExportResponse(BaseModel):
+class CbroExportResponse(ContractModel):
     status: Literal["OK"]
     exportedAt: datetime

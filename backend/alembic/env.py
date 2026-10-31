@@ -1,35 +1,41 @@
+import asyncio
 from logging.config import fileConfig
 
 from alembic import context
-
-from app import models  # noqa: F401  регистрирует таблицы в Base.metadata
 from app.core.config import Settings
-from app.db import Base, make_engine
+from app.db import models
+from app.db.database import Database, async_url
 
-settings = Settings()
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-target_metadata = Base.metadata
 
-
-def run_migrations_offline() -> None:
-    context.configure(url=settings.database_url, target_metadata=target_metadata, literal_binds=True, render_as_batch=True)
+def migrate(connection) -> None:
+    context.configure(
+        connection=connection, target_metadata=models.Campaign.metadata, render_as_batch=True
+    )
     with context.begin_transaction():
         context.run_migrations()
 
 
-def run_migrations_online() -> None:
-    engine = make_engine(settings.database_url)
-    with engine.connect() as connection:
-        # render_as_batch: SQLite не умеет большинство ALTER TABLE, Alembic пересоздаёт таблицу.
-        context.configure(connection=connection, target_metadata=target_metadata, render_as_batch=True)
-        with context.begin_transaction():
-            context.run_migrations()
+async def online() -> None:
+    database = Database(Settings())
+    try:
+        async with database.engine.connect() as connection:
+            await connection.run_sync(migrate)
+    finally:
+        await database.dispose()
 
 
 if context.is_offline_mode():
-    run_migrations_offline()
+    context.configure(
+        url=async_url(Settings().database_url),
+        target_metadata=models.Campaign.metadata,
+        literal_binds=True,
+        render_as_batch=True,
+    )
+    with context.begin_transaction():
+        context.run_migrations()
 else:
-    run_migrations_online()
+    asyncio.run(online())

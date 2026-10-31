@@ -18,7 +18,11 @@ def export() -> dict:
         "designAgent": [
             {
                 "type": "function",
-                "function": {"name": "DesignResult", "description": DesignResult.__doc__, "parameters": DesignResult.model_json_schema()},
+                "function": {
+                    "name": "DesignResult",
+                    "description": DesignResult.__doc__,
+                    "parameters": DesignResult.model_json_schema(),
+                },
             }
         ],
     }

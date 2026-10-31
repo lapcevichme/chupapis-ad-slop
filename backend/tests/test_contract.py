@@ -1,8 +1,8 @@
 import json
 from pathlib import Path
 
-from app.main import create_app
 from app.core.config import Settings
+from app.main import create_app
 
 
 def test_openapi_matches_frontend_contract():

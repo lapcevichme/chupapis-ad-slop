@@ -5,7 +5,6 @@ from typing import Any
 import httpx
 
 
-
 class ApiCallError(Exception):
     def __init__(self, status: int, errors: list[dict[str, Any]]):
         self.status = status
@@ -14,7 +13,14 @@ class ApiCallError(Exception):
 
 
 class CampaignsApi:
-    def __init__(self, user: str, role: str, *, base_url: str, transport: httpx.AsyncBaseTransport | None = None):
+    def __init__(
+        self,
+        user: str,
+        role: str,
+        *,
+        base_url: str,
+        transport: httpx.AsyncBaseTransport | None = None,
+    ):
         self._client = httpx.AsyncClient(
             base_url=base_url,
             headers={"X-User": user, "X-Role": role},
@@ -35,7 +41,11 @@ class CampaignsApi:
                 errors = response.json().get("errors") or []
             except ValueError:
                 errors = []
-            raise ApiCallError(response.status_code, errors or [{"code": f"HTTP_{response.status_code}", "message": response.text[:300]}])
+            raise ApiCallError(
+                response.status_code,
+                errors
+                or [{"code": f"HTTP_{response.status_code}", "message": response.text[:300]}],
+            )
         return response.json() if response.content else None
 
     async def get(self, path: str) -> Any:

@@ -19,8 +19,8 @@ from app.agent.operations import (
     build_operation,
     segments_label,
 )
-from app.domain.creatives import check_banner, check_content
-from app.domain.pydantic_errors import map_pydantic_errors
+from app.infra.creative_validation import check_banner, check_content
+from app.infra.pydantic_errors import map_pydantic_errors
 
 
 class NoArgs(BaseModel):
@@ -41,17 +41,57 @@ class ReadTool:
 
 
 READ_TOOLS = [
-    ReadTool("list_topics", "/topics", "Справочник тематик (фиксированный enum)", "Смотрю тематики"),
+    ReadTool(
+        "list_topics", "/topics", "Справочник тематик (фиксированный enum)", "Смотрю тематики"
+    ),
     ReadTool("list_tags", "/tags", "Справочник тегов", "Смотрю теги"),
     ReadTool("list_channels", "/channels", "Каналы: iOS, ANDROID, WEB", "Смотрю каналы"),
-    ReadTool("list_banner_types", "/banner-types", "Типы баннеров с лимитами длины и допустимыми каналами", "Смотрю типы баннеров"),
+    ReadTool(
+        "list_banner_types",
+        "/banner-types",
+        "Типы баннеров с лимитами длины и допустимыми каналами",
+        "Смотрю типы баннеров",
+    ),
     ReadTool("list_segment_types", "/segment-types", "Типы сегментов", "Смотрю типы сегментов"),
-    ReadTool("list_segments", "/segments", "Сегменты аудитории: код, название, тип, состояние, число клиентов", "Ищу сегменты"),
-    ReadTool("list_places", "/places", "Места показа: id, код, описание, defaultBanner, состояние", "Подбираю места показа"),
-    ReadTool("list_campaigns", "/campaigns", "Список кампаний: id, название, состояние, даты", "Смотрю кампании"),
-    ReadTool("get_campaign", "/campaigns/{campaignId}", "Кампания целиком: шапка, места, сегменты, баннеры, контент, креативы", "Открываю кампанию", CampaignIdArgs),
-    ReadTool("get_warnings", "/campaigns/{campaignId}/warnings", "Прогон валидации кампании: ошибки и warnings", "Проверяю кампанию", CampaignIdArgs),
-    ReadTool("get_audit", "/campaigns/{campaignId}/audit", "Журнал аудита: правки и переходы, комментарии модератора", "Смотрю историю кампании", CampaignIdArgs),
+    ReadTool(
+        "list_segments",
+        "/segments",
+        "Сегменты аудитории: код, название, тип, состояние, число клиентов",
+        "Ищу сегменты",
+    ),
+    ReadTool(
+        "list_places",
+        "/places",
+        "Места показа: id, код, описание, defaultBanner, состояние",
+        "Подбираю места показа",
+    ),
+    ReadTool(
+        "list_campaigns",
+        "/campaigns",
+        "Список кампаний: id, название, состояние, даты",
+        "Смотрю кампании",
+    ),
+    ReadTool(
+        "get_campaign",
+        "/campaigns/{campaignId}",
+        "Кампания целиком: шапка, места, сегменты, баннеры, контент, креативы",
+        "Открываю кампанию",
+        CampaignIdArgs,
+    ),
+    ReadTool(
+        "get_warnings",
+        "/campaigns/{campaignId}/warnings",
+        "Прогон валидации кампании: ошибки и warnings",
+        "Проверяю кампанию",
+        CampaignIdArgs,
+    ),
+    ReadTool(
+        "get_audit",
+        "/campaigns/{campaignId}/audit",
+        "Журнал аудита: правки и переходы, комментарии модератора",
+        "Смотрю историю кампании",
+        CampaignIdArgs,
+    ),
 ]
 READ_TOOLS_BY_NAME = {t.name: t for t in READ_TOOLS}
 
@@ -64,7 +104,10 @@ class WarnArgs(BaseModel):
 class Suggestion(BaseModel):
     label: str = Field(description="Текст кнопки")
     value: str = Field(description="Текст, который уйдёт в чат при нажатии")
-    group: str | None = Field(None, description="Тема вопроса, например «Дата начала». Нужна, только если за раз спрашиваешь о нескольких темах")
+    group: str | None = Field(
+        None,
+        description="Тема вопроса, например «Дата начала». Нужна, только если за раз спрашиваешь о нескольких темах",
+    )
 
 
 class SuggestArgs(BaseModel):
@@ -73,41 +116,90 @@ class SuggestArgs(BaseModel):
 
 
 class DesignArgs(BaseModel):
-    brief: str = Field(description="Задача дизайнеру своими словами: продукт, оффер с цифрами, условия, срок, тон, призыв к действию, ссылки из брифа")
-    placeId: Ref | None = Field(None, description="Место показа: тип баннера берётся из его defaultBanner")
-    bannerType: Literal["STORY", "SMART_BANNER"] | None = Field(None, description="Явный тип баннера, если место не задано или у него нет defaultBanner")
-    channels: list[Literal["iOS", "ANDROID", "WEB"]] | None = Field(None, description="Каналы креативов; по умолчанию все допустимые для типа")
-    withContent: bool = Field(True, description="Нужен ли промо-экран после тапа; у STORY он есть всегда")
-    generateImage: bool = Field(False, description="Сгенерировать картинку; только если пользователь согласился")
-    imageUrl: str | None = Field(None, description="Картинка пользователя (https), если он её прислал")
-    replaceBannerId: Ref | None = Field(None, description="Правка: id баннера, который нужно переделать, вместо создания нового")
-    promoImageOnly: bool = Field(False, description="Правка: нужна только картинка промо-экрана, баннер не менять. Вместе с replaceBannerId и generateImage")
+    brief: str = Field(
+        description="Задача дизайнеру своими словами: продукт, оффер с цифрами, условия, срок, тон, призыв к действию, ссылки из брифа"
+    )
+    placeId: Ref | None = Field(
+        None, description="Место показа: тип баннера берётся из его defaultBanner"
+    )
+    bannerType: Literal["STORY", "SMART_BANNER"] | None = Field(
+        None, description="Явный тип баннера, если место не задано или у него нет defaultBanner"
+    )
+    channels: list[Literal["iOS", "ANDROID", "WEB"]] | None = Field(
+        None, description="Каналы креативов; по умолчанию все допустимые для типа"
+    )
+    withContent: bool = Field(
+        True, description="Нужен ли промо-экран после тапа; у STORY он есть всегда"
+    )
+    generateImage: bool = Field(
+        False, description="Сгенерировать картинку; только если пользователь согласился"
+    )
+    imageUrl: str | None = Field(
+        None, description="Картинка пользователя (https), если он её прислал"
+    )
+    replaceBannerId: Ref | None = Field(
+        None, description="Правка: id баннера, который нужно переделать, вместо создания нового"
+    )
+    promoImageOnly: bool = Field(
+        False,
+        description="Правка: нужна только картинка промо-экрана, баннер не менять. Вместе с replaceBannerId и generateImage",
+    )
 
 
 class ConfirmArgs(BaseModel):
-    title: str = Field(description="Короткий заголовок шага, например «Создать кампанию «Вклад 16%»»")
+    title: str = Field(
+        description="Короткий заголовок шага, например «Создать кампанию «Вклад 16%»»"
+    )
 
 
 class DiscardArgs(BaseModel):
-    refs: list[str] | None = Field(None, description="Ссылки tmp-N операций, которые убрать; null — очистить весь пакет")
+    refs: list[str] | None = Field(
+        None, description="Ссылки tmp-N операций, которые убрать; null — очистить весь пакет"
+    )
 
 
 UI_TOOLS: dict[str, tuple[type[BaseModel], str]] = {
-    "warn_user": (WarnArgs, "Показать пользователю предупреждение о спорном или противоречивом решении. Не отказ: после предупреждения продолжай."),
-    "suggest_options": (SuggestArgs, "Показать кнопки-варианты ответа (сегменты, места, даты и т. п.)"),
-    "design_creative": (DesignArgs, "Поручить дизайн-агенту баннер и промо-экран. Кладёт в пакет баннер, контент и креативы по каналам."),
-    "request_confirmation": (ConfirmArgs, "Показать пакет пользователю и попросить подтверждение. Записи выполнятся только после «да»."),
+    "warn_user": (
+        WarnArgs,
+        "Показать пользователю предупреждение о спорном или противоречивом решении. Не отказ: после предупреждения продолжай.",
+    ),
+    "suggest_options": (
+        SuggestArgs,
+        "Показать кнопки-варианты ответа (сегменты, места, даты и т. п.)",
+    ),
+    "design_creative": (
+        DesignArgs,
+        "Поручить дизайн-агенту баннер и промо-экран. Кладёт в пакет баннер, контент и креативы по каналам.",
+    ),
+    "request_confirmation": (
+        ConfirmArgs,
+        "Показать пакет пользователю и попросить подтверждение. Записи выполнятся только после «да».",
+    ),
     "discard_pending": (DiscardArgs, "Убрать операции из пакета до подтверждения"),
 }
 
 
 def _schema(name: str, description: str, args: type[BaseModel]) -> dict[str, Any]:
-    return {"type": "function", "function": {"name": name, "description": description, "parameters": args.model_json_schema()}}
+    return {
+        "type": "function",
+        "function": {
+            "name": name,
+            "description": description,
+            "parameters": args.model_json_schema(),
+        },
+    }
 
 
 def tool_schemas() -> list[dict[str, Any]]:
     schemas = [_schema(t.name, f"{t.description}. GET {t.path}", t.args) for t in READ_TOOLS]
-    schemas += [_schema(op.tool, f"{op.description}: кладёт {op.method} {op.path} в пакет на подтверждение", op.args) for op in WRITE_OPS]
+    schemas += [
+        _schema(
+            op.tool,
+            f"{op.description}: кладёт {op.method} {op.path} в пакет на подтверждение",
+            op.args,
+        )
+        for op in WRITE_OPS
+    ]
     schemas += [_schema(name, description, args) for name, (args, description) in UI_TOOLS.items()]
     return schemas
 
@@ -158,7 +250,9 @@ class ToolContext:
 
 
 def _errors_text(errors) -> str:
-    return "Ошибка проверки, исправь аргументы:\n" + "\n".join(f"- {e.code} ({e.field or '—'}): {e.message}" for e in errors)
+    return "Ошибка проверки, исправь аргументы:\n" + "\n".join(
+        f"- {e.code} ({e.field or '—'}): {e.message}" for e in errors
+    )
 
 
 async def _propose(ctx: ToolContext, spec: WriteOp, raw: dict[str, Any]) -> str:
@@ -186,7 +280,12 @@ async def _propose(ctx: ToolContext, spec: WriteOp, raw: dict[str, Any]) -> str:
         if errors:
             return _errors_text(errors)
 
-    op = build_operation(spec, args, ref=ctx.next_ref() if spec.creates else None, current_campaign=ctx.current_campaign())
+    op = build_operation(
+        spec,
+        args,
+        ref=ctx.next_ref() if spec.creates else None,
+        current_campaign=ctx.current_campaign(),
+    )
     if spec.kind == "set_segments":
         # В карточке подтверждения пользователь видит названия сегментов, а не коды.
         names = {segment["code"]: segment["name"] for segment in await ctx.dictionary("/segments")}
@@ -211,7 +310,11 @@ async def _design(ctx: ToolContext, args: DesignArgs, progress: Callable[[str], 
     banner_types = await ctx.banner_types()
     by_code = {t["code"]: t for t in banner_types.values()}
     draft = ctx.draft() or {}
-    previous = next((b for b in draft.get("banners", []) if b["id"] == args.replaceBannerId), None) if args.replaceBannerId else None
+    previous = (
+        next((b for b in draft.get("banners", []) if b["id"] == args.replaceBannerId), None)
+        if args.replaceBannerId
+        else None
+    )
     if args.replaceBannerId and previous is None:
         return f"Ошибка: баннера {args.replaceBannerId} нет в кампании"
 
@@ -230,16 +333,33 @@ async def _design(ctx: ToolContext, args: DesignArgs, progress: Callable[[str], 
     if bad:
         return f"Ошибка: {code} не поддерживает каналы {', '.join(bad)}; допустимы {', '.join(banner_type['channels'])}"
 
-    pending_banner = next((op for op in ctx.pending if previous and op["ref"] == args.replaceBannerId), None)
+    pending_banner = next(
+        (op for op in ctx.pending if previous and op["ref"] == args.replaceBannerId), None
+    )
     # Промо-экраны, привязанные к переделываемому баннеру через креативы: им тоже нужна новая картинка.
     # Ещё не сохранённые правим прямо в пакете, сохранённым предлагаем update_content.
     linked_contents, saved_contents = [], []
     if pending_banner is not None:
-        linked = {op["body"].get("contentId") for op in ctx.pending if op["kind"] == "create_creative" and op["body"].get("bannerId") == pending_banner["ref"]}
-        linked_contents = [op for op in ctx.pending if op["kind"] == "create_content" and op["ref"] in linked]
+        linked = {
+            op["body"].get("contentId")
+            for op in ctx.pending
+            if op["kind"] == "create_creative"
+            and op["body"].get("bannerId") == pending_banner["ref"]
+        }
+        linked_contents = [
+            op for op in ctx.pending if op["kind"] == "create_content" and op["ref"] in linked
+        ]
     elif previous:
-        linked = {c.get("contentId") for c in draft.get("creatives", []) if c.get("bannerId") == previous["id"]}
-        saved_contents = [c for c in draft.get("contents", []) if c["id"] in linked and c.get("contentType") == "PROMO"]
+        linked = {
+            c.get("contentId")
+            for c in draft.get("creatives", [])
+            if c.get("bannerId") == previous["id"]
+        }
+        saved_contents = [
+            c
+            for c in draft.get("contents", [])
+            if c["id"] in linked and c.get("contentType") == "PROMO"
+        ]
 
     try:
         outcome = await ctx.designer.design(
@@ -259,8 +379,14 @@ async def _design(ctx: ToolContext, args: DesignArgs, progress: Callable[[str], 
     except DesignError as exc:
         return f"Ошибка дизайн-агента: {exc}"
 
-    banner_body = {"name": outcome.banner_name, "bannerTypeId": banner_type["id"], "content": outcome.banner}
-    lines = [f"Баннер {code}: «{outcome.banner.get('title', '')}» — {outcome.banner.get('text', '')}"]
+    banner_body = {
+        "name": outcome.banner_name,
+        "bannerTypeId": banner_type["id"],
+        "content": outcome.banner,
+    }
+    lines = [
+        f"Баннер {code}: «{outcome.banner.get('title', '')}» — {outcome.banner.get('text', '')}"
+    ]
     if pending_banner is not None:
         # Баннер ещё не сохранён: правим операцию в пакете, а не добавляем вторую.
         pending_banner["body"]["content"] = outcome.banner
@@ -271,30 +397,69 @@ async def _design(ctx: ToolContext, args: DesignArgs, progress: Callable[[str], 
         lines.append(f"Операция {pending_banner['ref']} в пакете обновлена, дублей нет.")
     elif previous:
         if not args.promoImageOnly:
-            lines.append(await _propose(ctx, WRITE_OPS_BY_KIND["update_banner"], {"bannerId": args.replaceBannerId, "banner": banner_body}))
+            lines.append(
+                await _propose(
+                    ctx,
+                    WRITE_OPS_BY_KIND["update_banner"],
+                    {"bannerId": args.replaceBannerId, "banner": banner_body},
+                )
+            )
         if outcome.content_image:
             for saved in saved_contents:
                 content = deepcopy(saved["content"])
                 _set_content_image(content, outcome.content_image)
-                body = {"name": saved["name"], "contentType": saved["contentType"], "content": content}
-                lines.append(await _propose(ctx, WRITE_OPS_BY_KIND["update_content"], {"contentId": saved["id"], "content": body}))
+                body = {
+                    "name": saved["name"],
+                    "contentType": saved["contentType"],
+                    "content": content,
+                }
+                lines.append(
+                    await _propose(
+                        ctx,
+                        WRITE_OPS_BY_KIND["update_content"],
+                        {"contentId": saved["id"], "content": body},
+                    )
+                )
     else:
-        lines.append(await _propose(ctx, WRITE_OPS_BY_KIND["create_banner"], {"banner": banner_body}))
-        banner_ref = ctx.pending[-1]["ref"] if ctx.pending and ctx.pending[-1]["kind"] == "create_banner" else None
+        lines.append(
+            await _propose(ctx, WRITE_OPS_BY_KIND["create_banner"], {"banner": banner_body})
+        )
+        banner_ref = (
+            ctx.pending[-1]["ref"]
+            if ctx.pending and ctx.pending[-1]["kind"] == "create_banner"
+            else None
+        )
         content_ref = None
         if outcome.content is not None and banner_ref:
             lines.append(
                 await _propose(
                     ctx,
                     WRITE_OPS_BY_KIND["create_content"],
-                    {"content": {"name": outcome.content_name, "contentType": "PROMO", "content": outcome.content}},
+                    {
+                        "content": {
+                            "name": outcome.content_name,
+                            "contentType": "PROMO",
+                            "content": outcome.content,
+                        }
+                    },
                 )
             )
-            content_ref = ctx.pending[-1]["ref"] if ctx.pending[-1]["kind"] == "create_content" else None
+            content_ref = (
+                ctx.pending[-1]["ref"] if ctx.pending[-1]["kind"] == "create_content" else None
+            )
         if banner_ref:
             for channel in channels:
-                creative = {"name": f"{outcome.banner_name} · {channel}"[:100], "bannerId": banner_ref, "contentId": content_ref, "channelCode": channel}
-                lines.append(await _propose(ctx, WRITE_OPS_BY_KIND["create_creative"], {"creative": creative}))
+                creative = {
+                    "name": f"{outcome.banner_name} · {channel}"[:100],
+                    "bannerId": banner_ref,
+                    "contentId": content_ref,
+                    "channelCode": channel,
+                }
+                lines.append(
+                    await _propose(
+                        ctx, WRITE_OPS_BY_KIND["create_creative"], {"creative": creative}
+                    )
+                )
     # Адреса картинок модели не нужны: сравнивая их с черновиком, она решала, что ничего не изменилось.
     image = (outcome.banner.get("image") or {}).get("url")
     previous_image = (((previous or {}).get("content") or {}).get("image") or {}).get("url")
@@ -312,7 +477,9 @@ async def _design(ctx: ToolContext, args: DesignArgs, progress: Callable[[str], 
     return "\n".join(lines)
 
 
-async def run_tool(ctx: ToolContext, name: str, raw: dict[str, Any], progress: Callable[[str], None]) -> str:
+async def run_tool(
+    ctx: ToolContext, name: str, raw: dict[str, Any], progress: Callable[[str], None]
+) -> str:
     if name in READ_TOOLS_BY_NAME:
         tool = READ_TOOLS_BY_NAME[name]
         try:
@@ -334,7 +501,9 @@ async def run_tool(ctx: ToolContext, name: str, raw: dict[str, Any], progress: C
         return _errors_text(map_pydantic_errors(exc.errors()))
 
 
-async def _run_ui_tool(ctx: ToolContext, name: str, raw: dict[str, Any], progress: Callable[[str], None]) -> str:
+async def _run_ui_tool(
+    ctx: ToolContext, name: str, raw: dict[str, Any], progress: Callable[[str], None]
+) -> str:
     if name == "warn_user":
         args = WarnArgs.model_validate(raw)
         ctx.emit("warning", args.model_dump())
@@ -346,9 +515,15 @@ async def _run_ui_tool(ctx: ToolContext, name: str, raw: dict[str, Any], progres
     if name == "discard_pending":
         args = DiscardArgs.model_validate(raw)
         before = len(ctx.pending)
-        ctx.pending[:] = [] if args.refs is None else [op for op in ctx.pending if op["ref"] not in set(args.refs)]
+        ctx.pending[:] = (
+            []
+            if args.refs is None
+            else [op for op in ctx.pending if op["ref"] not in set(args.refs)]
+        )
         ctx.draft_changed = True
-        return f"Убрано операций: {before - len(ctx.pending)}. В пакете осталось: {len(ctx.pending)}."
+        return (
+            f"Убрано операций: {before - len(ctx.pending)}. В пакете осталось: {len(ctx.pending)}."
+        )
     if name == "design_creative":
         return await _design(ctx, DesignArgs.model_validate(raw), progress)
     return f"Ошибка: инструмента {name} нет"

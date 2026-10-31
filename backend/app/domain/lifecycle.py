@@ -4,11 +4,18 @@
 """
 
 from dataclasses import dataclass
+from typing import Protocol
 
+from app.core.codes import ERRORS
+from app.core.errors import fail
 from app.domain.enums import AuditAction, CampaignState, Role
-from app.domain.rules import ERRORS
-from app.errors import fail
-from app.models import Campaign
+
+
+class Campaign(Protocol):
+    state: str
+    published: bool
+    last_edit_author: str
+
 
 S = CampaignState
 
@@ -18,7 +25,10 @@ DELETABLE_STATES = {S.DRAFT, S.NEEDS_WORK}
 
 def ensure_editable(campaign: Campaign) -> None:
     if campaign.state not in EDITABLE_STATES:
-        raise fail("UPDATE_NOT_ALLOWED", message=f"Кампанию в состоянии {campaign.state} нельзя редактировать")
+        raise fail(
+            "UPDATE_NOT_ALLOWED",
+            message=f"Кампанию в состоянии {campaign.state} нельзя редактировать",
+        )
 
 
 def mark_edited(campaign: Campaign, login: str) -> None:
@@ -49,9 +59,27 @@ TRANSITIONS: dict[AuditAction, Transition] = {
             S.ON_MODERATION,
             "TO_MODERATION_NOT_ALLOWED",
         ),
-        Transition(AuditAction.DECLINE, Role.MODERATOR, frozenset({S.ON_MODERATION}), S.NEEDS_WORK, "DECLINE_NOT_ALLOWED"),
-        Transition(AuditAction.APPROVE, Role.MODERATOR, frozenset({S.ON_MODERATION}), S.APPROVED, "APPROVE_NOT_ALLOWED"),
-        Transition(AuditAction.ACTIVATE, Role.MANAGER, frozenset({S.APPROVED}), S.ACTIVE, "ACTIVATE_NOT_ALLOWED"),
+        Transition(
+            AuditAction.DECLINE,
+            Role.MODERATOR,
+            frozenset({S.ON_MODERATION}),
+            S.NEEDS_WORK,
+            "DECLINE_NOT_ALLOWED",
+        ),
+        Transition(
+            AuditAction.APPROVE,
+            Role.MODERATOR,
+            frozenset({S.ON_MODERATION}),
+            S.APPROVED,
+            "APPROVE_NOT_ALLOWED",
+        ),
+        Transition(
+            AuditAction.ACTIVATE,
+            Role.MANAGER,
+            frozenset({S.APPROVED}),
+            S.ACTIVE,
+            "ACTIVATE_NOT_ALLOWED",
+        ),
     ]
 }
 
@@ -59,7 +87,10 @@ TRANSITIONS: dict[AuditAction, Transition] = {
 def ensure_transition(campaign: Campaign, action: AuditAction) -> Transition:
     transition = TRANSITIONS[action]
     if campaign.state not in transition.from_states:
-        raise fail(transition.error_code, message=f"{ERRORS[transition.error_code]}; сейчас {campaign.state}")
+        raise fail(
+            transition.error_code,
+            message=f"{ERRORS[transition.error_code]}; сейчас {campaign.state}",
+        )
     return transition
 
 
@@ -70,4 +101,7 @@ def ensure_stoppable(campaign: Campaign) -> None:
 
 def ensure_deletable(campaign: Campaign) -> None:
     if campaign.state not in DELETABLE_STATES or campaign.published:
-        raise fail("DELETE_NOT_ALLOWED", message=f"Удалить можно только неопубликованную кампанию в DRAFT или NEEDS_WORK; сейчас {campaign.state}, published={str(campaign.published).lower()}")
+        raise fail(
+            "DELETE_NOT_ALLOWED",
+            message=f"Удалить можно только неопубликованную кампанию в DRAFT или NEEDS_WORK; сейчас {campaign.state}, published={str(campaign.published).lower()}",
+        )

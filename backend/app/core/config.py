@@ -7,7 +7,9 @@ BACKEND_DIR = Path(__file__).resolve().parents[2]
 
 class Settings(BaseSettings):
     # Один .env в корне репо: его читают и локальный запуск, и Docker Compose.
-    model_config = SettingsConfigDict(env_file=(BACKEND_DIR.parent / ".env", BACKEND_DIR / ".env"), extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=(BACKEND_DIR.parent / ".env", BACKEND_DIR / ".env"), extra="ignore"
+    )
 
     database_url: str = f"sqlite:///{(BACKEND_DIR / 'data' / 'adpilot.db').as_posix()}"
     seed_dir: Path = BACKEND_DIR / "seed"

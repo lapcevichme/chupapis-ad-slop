@@ -7,11 +7,16 @@ from fastapi.responses import StreamingResponse
 
 from app.agent import events
 from app.agent.service import ChatService
-from app.routers.common import ERROR_RESPONSES, ActorDep
+from app.api.deps import ERROR_RESPONSES, ActorDep
 
 router = APIRouter(prefix="/chat", tags=["chat"], responses=ERROR_RESPONSES)
 
-SSE_RESPONSE = {200: {"content": {"text/event-stream": {}}, "description": "Поток событий ChatEvent* (chat-api.md §1)"}}
+SSE_RESPONSE = {
+    200: {
+        "content": {"text/event-stream": {}},
+        "description": "Поток событий ChatEvent* (chat-api.md §1)",
+    }
+}
 
 
 def get_chat(request: Request) -> ChatService:
@@ -22,7 +27,11 @@ ChatDep = Annotated[ChatService, Depends(get_chat)]
 
 
 def _stream(iterator) -> StreamingResponse:
-    return StreamingResponse(iterator, media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+    return StreamingResponse(
+        iterator,
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.post("", response_model=events.SessionCreated, status_code=201)
@@ -37,13 +46,29 @@ async def get_chat_session(session_id: str, chat: ChatDep, actor: ActorDep):
 
 
 @router.post("/{session_id}/messages", responses=SSE_RESPONSE, response_class=StreamingResponse)
-async def send_chat_message(session_id: str, body: events.MessageBody, chat: ChatDep, actor: ActorDep):
+async def send_chat_message(
+    session_id: str, body: events.MessageBody, chat: ChatDep, actor: ActorDep
+):
     return _stream(await chat.send_message(session_id, body.text, actor.login, actor.role or ""))
 
 
-@router.post("/{session_id}/confirmations/{confirmation_id}", responses=SSE_RESPONSE, response_class=StreamingResponse)
-async def answer_chat_confirmation(session_id: str, confirmation_id: str, body: events.ConfirmationBody, chat: ChatDep, actor: ActorDep):
-    return _stream(await chat.answer_confirmation(session_id, confirmation_id, body.approved, body.comment, actor.login, actor.role or ""))
+@router.post(
+    "/{session_id}/confirmations/{confirmation_id}",
+    responses=SSE_RESPONSE,
+    response_class=StreamingResponse,
+)
+async def answer_chat_confirmation(
+    session_id: str,
+    confirmation_id: str,
+    body: events.ConfirmationBody,
+    chat: ChatDep,
+    actor: ActorDep,
+):
+    return _stream(
+        await chat.answer_confirmation(
+            session_id, confirmation_id, body.approved, body.comment, actor.login, actor.role or ""
+        )
+    )
 
 
 @router.post("/{session_id}/retry", responses=SSE_RESPONSE, response_class=StreamingResponse)

@@ -42,7 +42,10 @@ PROMO = {
                     "role": "button",
                     "text": "Открыть вклад",
                     "actionType": "openSmartLink",
-                    "link": {"iOS": "mobilebank://deposits/open", "android": "mobilebank://deposits/open"},
+                    "link": {
+                        "iOS": "mobilebank://deposits/open",
+                        "android": "mobilebank://deposits/open",
+                    },
                 },
             ],
         },
@@ -61,15 +64,25 @@ def test_brief_to_moderation(client):
     assert codes(blocked) == ["SEGMENTS_REQUIRED"]
 
     segments = {"included": ["AGE_26_45", "CITY_MSK", "CITY_SPB"], "excluded": ["EXC_UNSUBSCRIBED"]}
-    assert client.put(f"/campaigns/{cid}/segments", json=segments, headers=MANAGER).json() == segments
+    assert (
+        client.put(f"/campaigns/{cid}/segments", json=segments, headers=MANAGER).json() == segments
+    )
 
     banner = client.post(f"/campaigns/{cid}/banners", json=STORY, headers=MANAGER)
     assert banner.status_code == 201, banner.json()
     content = client.post(f"/campaigns/{cid}/contents", json=PROMO, headers=MANAGER)
     assert content.status_code == 201, content.json()
     for channel in ("iOS", "ANDROID"):
-        creative = {"name": f"Креатив {channel}", "bannerId": banner.json()["id"], "contentId": content.json()["id"], "channelCode": channel}
-        assert client.post(f"/campaigns/{cid}/creatives", json=creative, headers=MANAGER).status_code == 201
+        creative = {
+            "name": f"Креатив {channel}",
+            "bannerId": banner.json()["id"],
+            "contentId": content.json()["id"],
+            "channelCode": channel,
+        }
+        assert (
+            client.post(f"/campaigns/{cid}/creatives", json=creative, headers=MANAGER).status_code
+            == 201
+        )
 
     assert client.get(f"/campaigns/{cid}/warnings").json() == {"errors": [], "warnings": []}
 
@@ -92,12 +105,19 @@ def test_brief_to_moderation(client):
 def test_new_tag_and_place(client):
     tag = client.post("/tags", json={"name": "Ипотека"}, headers=MANAGER)
     assert tag.status_code == 201
-    assert codes(client.post("/tags", json={"name": "Ипотека"}, headers=MANAGER)) == ["TAG_NAME_DUPLICATE"]
+    assert codes(client.post("/tags", json={"name": "Ипотека"}, headers=MANAGER)) == [
+        "TAG_NAME_DUPLICATE"
+    ]
 
-    place = client.post("/places", json={"code": "mortgageScreen", "description": "Экран ипотеки"}, headers=MANAGER)
+    place = client.post(
+        "/places", json={"code": "mortgageScreen", "description": "Экран ипотеки"}, headers=MANAGER
+    )
     assert place.json()["state"] == "ACTIVE" and place.json()["defaultBanner"] is None
 
-    body = CAMPAIGN | {"tags": [{"value": tag.json()["id"]}], "places": [{"value": place.json()["id"]}]}
+    body = CAMPAIGN | {
+        "tags": [{"value": tag.json()["id"]}],
+        "places": [{"value": place.json()["id"]}],
+    }
     cid = client.post("/campaigns", json=body, headers=MANAGER).json()["id"]
     # Место без defaultBanner считается покрытым (§7.2 mock-data).
     assert client.get(f"/campaigns/{cid}/warnings").json()["warnings"] == []

@@ -1,13 +1,17 @@
 """Перевод ошибок Pydantic в коды каталога `rules.ERRORS`."""
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
 
-from app.errors import ApiError, api_error
+from app.core.errors import ApiError, api_error
 
 # Поле → код. Словарь различает тип ошибки Pydantic, ключ "*" — для остальных типов.
 FIELD_CODES: dict[str, dict[str, str]] = {
-    "name": {"missing": "NAME_REQUIRED", "string_too_short": "NAME_REQUIRED", "string_too_long": "NAME_TOO_LONG"},
+    "name": {
+        "missing": "NAME_REQUIRED",
+        "string_too_short": "NAME_REQUIRED",
+        "string_too_long": "NAME_TOO_LONG",
+    },
     "marketingName": {"*": "MARKETING_NAME_TOO_LONG"},
     "startDate": {"missing": "START_DATE_REQUIRED", "*": "DATE_FORMAT_INVALID"},
     "endDate": {"*": "DATE_FORMAT_INVALID"},
@@ -69,24 +73,37 @@ def _code_for(loc: Sequence[Any], error_type: str, fallback: str) -> str:
     return fallback
 
 
-def _message(code: str, error: dict[str, Any]) -> str:
-    from app.domain.rules import ERRORS
+def _message(code: str, error: Mapping[str, Any]) -> str:
+    from app.core.codes import ERRORS
 
     base = ERRORS[code]
-    if code in {"UNKNOWN_FIELD", "FIELD_INVALID", "BANNER_SCHEMA_INVALID", "CONTENT_SCHEMA_INVALID"}:
+    if code in {
+        "UNKNOWN_FIELD",
+        "FIELD_INVALID",
+        "BANNER_SCHEMA_INVALID",
+        "CONTENT_SCHEMA_INVALID",
+    }:
         return f"{base}: {error.get('msg', '')}"
     return base
 
 
 def map_pydantic_errors(
-    errors: Iterable[dict[str, Any]], *, strip: int = 0, prefix: str | None = None, fallback: str = "FIELD_INVALID"
+    errors: Iterable[Mapping[str, Any]],
+    *,
+    strip: int = 0,
+    prefix: str | None = None,
+    fallback: str = "FIELD_INVALID",
 ) -> list[ApiError]:
     """`strip` отрезает служебную голову loc (например, "body"), `prefix` дописывает путь спереди."""
     result: list[ApiError] = []
     for error in errors:
         loc = list(error.get("loc", ()))[strip:]
         # Pydantic вставляет тег дискриминатора в путь: components[0].text.format → components[0].format.
-        loc = [part for i, part in enumerate(loc) if not (i > 0 and isinstance(loc[i - 1], int) and part in {"text", "image", "button"})]
+        loc = [
+            part
+            for i, part in enumerate(loc)
+            if not (i > 0 and isinstance(loc[i - 1], int) and part in {"text", "image", "button"})
+        ]
         code = _code_for(loc, error.get("type", ""), fallback)
         field = _field_path(loc)
         if prefix:

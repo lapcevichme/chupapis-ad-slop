@@ -12,7 +12,8 @@ from typing import Annotated, Any
 from pydantic import BaseModel, BeforeValidator, Field
 
 from app.agent.api_client import ApiCallError, CampaignsApi
-from app.schemas import api
+from app.contracts import campaigns as api
+
 
 def _normalize_ref(value: Any) -> Any:
     # Модели иногда присылают id строкой или в лишних кавычках: '"tmp-2"', "101".
@@ -34,8 +35,12 @@ class RefItem(BaseModel):
 
 
 class ProposedCampaign(api.CampaignInfo):
-    tags: list[RefItem] = Field(default_factory=list, description="Теги: id из list_tags или tmp-N нового тега")
-    places: list[RefItem] = Field(min_length=1, description="Места показа: id из list_places или tmp-N нового места")
+    tags: list[RefItem] = Field(
+        default_factory=list, description="Теги: id из list_tags или tmp-N нового тега"
+    )
+    places: list[RefItem] = Field(
+        min_length=1, description="Места показа: id из list_places или tmp-N нового места"
+    )
 
 
 class ProposedCreative(api.CreativeCreate):
@@ -43,7 +48,9 @@ class ProposedCreative(api.CreativeCreate):
     contentId: Ref | None = None
 
 
-CAMPAIGN_ID = Field(None, description="id кампании или tmp-N; по умолчанию текущая кампания диалога")
+CAMPAIGN_ID = Field(
+    None, description="id кампании или tmp-N; по умолчанию текущая кампания диалога"
+)
 
 
 class CampaignArgs(BaseModel):
@@ -124,32 +131,190 @@ class WriteOp:
 
 
 WRITE_OPS: list[WriteOp] = [
-    WriteOp("propose_create_campaign", "create_campaign", "POST", "/campaigns", CreateCampaignArgs, "Создать кампанию (DRAFT)", "campaign", True),
-    WriteOp("propose_update_campaign", "update_campaign", "PUT", "/campaigns/{campaignId}", UpdateCampaignArgs, "Заменить шапку и места кампании", "campaign"),
-    WriteOp("propose_delete_campaign", "delete_campaign", "DELETE", "/campaigns/{campaignId}", CampaignArgs, "Удалить кампанию (только DRAFT/NEEDS_WORK без показа)"),
-    WriteOp("propose_set_segments", "set_segments", "PUT", "/campaigns/{campaignId}/segments", SegmentsArgs, "Задать сегменты включения и исключения"),
-    WriteOp("propose_create_banner", "create_banner", "POST", "/campaigns/{campaignId}/banners", CreateBannerArgs, "Создать баннер", "banner", True),
-    WriteOp("propose_update_banner", "update_banner", "PUT", "/campaigns/{campaignId}/banners/{bannerId}", UpdateBannerArgs, "Заменить баннер", "banner"),
-    WriteOp("propose_delete_banner", "delete_banner", "DELETE", "/campaigns/{campaignId}/banners/{bannerId}", BannerRefArgs, "Удалить баннер"),
-    WriteOp("propose_create_content", "create_content", "POST", "/campaigns/{campaignId}/contents", CreateContentArgs, "Создать PROMO-контент", "content", True),
-    WriteOp("propose_update_content", "update_content", "PUT", "/campaigns/{campaignId}/contents/{contentId}", UpdateContentArgs, "Заменить контент", "content"),
-    WriteOp("propose_delete_content", "delete_content", "DELETE", "/campaigns/{campaignId}/contents/{contentId}", ContentRefArgs, "Удалить контент"),
-    WriteOp("propose_create_creative", "create_creative", "POST", "/campaigns/{campaignId}/creatives", CreateCreativeArgs, "Создать креатив: баннер + контент + канал", "creative", True),
-    WriteOp("propose_update_creative", "update_creative", "PUT", "/campaigns/{campaignId}/creatives/{creativeId}", UpdateCreativeArgs, "Заменить креатив", "creative"),
-    WriteOp("propose_delete_creative", "delete_creative", "DELETE", "/campaigns/{campaignId}/creatives/{creativeId}", CreativeRefArgs, "Удалить креатив"),
-    WriteOp("propose_create_place", "create_place", "POST", "/places", CreatePlaceArgs, "Создать место показа в справочнике", "place", True),
-    WriteOp("propose_create_tag", "create_tag", "POST", "/tags", CreateTagArgs, "Создать тег в справочнике", "tag", True),
-    WriteOp("propose_to_moderation", "to_moderation", "POST", "/campaigns/{campaignId}/to-moderation", CampaignArgs, "Отправить на модерацию"),
-    WriteOp("propose_decline", "decline", "POST", "/campaigns/{campaignId}/decline", DeclineArgs, "Отклонить (роль модератора)"),
-    WriteOp("propose_approve", "approve", "POST", "/campaigns/{campaignId}/approve", CampaignArgs, "Одобрить (роль модератора)"),
-    WriteOp("propose_activate", "activate", "POST", "/campaigns/{campaignId}/activate", CampaignArgs, "Активировать одобренную кампанию"),
-    WriteOp("propose_stop", "stop", "POST", "/campaigns/{campaignId}/stop", CampaignArgs, "Остановить показ"),
+    WriteOp(
+        "propose_create_campaign",
+        "create_campaign",
+        "POST",
+        "/campaigns",
+        CreateCampaignArgs,
+        "Создать кампанию (DRAFT)",
+        "campaign",
+        True,
+    ),
+    WriteOp(
+        "propose_update_campaign",
+        "update_campaign",
+        "PUT",
+        "/campaigns/{campaignId}",
+        UpdateCampaignArgs,
+        "Заменить шапку и места кампании",
+        "campaign",
+    ),
+    WriteOp(
+        "propose_delete_campaign",
+        "delete_campaign",
+        "DELETE",
+        "/campaigns/{campaignId}",
+        CampaignArgs,
+        "Удалить кампанию (только DRAFT/NEEDS_WORK без показа)",
+    ),
+    WriteOp(
+        "propose_set_segments",
+        "set_segments",
+        "PUT",
+        "/campaigns/{campaignId}/segments",
+        SegmentsArgs,
+        "Задать сегменты включения и исключения",
+    ),
+    WriteOp(
+        "propose_create_banner",
+        "create_banner",
+        "POST",
+        "/campaigns/{campaignId}/banners",
+        CreateBannerArgs,
+        "Создать баннер",
+        "banner",
+        True,
+    ),
+    WriteOp(
+        "propose_update_banner",
+        "update_banner",
+        "PUT",
+        "/campaigns/{campaignId}/banners/{bannerId}",
+        UpdateBannerArgs,
+        "Заменить баннер",
+        "banner",
+    ),
+    WriteOp(
+        "propose_delete_banner",
+        "delete_banner",
+        "DELETE",
+        "/campaigns/{campaignId}/banners/{bannerId}",
+        BannerRefArgs,
+        "Удалить баннер",
+    ),
+    WriteOp(
+        "propose_create_content",
+        "create_content",
+        "POST",
+        "/campaigns/{campaignId}/contents",
+        CreateContentArgs,
+        "Создать PROMO-контент",
+        "content",
+        True,
+    ),
+    WriteOp(
+        "propose_update_content",
+        "update_content",
+        "PUT",
+        "/campaigns/{campaignId}/contents/{contentId}",
+        UpdateContentArgs,
+        "Заменить контент",
+        "content",
+    ),
+    WriteOp(
+        "propose_delete_content",
+        "delete_content",
+        "DELETE",
+        "/campaigns/{campaignId}/contents/{contentId}",
+        ContentRefArgs,
+        "Удалить контент",
+    ),
+    WriteOp(
+        "propose_create_creative",
+        "create_creative",
+        "POST",
+        "/campaigns/{campaignId}/creatives",
+        CreateCreativeArgs,
+        "Создать креатив: баннер + контент + канал",
+        "creative",
+        True,
+    ),
+    WriteOp(
+        "propose_update_creative",
+        "update_creative",
+        "PUT",
+        "/campaigns/{campaignId}/creatives/{creativeId}",
+        UpdateCreativeArgs,
+        "Заменить креатив",
+        "creative",
+    ),
+    WriteOp(
+        "propose_delete_creative",
+        "delete_creative",
+        "DELETE",
+        "/campaigns/{campaignId}/creatives/{creativeId}",
+        CreativeRefArgs,
+        "Удалить креатив",
+    ),
+    WriteOp(
+        "propose_create_place",
+        "create_place",
+        "POST",
+        "/places",
+        CreatePlaceArgs,
+        "Создать место показа в справочнике",
+        "place",
+        True,
+    ),
+    WriteOp(
+        "propose_create_tag",
+        "create_tag",
+        "POST",
+        "/tags",
+        CreateTagArgs,
+        "Создать тег в справочнике",
+        "tag",
+        True,
+    ),
+    WriteOp(
+        "propose_to_moderation",
+        "to_moderation",
+        "POST",
+        "/campaigns/{campaignId}/to-moderation",
+        CampaignArgs,
+        "Отправить на модерацию",
+    ),
+    WriteOp(
+        "propose_decline",
+        "decline",
+        "POST",
+        "/campaigns/{campaignId}/decline",
+        DeclineArgs,
+        "Отклонить (роль модератора)",
+    ),
+    WriteOp(
+        "propose_approve",
+        "approve",
+        "POST",
+        "/campaigns/{campaignId}/approve",
+        CampaignArgs,
+        "Одобрить (роль модератора)",
+    ),
+    WriteOp(
+        "propose_activate",
+        "activate",
+        "POST",
+        "/campaigns/{campaignId}/activate",
+        CampaignArgs,
+        "Активировать одобренную кампанию",
+    ),
+    WriteOp(
+        "propose_stop",
+        "stop",
+        "POST",
+        "/campaigns/{campaignId}/stop",
+        CampaignArgs,
+        "Остановить показ",
+    ),
 ]
 WRITE_OPS_BY_TOOL = {op.tool: op for op in WRITE_OPS}
 WRITE_OPS_BY_KIND = {op.kind: op for op in WRITE_OPS}
 
 
-def build_operation(spec: WriteOp, args: BaseModel, *, ref: str | None, current_campaign: Ref | None) -> dict[str, Any]:
+def build_operation(
+    spec: WriteOp, args: BaseModel, *, ref: str | None, current_campaign: Ref | None
+) -> dict[str, Any]:
     params = args.model_dump(mode="json", exclude_none=True)
     if "campaignId" in type(args).model_fields:
         params["campaignId"] = params.get("campaignId", current_campaign)
@@ -161,7 +326,13 @@ def build_operation(spec: WriteOp, args: BaseModel, *, ref: str | None, current_
         body = {"comment": params.pop("comment")}
     else:
         body = None
-    return {"ref": ref, "kind": spec.kind, "params": params, "body": body, "label": op_label(spec.kind, body, params)}
+    return {
+        "ref": ref,
+        "kind": spec.kind,
+        "params": params,
+        "body": body,
+        "label": op_label(spec.kind, body, params),
+    }
 
 
 def segments_label(body: dict[str, Any], names: dict[str, str]) -> str:
@@ -244,7 +415,9 @@ def _replace(items: list[dict], item_id: Ref, new: dict | None) -> list[dict]:
     return result
 
 
-def apply_operations(base: dict[str, Any] | None, pending: list[dict[str, Any]]) -> dict[str, Any] | None:
+def apply_operations(
+    base: dict[str, Any] | None, pending: list[dict[str, Any]]
+) -> dict[str, Any] | None:
     """Черновик = кампания из API (или пустая) + ещё не подтверждённые операции. Лишь для превью."""
     if base is None and not any(op["kind"] == "create_campaign" for op in pending):
         return None
@@ -257,13 +430,31 @@ def apply_operations(base: dict[str, Any] | None, pending: list[dict[str, Any]])
             case "set_segments":
                 draft["segments"] = body
             case "create_banner" | "create_content" | "create_creative":
-                collection = {"create_banner": "banners", "create_content": "contents", "create_creative": "creatives"}[kind]
-                draft[collection].append({"id": op["ref"], "campaignId": params.get("campaignId"), **body})
+                collection = {
+                    "create_banner": "banners",
+                    "create_content": "contents",
+                    "create_creative": "creatives",
+                }[kind]
+                draft[collection].append(
+                    {"id": op["ref"], "campaignId": params.get("campaignId"), **body}
+                )
             case "update_banner" | "update_content" | "update_creative":
-                collection, key = {"update_banner": ("banners", "bannerId"), "update_content": ("contents", "contentId"), "update_creative": ("creatives", "creativeId")}[kind]
-                draft[collection] = _replace(draft[collection], params[key], {"id": params[key], "campaignId": params.get("campaignId"), **body})
+                collection, key = {
+                    "update_banner": ("banners", "bannerId"),
+                    "update_content": ("contents", "contentId"),
+                    "update_creative": ("creatives", "creativeId"),
+                }[kind]
+                draft[collection] = _replace(
+                    draft[collection],
+                    params[key],
+                    {"id": params[key], "campaignId": params.get("campaignId"), **body},
+                )
             case "delete_banner" | "delete_content" | "delete_creative":
-                collection, key = {"delete_banner": ("banners", "bannerId"), "delete_content": ("contents", "contentId"), "delete_creative": ("creatives", "creativeId")}[kind]
+                collection, key = {
+                    "delete_banner": ("banners", "bannerId"),
+                    "delete_content": ("contents", "contentId"),
+                    "delete_creative": ("creatives", "creativeId"),
+                }[kind]
                 draft[collection] = _replace(draft[collection], params[key], None)
     return draft
 
@@ -274,17 +465,24 @@ def public_draft(draft: dict[str, Any] | None) -> dict[str, Any] | None:
     return {k: v for k, v in draft.items() if k not in SERVER_FIELDS}
 
 
-def draft_warnings(draft: dict[str, Any] | None, places: dict[int, dict], banner_types: dict[int, dict]) -> list[str]:
+def draft_warnings(
+    draft: dict[str, Any] | None, places: dict[int, dict], banner_types: dict[int, dict]
+) -> list[str]:
     """Те же правила, что у GET /warnings (§4, §7.2 mock-data), но по черновику до сохранения."""
-    from app.domain.rules import WARNINGS
+    from app.core.codes import WARNINGS
 
     if not draft:
         return []
     used_places = [places[p] for p in draft.get("places", []) if p in places]
-    banner_codes = {b["id"]: banner_types.get(b.get("bannerTypeId"), {}).get("code") for b in draft.get("banners", [])}
+    banner_codes = {
+        b["id"]: banner_types.get(b.get("bannerTypeId"), {}).get("code")
+        for b in draft.get("banners", [])
+    }
     creative_codes = {banner_codes.get(c.get("bannerId")) for c in draft.get("creatives", [])}
     warnings = []
-    if any(p.get("defaultBanner") and p["defaultBanner"] not in creative_codes for p in used_places):
+    if any(
+        p.get("defaultBanner") and p["defaultBanner"] not in creative_codes for p in used_places
+    ):
         warnings.append(WARNINGS["PLACE_NO_CREATIVE"])
     if any(p.get("state") == "INACTIVE" for p in used_places):
         warnings.append(WARNINGS["PLACE_INACTIVE"])
@@ -314,7 +512,9 @@ FIELD_LABELS = {
 }
 
 
-def confirmation_changes(base: dict[str, Any] | None, pending: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def confirmation_changes(
+    base: dict[str, Any] | None, pending: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     before = base or {}
     after = apply_operations(base, pending) or {}
     changes = []
@@ -353,7 +553,13 @@ class ExecutionResult:
     id_map: dict[str, int]
 
 
-async def execute(pending: list[dict[str, Any]], client: CampaignsApi, *, campaign_id: int | None, id_map: dict[str, int]) -> ExecutionResult:
+async def execute(
+    pending: list[dict[str, Any]],
+    client: CampaignsApi,
+    *,
+    campaign_id: int | None,
+    id_map: dict[str, int],
+) -> ExecutionResult:
     """Выполняет пакет по порядку и останавливается на первой ошибке API."""
     id_map = dict(id_map)
     done: list[str] = []
@@ -363,21 +569,40 @@ async def execute(pending: list[dict[str, Any]], client: CampaignsApi, *, campai
             params = _resolve(op["params"], id_map)
             body = _resolve(op["body"], id_map)
         except KeyError as missing:
-            return ExecutionResult(done, f"«{op['label']}»: ссылка {missing} не создана в этом пакете", campaign_id, id_map)
+            return ExecutionResult(
+                done,
+                f"«{op['label']}»: ссылка {missing} не создана в этом пакете",
+                campaign_id,
+                id_map,
+            )
         if "campaignId" in params and params["campaignId"] is None:
-            return ExecutionResult(done, f"«{op['label']}»: кампания ещё не создана", campaign_id, id_map)
+            return ExecutionResult(
+                done, f"«{op['label']}»: кампания ещё не создана", campaign_id, id_map
+            )
         try:
             response = await client.request(spec.method, spec.path.format(**params), body)
         except ApiCallError as exc:
-            details = "; ".join(f"{e.get('code')} ({e.get('field') or '—'}): {e.get('message')}" for e in exc.errors)
-            return ExecutionResult(done, f"«{op['label']}» → HTTP {exc.status}: {details}", campaign_id, id_map)
+            details = "; ".join(
+                f"{e.get('code')} ({e.get('field') or '—'}): {e.get('message')}" for e in exc.errors
+            )
+            return ExecutionResult(
+                done, f"«{op['label']}» → HTTP {exc.status}: {details}", campaign_id, id_map
+            )
         if op["ref"] and isinstance(response, dict) and "id" in response:
             id_map[op["ref"]] = response["id"]
         if spec.kind == "create_campaign":
             campaign_id = response["id"]
         elif spec.kind == "delete_campaign":
             campaign_id = None
-        suffix = f" → id {response['id']}" if op["ref"] and isinstance(response, dict) and "id" in response else ""
-        state = f", состояние {response['state']}" if isinstance(response, dict) and "state" in response else ""
+        suffix = (
+            f" → id {response['id']}"
+            if op["ref"] and isinstance(response, dict) and "id" in response
+            else ""
+        )
+        state = (
+            f", состояние {response['state']}"
+            if isinstance(response, dict) and "state" in response
+            else ""
+        )
         done.append(f"{op['label']}{suffix}{state}")
     return ExecutionResult(done, None, campaign_id, id_map)
