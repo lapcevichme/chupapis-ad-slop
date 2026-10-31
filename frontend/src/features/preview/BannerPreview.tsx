@@ -95,12 +95,12 @@ function SmartBannerBody({ content }: BannerBodyProps) {
     )
   }
 
-  // Картинка — фон всей карточки и генерируется под этот макет: слева ровный фон под текст, акцент справа.
+  // Картинка — фон всей карточки: паттерн тон в тон с фоном, поэтому текст идёт поверх на всю ширину.
   return (
     <div className="relative flex min-h-36 flex-col text-left">
       <CreativeImage url={content.image.url} className="absolute inset-0 size-full" />
       <div className="relative flex flex-1 flex-col justify-between gap-3 p-3">
-        <div className="flex w-3/5 animate-stagger flex-col gap-1">{texts}</div>
+        <div className="flex animate-stagger flex-col gap-1">{texts}</div>
         <div className="self-start">
           <BannerCta content={content} />
         </div>

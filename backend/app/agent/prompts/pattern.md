@@ -19,7 +19,8 @@ Optionally add 1-2 minimal accents on top of the pattern: one large solid circle
 or one band. Never more. No gradients, no filters, nothing figurative, no text or digits.
 - STORY: full-screen background. Keep accents out of the upper 45% (title and body) and the bottom 12% (button).
 - CARD: background of a compact banner card (3:2 frame, the card crops it to a wide strip around the middle).
-  Title, text and a button sit on the left 60%: keep accents in the right third, around the vertical middle.
+  Title, text and a button run across the whole card, so keep the pattern calm everywhere; at most one accent,
+  cropped by the right edge.
 - WIDE: a 3:2 band shown above the text of a promo screen in full width. Accents may sit anywhere.
 
 width, height and viewBox exactly as given. Allowed elements: svg, defs, pattern, rect, circle, ellipse, line, path,

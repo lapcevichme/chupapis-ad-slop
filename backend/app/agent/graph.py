@@ -119,8 +119,15 @@ def _context_note(state: AgentState, config: RunnableConfig, reminder: str | Non
         f"Сейчас {datetime.now(UTC):%Y-%m-%d %H:%M} UTC. Пользователь {user}, роль {role or 'не задана'}.",
     ]
     if settings.image_mode != "ask":
-        kind = "фон-паттерн" if settings.image_mode == "pattern" else "иллюстрация"
-        lines.append(f"Картинки: разрешён только один вид — {kind}. Про вид картинки не спрашивай.")
+        kinds = {
+            "mixed": "фон баннера — паттерн, картинка промо-экрана — иллюстрация",
+            "pattern": "только фон-паттерн",
+            "illustration": "только иллюстрация",
+        }
+        lines.append(
+            f"Картинки: {kinds[settings.image_mode]}, вид выбирает система. Про вид не спрашивай, спроси только, нужны ли картинки "
+            "(кнопки «С картинками» и «Без картинок»), и при согласии вызывай design_creative с generateImage: true."
+        )
     if base:
         lines.append(
             f"Кампания этого диалога: id {base['id']}, состояние {base['state']}, published={str(base['published']).lower()}. "

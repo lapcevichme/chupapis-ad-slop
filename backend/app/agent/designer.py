@@ -58,13 +58,19 @@ class DesignRequest:
     content_image: bool | None = None
     # Просили картинку только для промо-экрана: картинку баннера не трогаем.
     promo_only: bool = False
-    # illustration — растровая картинка с предметом, pattern — SVG-фон, где тема передаётся только цветом.
-    image_style: Literal["illustration", "pattern"] = "illustration"
+    # illustration — растровая картинка с предметом, pattern — SVG-фон, где тема передаётся только цветом,
+    # mixed — фон баннера паттерном, картинка промо-экрана иллюстрацией.
+    image_style: Literal["illustration", "pattern", "mixed"] = "illustration"
 
     @property
     def wants_content_image(self) -> bool:
         wanted = self.with_content if self.content_image is None else self.content_image
         return self.generate_image and wanted
+
+    def style_for(self, target: Literal["banner", "content"]) -> Literal["illustration", "pattern"]:
+        if self.image_style == "mixed":
+            return "pattern" if target == "banner" else "illustration"
+        return self.image_style
 
     @property
     def previous_image(self) -> str | None:
@@ -119,7 +125,7 @@ class Designer:
 
     async def design(self, request: DesignRequest, progress: Callable[[str], None] = lambda _: None) -> DesignOutcome:
         t = request.banner_type
-        illustration = request.image_style == "illustration"
+        illustration = request.style_for("banner") == "illustration"
         task = {
             "brief": request.brief,
             "bannerType": t["code"],
@@ -128,7 +134,7 @@ class Designer:
             "withContent": request.with_content,
             "needImagePrompt": illustration and request.generates_banner_image(t["code"]),
             "imageSize": IMAGE_SIZES.get(t["code"]) if illustration and request.generates_banner_image(t["code"]) else None,
-            "needContentImagePrompt": illustration and request.wants_content_image,
+            "needContentImagePrompt": request.style_for("content") == "illustration" and request.wants_content_image,
             "contentImageSize": CONTENT_IMAGE_SIZE if request.wants_content_image else None,
             "previousVersion": request.previous,
         }
@@ -153,9 +159,9 @@ class Designer:
             ]
         raise DesignError("Не удалось собрать валидный JSON: " + "; ".join(problems))
 
-    async def _picture(self, request: DesignRequest, banner: dict[str, Any], prompt: str | None, size: str, kind: str, what: str, notes: list[str]) -> str | None:
+    async def _picture(self, request: DesignRequest, banner: dict[str, Any], prompt: str | None, size: str, kind: str, style: str, what: str, notes: list[str]) -> str | None:
         """Иллюстрация по промпту или фон-паттерн. Если иллюстрацию сделать не удалось, ставим паттерн."""
-        if request.image_style == "pattern":
+        if style == "pattern":
             url = await self._pattern(request, banner, kind, size)
             if url is None:
                 notes.append(f"{what}: фон-паттерн сделать не удалось, осталось без изображения")
@@ -205,8 +211,8 @@ class Designer:
             # Промо-экрану сторис нужна своя квадратная картинка. Генерируем по очереди, а не параллельно:
             # OpenRouter заранее резервирует деньги под каждый запрос, и два сразу упираются в небольшой лимит ключа.
             if request.generates_banner_image(code):
-                banner_url = await self._picture(request, banner, args.get("imagePrompt"), IMAGE_SIZES[code], PATTERN_KINDS[code], "Картинка баннера", notes)
-            own_url = await self._picture(request, banner, args.get("contentImagePrompt"), CONTENT_IMAGE_SIZE, "WIDE", "Картинка промо-экрана", notes) if own else None
+                banner_url = await self._picture(request, banner, args.get("imagePrompt"), IMAGE_SIZES[code], PATTERN_KINDS[code], request.style_for("banner"), "Картинка баннера", notes)
+            own_url = await self._picture(request, banner, args.get("contentImagePrompt"), CONTENT_IMAGE_SIZE, "WIDE", request.style_for("content"), "Картинка промо-экрана", notes) if own else None
             if own_url:
                 content_image = {"url": own_url, "aspectRatio": CONTENT_IMAGE_ASPECT}
         if not banner_url:

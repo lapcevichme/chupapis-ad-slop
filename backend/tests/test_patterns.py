@@ -8,7 +8,7 @@ from langchain_core.messages import AIMessage
 from app.agent.designer import Designer, DesignRequest
 from app.agent.patterns import SvgPatternGenerator, SvgRejected, clean_svg
 from app.config import settings
-from tests.test_agent import BANNER_OK, ScriptedModel, call, tool_message
+from tests.test_agent import BANNER_OK, PROMO_OK, ScriptedModel, call, tool_message
 from tests.test_designer import STORY, FakeImages
 
 GOOD = (
@@ -89,3 +89,15 @@ def test_failed_illustration_falls_back_to_pattern():
     outcome = _design(FailingImages(), patterns, "illustration")
     assert outcome.banner["image"] == {"url": "/api/media/pattern-1.svg"}
     assert any("вместо неё фон-паттерн" in note for note in outcome.notes)
+
+
+def test_mixed_style_patterns_banner_and_illustrates_promo():
+    images, patterns = FakeImages(), FakePatterns()
+    args = {"bannerName": "Тест", "banner": BANNER_OK, "content": PROMO_OK, "contentName": "Промо", "contentImagePrompt": "piggy wide"}
+    designer = Designer(ScriptedModel(script=[tool_message(call("DesignResult", args, 1))]), images, patterns)
+    request = DesignRequest("Вклад 16%", STORY, with_content=True, generate_image=True, image_style="mixed")
+    outcome = asyncio.run(designer.design(request))
+    assert patterns.calls == [("STORY", "#21A038", "1024x1536")]
+    assert images.calls == [("piggy wide", "1536x1024")]
+    assert outcome.banner["image"] == {"url": "/api/media/pattern-1.svg"}
+    assert outcome.content["component"]["components"][0] == {"role": "image", "url": "/api/media/1.png", "aspectRatio": 1.5}

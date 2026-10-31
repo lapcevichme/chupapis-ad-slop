@@ -29,8 +29,9 @@ class Settings(BaseSettings):
     image_model: str = "openai/gpt-image-2.5-sunburst"
     # Фон-паттерн в SVG: тема передаётся цветом. Дешёвая альтернатива иллюстрации и её запасной вариант.
     pattern_model: str = "anthropic/claude-haiku-5.5"
-    # ask — агент спрашивает кнопками, что нужно: фон-паттерн или иллюстрация; pattern или illustration — только этот вид.
-    image_mode: Literal["ask", "pattern", "illustration"] = "ask"
+    # mixed — фон сторис и смарт-баннера паттерном, картинка промо-экрана иллюстрацией; ask — агент спрашивает кнопками,
+    # что нужно; pattern или illustration — только этот вид.
+    image_mode: Literal["mixed", "ask", "pattern", "illustration"] = "mixed"
     llm_timeout_seconds: float = 90.0
     # Провайдеры OpenRouter в порядке приоритета, через запятую. Кеш промпта живёт у конкретного провайдера:
     # без фиксации OpenRouter раскидывает запросы по разным и кеш не попадает. Пустая строка — выбор OpenRouter.
