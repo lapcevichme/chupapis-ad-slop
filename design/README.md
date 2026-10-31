@@ -18,4 +18,6 @@
 
 Бриф — [brief.md](brief.md), источники — [references/README.md](references/README.md), продукт — [PRODUCT.md](../docs/PRODUCT.md), единый журнал решений — [DECISIONS.md](../docs/DECISIONS.md).
 
+Фото страницы входа (`frontend/src/features/entry/entry-photo.webp`) сгенерировано 1 ноября моделью из `IMAGE_MODEL` (`openai/gpt-image-2.5-sunburst`) и не изображает реального человека. Снимки — `captures/entry-*.jpg`.
+
 Работающий интерфейс: `frontend/src/workspace.css`, запуск `cd frontend && npm run dev`. Снимки `captures/live-*.jpg` относятся к настоящему API и отдельной БД моков, остальные — к исходным макетам. Система и Motion — [docs/DESIGN.md](../docs/DESIGN.md).
