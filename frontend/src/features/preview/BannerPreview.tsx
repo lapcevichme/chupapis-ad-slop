@@ -33,12 +33,12 @@ function BannerCta({ content }: BannerBodyProps) {
 
 function StoryBody({ content }: BannerBodyProps) {
   const title = content.title && (
-    <strong className="font-bold wrap-anywhere" style={textStyleToCss(content.titleStyle)}>
+    <strong className="leading-[1.15] font-bold wrap-anywhere" style={textStyleToCss(content.titleStyle)}>
       {content.title}
     </strong>
   )
   const text = content.text && (
-    <span className="wrap-anywhere" style={textStyleToCss(content.textStyle)}>
+    <span className="leading-[1.3] wrap-anywhere" style={textStyleToCss(content.textStyle)}>
       {content.text}
     </span>
   )

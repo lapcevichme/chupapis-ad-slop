@@ -1,4 +1,5 @@
 import json
+import math
 from dataclasses import dataclass, field
 from typing import Any, Callable, Literal
 
@@ -23,6 +24,15 @@ CONTENT_IMAGE_SIZE = "1536x1024"
 CONTENT_IMAGE_ASPECT = 1.5
 # Своя картинка пользователя: пропорции неизвестны, на промо-экране показываем её той же полосой.
 USER_IMAGE_ASPECT = 1.5
+# Сторис в превью: экран 280x580, отступы 16. Текст лежит на картинке без подложки и не должен дойти до предмета,
+# который занимает нижние 40% кадра. Схема баннера этого не ограничивает, поэтому оцениваем высоту сами.
+STORY_TEXT_WIDTH_PX = 248
+STORY_TEXT_MAX_HEIGHT_PX = 240
+STORY_TEXT_GAP_PX = 8
+AVERAGE_CHAR_WIDTH_EM = 0.58
+TITLE_LINE_HEIGHT = 1.15
+TEXT_LINE_HEIGHT = 1.3
+DEFAULT_FONT_SIZE = 16
 
 
 class DesignResult(BaseModel):
@@ -122,6 +132,21 @@ def _validate(
     return problems
 
 
+def _text_block_height(text: str | None, style: dict[str, Any] | None, line_height: float) -> float:
+    if not text:
+        return 0
+    font_size = (style or {}).get("fontSize") or DEFAULT_FONT_SIZE
+    chars_per_line = STORY_TEXT_WIDTH_PX / (AVERAGE_CHAR_WIDTH_EM * font_size)
+    return math.ceil(len(text) / chars_per_line) * font_size * line_height
+
+
+def story_text_height(banner: dict[str, Any]) -> float:
+    """Примерная высота заголовка и текста сторис в пикселях, с теми же межстрочными, что в превью."""
+    title = _text_block_height(banner.get("title"), banner.get("titleStyle"), TITLE_LINE_HEIGHT)
+    text = _text_block_height(banner.get("text"), banner.get("textStyle"), TEXT_LINE_HEIGHT)
+    return title + text + STORY_TEXT_GAP_PX
+
+
 class Designer:
     def __init__(
         self,
@@ -179,6 +204,14 @@ class Designer:
             problems = _validate(
                 call["args"], t, request.with_content, media_base_url=self.media_base_url
             )
+            has_image = request.generate_image or request.image_url or request.previous_image
+            if not problems and has_image and t["code"] == "STORY" and attempt < MAX_ATTEMPTS:
+                # Длинный текст портит вид, но не ломает кампанию: на последней попытке принимаем как есть.
+                height = story_text_height(call["args"]["banner"])
+                if height > STORY_TEXT_MAX_HEIGHT_PX:
+                    problems = [
+                        f"заголовок и текст занимают около {height:.0f}px из {STORY_TEXT_MAX_HEIGHT_PX}px и наедут на картинку: сократи их или уменьши шрифт"
+                    ]
             if not problems:
                 return await self._finish(call["args"], request, progress)
             messages += [

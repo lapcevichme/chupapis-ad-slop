@@ -85,6 +85,50 @@ def test_edit_without_new_image_keeps_previous_one():
     assert outcome.banner["image"] == {"url": "/api/media/old.png"}
 
 
+LONG_STORY = {
+    **BANNER_OK,
+    "title": "Сказки на ночь от ИИ-единорога — $99 в месяц",
+    "text": "Добрый единорог расскажет вашему малышу сказку и подарит тёплый вечер всей семье. Акция с 14 по 31 декабря 2026.",
+    "titleStyle": {"fontSize": 32, "fontWeight": "bold", "textColor": "#FFFFFFFF"},
+    "textStyle": {"fontSize": 18, "fontWeight": "regular", "textColor": "#FFFFFFFF"},
+}
+
+
+def run_story_design(banners: list[dict], banner_type=STORY, generate_image=True):
+    script = [
+        tool_message(
+            call(
+                "DesignResult", {"bannerName": "Тест", "banner": banner, "imagePrompt": "bg"}, index
+            )
+        )
+        for index, banner in enumerate(banners)
+    ]
+    request = DesignRequest(
+        "бриф", banner_type, with_content=False, generate_image=generate_image, content_image=False
+    )
+    return asyncio.run(Designer(ScriptedModel(script=script), FakeImages()).design(request))
+
+
+def test_long_story_text_over_image_is_sent_back_for_shortening():
+    outcome = run_story_design([LONG_STORY, BANNER_OK])
+    assert outcome.banner["title"] == BANNER_OK["title"]
+
+
+def test_long_story_text_never_fails_the_creative():
+    outcome = run_story_design([LONG_STORY, LONG_STORY, LONG_STORY])
+    assert outcome.banner["title"] == LONG_STORY["title"]
+
+
+def test_long_text_is_fine_without_story_image():
+    outcome = run_story_design([LONG_STORY], generate_image=False)
+    assert outcome.banner["title"] == LONG_STORY["title"]
+
+
+def test_long_text_is_fine_in_smart_banner():
+    outcome = run_story_design([LONG_STORY], banner_type=SMART)
+    assert outcome.banner["title"] == LONG_STORY["title"]
+
+
 def test_promo_only_generates_just_the_promo_image():
     previous = {"id": 217, "content": {**BANNER_OK, "image": {"url": "/api/media/old.png"}}}
     args = {
