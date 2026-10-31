@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import type { Banner, BannerType, Content } from '@/types/creative'
+import type { Banner, BannerType, Content } from '@/types/api'
 import { BannerPreview } from './BannerPreview'
 import { PromoPreview } from './PromoPreview'
 

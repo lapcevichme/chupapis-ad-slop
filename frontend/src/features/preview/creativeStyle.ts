@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import type { FontWeight, TextStyle } from '@/types/creative'
+import type { FontWeight, TextStyle } from '@/types/api'
 
 const FONT_WEIGHTS: Record<FontWeight, number> = {
   thin: 100,

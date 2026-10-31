@@ -9,4 +9,4 @@ npm run lint
 
 Запросы к `/api/*` Vite проксирует на бэкенд без префикса `/api`. Адрес задаётся переменной `API_PROXY_TARGET`, по умолчанию `http://localhost:8000`.
 
-Дизайн и токены описаны в `docs/ours/design.md`. Сейчас `App.tsx` — временный стенд превью на копии моков из `src/fixtures`.
+Дизайн и токены описаны в `docs/ours/design.md`. Бэкенда пока нет: `src/api/campaigns.ts` отдаёт данные из копии моков в `src/fixtures`.

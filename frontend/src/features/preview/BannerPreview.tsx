@@ -1,4 +1,4 @@
-import type { BannerContent, BannerType } from '@/types/creative'
+import type { BannerContent, BannerType } from '@/types/api'
 import { CreativeImage } from './CreativeImage'
 import { textStyleToCss } from './creativeStyle'
 
@@ -33,8 +33,8 @@ function BannerCta({ content }: BannerBodyProps) {
 
 function StoryBody({ content }: BannerBodyProps) {
   return (
-    <div className="flex h-full flex-col gap-3 p-4 text-left">
-      {content.image && <CreativeImage url={content.image.url} className="min-h-0 w-full flex-1 rounded-xl" />}
+    <div className="flex flex-1 flex-col gap-3 p-4 text-left">
+      {content.image && <CreativeImage url={content.image.url} className="min-h-40 w-full flex-1 rounded-xl" />}
       <div className="mt-auto flex flex-col gap-2">
         {content.title && (
           <strong className="font-bold wrap-anywhere" style={textStyleToCss(content.titleStyle)}>
@@ -79,7 +79,7 @@ export function BannerPreview({ content, type, onOpen }: BannerPreviewProps) {
   const isStory = type === 'STORY'
   const Body = isStory ? StoryBody : SmartBannerBody
   const style = { background: content.background?.color ?? DEFAULT_BACKGROUND, color: DEFAULT_TEXT }
-  const className = isStory ? 'block h-full w-full' : 'block w-full overflow-hidden rounded-2xl shadow-sm'
+  const className = isStory ? 'flex min-h-full w-full flex-col' : 'block w-full shrink-0 overflow-hidden rounded-2xl shadow-sm'
 
   const banner = onOpen ? (
     <button type="button" onClick={onOpen} aria-label={content.voiceOver} className={`${className} cursor-pointer`} style={style}>
@@ -95,7 +95,7 @@ export function BannerPreview({ content, type, onOpen }: BannerPreviewProps) {
 
   // Смарт-баннер живёт на экране приложения: вокруг него условная главная.
   return (
-    <div className="flex h-full flex-col gap-3 bg-[#F2F3F5] p-3" aria-label="Главный экран приложения">
+    <div className="flex min-h-full flex-col gap-3 bg-[#F2F3F5] p-3">
       <div aria-hidden="true" className="h-16 shrink-0 rounded-2xl bg-white" />
       {banner}
       <div aria-hidden="true" className="min-h-10 flex-1 rounded-2xl bg-white" />

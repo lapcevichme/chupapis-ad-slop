@@ -1,0 +1,159 @@
+import type { ReactNode } from 'react'
+import { cn } from '@/lib/utils'
+import type { Banner, CampaignDetails, CampaignValidation, Dictionaries } from '@/types/api'
+import { ValidationSummary } from './ValidationSummary'
+import { formatCount, formatDateTime } from './format'
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="flex flex-col gap-3 rounded-lg border bg-card p-4 text-card-foreground">
+      <h2 className="m-0 text-sm leading-5 font-semibold">{title}</h2>
+      {children}
+    </section>
+  )
+}
+
+function Field({ label, value, code }: { label: string; value: ReactNode; code?: string }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <span className="text-xs leading-4 text-muted-foreground">{label}</span>
+      <span className="text-sm leading-5 font-medium wrap-anywhere">{value}</span>
+      {code && <span className="font-mono text-xs leading-4 text-muted-foreground">{code}</span>}
+    </div>
+  )
+}
+
+function Row({ name, code, aside, notice }: { name: string; code: string; aside?: string; notice?: string }) {
+  return (
+    <li className="flex items-center justify-between gap-3 border-t py-2 first:border-t-0 first:pt-0 last:pb-0">
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <span className="text-sm leading-5 font-medium wrap-anywhere">{name}</span>
+        <span className="font-mono text-xs leading-4 wrap-anywhere text-muted-foreground">{code}</span>
+      </div>
+      {notice && <span className="shrink-0 rounded-sm bg-warning px-2 py-0.5 text-xs leading-4 text-warning-foreground">{notice}</span>}
+      {aside && <span className="shrink-0 text-[13px] leading-[18px] text-muted-foreground tabular-nums">{aside}</span>}
+    </li>
+  )
+}
+
+function SegmentList({ title, codes, dictionaries }: { title: string; codes: string[]; dictionaries: Dictionaries }) {
+  if (codes.length === 0) return null
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="text-xs leading-4 text-muted-foreground">{title}</span>
+      <ul className="m-0 flex list-none flex-col p-0">
+        {codes.map((code) => {
+          const segment = dictionaries.segments.find((item) => item.code === code)
+          return (
+            <Row
+              key={code}
+              name={segment?.name ?? 'Нет в справочнике'}
+              code={code}
+              aside={segment && formatCount(segment.count)}
+              notice={segment && segment.state !== 'ACTIVE' ? 'Не активен' : undefined}
+            />
+          )
+        })}
+      </ul>
+    </div>
+  )
+}
+
+interface CampaignPassportProps {
+  campaign: CampaignDetails
+  validation: CampaignValidation
+  dictionaries: Dictionaries
+  selectedBannerId?: number
+  onSelectBanner: (banner: Banner) => void
+}
+
+export function CampaignPassport({ campaign, validation, dictionaries, selectedBannerId, onSelectBanner }: CampaignPassportProps) {
+  const tagNames = (campaign.tags ?? []).map((id) => dictionaries.tags.find((tag) => tag.id === id)?.name ?? `Тег ${id}`)
+
+  return (
+    <div className="flex flex-col gap-3">
+      <Section title="Основное">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3.5">
+          <Field label="Название" value={campaign.name} />
+          {campaign.marketingName && <Field label="Маркетинговое название" value={campaign.marketingName} />}
+          <Field label="Начало" value={formatDateTime(campaign.startDate, campaign.startTime)} />
+          <Field label="Конец" value={campaign.endDate ? formatDateTime(campaign.endDate, campaign.endTime) : 'Бессрочно'} />
+          <Field label="Тема" value={<span className="font-mono text-[13px]">{campaign.topic}</span>} />
+          <Field label="Теги" value={tagNames.length > 0 ? tagNames.join(', ') : 'Не заданы'} />
+          {campaign.keywords && <Field label="Ключевые слова" value={campaign.keywords.split(';').join(', ')} />}
+        </div>
+      </Section>
+
+      <Section title="Аудитория">
+        {campaign.audienceType === 'ALL_USERS' ? (
+          <Field label="Кому показываем" value="Все пользователи" code="ALL_USERS" />
+        ) : (
+          <>
+            <SegmentList title="Включить, любой из сегментов" codes={campaign.segments.included} dictionaries={dictionaries} />
+            <SegmentList title="Исключить" codes={campaign.segments.excluded} dictionaries={dictionaries} />
+          </>
+        )}
+      </Section>
+
+      <Section title="Места показа">
+        {campaign.places.length > 0 ? (
+          <ul className="m-0 flex list-none flex-col p-0">
+            {campaign.places.map((id) => {
+              const place = dictionaries.places.find((item) => item.id === id)
+              return (
+                <Row
+                  key={id}
+                  name={place?.description ?? 'Нет в справочнике'}
+                  code={place?.code ?? String(id)}
+                  notice={place?.state === 'INACTIVE' ? 'Деактивировано' : undefined}
+                />
+              )
+            })}
+          </ul>
+        ) : (
+          <p className="m-0 text-[13px] leading-[18px] text-muted-foreground">Места показа не выбраны</p>
+        )}
+      </Section>
+
+      <Section title="Правила показа">
+        <div className="grid grid-cols-2 gap-3.5">
+          <Field label="Вес" value={<span className="tabular-nums">{campaign.weight}</span>} />
+          <Field label="Начальный CTR" value={<span className="tabular-nums">{campaign.initialCtr}</span>} />
+        </div>
+      </Section>
+
+      <Section title="Креативы">
+        {campaign.banners.length > 0 ? (
+          <ul className="m-0 flex list-none flex-col gap-1 p-0">
+            {campaign.banners.map((banner) => {
+              const channels = campaign.creatives.filter((creative) => creative.bannerId === banner.id).map((creative) => creative.channelCode)
+              const selected = banner.id === selectedBannerId
+              return (
+                <li key={banner.id}>
+                  <button
+                    type="button"
+                    aria-current={selected}
+                    onClick={() => onSelectBanner(banner)}
+                    className={cn(
+                      'flex min-h-11 w-full cursor-pointer flex-col justify-center rounded-md px-3 py-2 text-left outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring',
+                      selected && 'bg-accent text-accent-foreground hover:bg-accent',
+                    )}
+                  >
+                    <span className="text-sm leading-5 font-medium">{banner.name}</span>
+                    <span className="text-xs leading-4 opacity-80">{channels.length > 0 ? channels.join(', ') : 'Канал не назначен'}</span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        ) : (
+          <p className="m-0 text-[13px] leading-[18px] text-muted-foreground">Креативов пока нет</p>
+        )}
+      </Section>
+
+      <Section title="Проверка">
+        <ValidationSummary validation={validation} />
+      </Section>
+    </div>
+  )
+}

@@ -1,4 +1,4 @@
-import type { PromoComponent, PromoContent } from '@/types/creative'
+import type { PromoComponent, PromoContent } from '@/types/api'
 import { CreativeImage } from './CreativeImage'
 import { parseRichText, textStyleToCss } from './creativeStyle'
 
