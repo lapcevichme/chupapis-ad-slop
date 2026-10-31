@@ -7,9 +7,8 @@ from typing import Any, Callable, Literal
 
 from pydantic import BaseModel, Field, ValidationError
 
-from app.agent.api_client import ApiCallError, CampaignsApi
-from app.agent.designer import Designer, DesignError, DesignRequest, insert_content_image
-from app.agent.operations import (
+from app.infra.agent.designer import Designer, DesignError, DesignRequest, insert_content_image
+from app.infra.agent.operations import (
     WRITE_OPS,
     WRITE_OPS_BY_KIND,
     WRITE_OPS_BY_TOOL,
@@ -19,6 +18,7 @@ from app.agent.operations import (
     build_operation,
     segments_label,
 )
+from app.infra.campaigns_api import ApiCallError, CampaignsApi
 from app.infra.creative_validation import check_banner, check_content
 from app.infra.pydantic_errors import map_pydantic_errors
 

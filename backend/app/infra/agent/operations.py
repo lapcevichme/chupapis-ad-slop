@@ -11,8 +11,8 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, BeforeValidator, Field
 
-from app.agent.api_client import ApiCallError, CampaignsApi
 from app.contracts import campaigns as api
+from app.infra.campaigns_api import ApiCallError, CampaignsApi
 
 
 def _normalize_ref(value: Any) -> Any:

@@ -1,12 +1,12 @@
 from langchain_core.language_models import BaseChatModel
 
-from app.agent.api_client import CampaignsApi
-from app.agent.designer import Designer
-from app.agent.graph import AgentDeps, build_graph
-from app.agent.llm import ImageGenerator, chat_model, image_generator
-from app.agent.service import ChatService
-from app.agent.sessions import SessionRegistry
 from app.core.config import Settings
+from app.infra.agent.designer import Designer
+from app.infra.agent.graph import AgentDeps, build_graph
+from app.infra.campaigns_api import CampaignsApi
+from app.infra.llm import ImageGenerator, chat_model, image_generator
+from app.service.chat import ChatService
+from app.service.chat_sessions import SessionRegistry
 
 
 def build_chat_service(

@@ -10,14 +10,14 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
-from app.agent.events import EVENT_MODELS
-from app.agent.factory import build_chat_service
-from app.agent.sessions import SessionRegistry
 from app.api.router import api_router
+from app.bootstrap import build_chat_service
+from app.contracts.chat import EVENT_MODELS
 from app.core.config import Settings
 from app.core.errors import DomainError
 from app.db.database import Database
 from app.infra.pydantic_errors import map_pydantic_errors
+from app.service.chat_sessions import SessionRegistry
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -30,6 +30,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         settings.checkpoint_db.parent.mkdir(parents=True, exist_ok=True)
         try:
             async with AsyncSqliteSaver.from_conn_string(str(settings.checkpoint_db)) as saver:
+                app.state.checkpointer = saver
                 app.state.chat = build_chat_service(saver, settings, SessionRegistry(app.state.db))
                 yield
         finally:

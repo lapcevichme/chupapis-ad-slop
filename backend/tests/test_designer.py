@@ -2,7 +2,7 @@
 
 import asyncio
 
-from app.agent.designer import Designer, DesignRequest
+from app.infra.agent.designer import Designer, DesignRequest
 from tests.test_agent import BANNER_OK, PROMO_OK, ScriptedModel, call, tool_message
 
 STORY = {

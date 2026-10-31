@@ -8,13 +8,13 @@ from pathlib import Path
 import httpx
 from langgraph.checkpoint.memory import InMemorySaver
 
-from app.agent.api_client import CampaignsApi
-from app.agent.factory import build_chat_service
-from app.agent.sessions import SessionRegistry
+from app.bootstrap import build_chat_service
 from app.core.config import BACKEND_DIR, Settings
 from app.db.base import Base
 from app.db.seed import seed
+from app.infra.campaigns_api import CampaignsApi
 from app.main import create_app
+from app.service.chat_sessions import SessionRegistry
 
 DIALOGS = BACKEND_DIR.parent / "docs" / "dialogs"
 TRANSCRIPTS = DIALOGS / "transcripts"

@@ -12,10 +12,10 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from pydantic import BaseModel, Field
 
-from app.agent.llm import ImageGenerator, with_cache_breakpoints
-from app.agent.prompts import load_prompt
 from app.contracts.creative_json import BannerContent, PromoContent
+from app.infra.agent.prompts import load_prompt
 from app.infra.creative_validation import validate_banner_json, validate_content_json
+from app.infra.llm import ImageGenerator, with_cache_breakpoints
 
 MAX_ATTEMPTS = 3
 # Сторис: картинка — фон всего экрана, текст поверх. Смарт-баннер: картинка — квадратная иконка в карточке.

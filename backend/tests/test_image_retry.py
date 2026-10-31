@@ -6,8 +6,8 @@ import base64
 import httpx
 import pytest
 
-from app.agent import llm
 from app.core.config import Settings
+from app.infra import llm
 
 PNG = base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"0" * 16).decode()
 

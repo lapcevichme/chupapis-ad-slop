@@ -1,6 +1,5 @@
 """События SSE-потока чата (docs/ours/chat-api.md §1). Схемы попадают в openapi.json как ChatEvent*."""
 
-import json
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -90,10 +89,6 @@ EVENT_MODELS: dict[str, type[BaseModel]] = {
     "error": ChatEventError,
     "done": ChatEventDone,
 }
-
-
-def sse(event: str, data: dict[str, Any]) -> str:
-    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False, default=str)}\n\n"
 
 
 # --- Тела и ответы REST-части чата

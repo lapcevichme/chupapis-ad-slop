@@ -11,10 +11,10 @@ from langchain_core.outputs import ChatGeneration, ChatResult
 from langgraph.checkpoint.memory import InMemorySaver
 from pydantic import Field
 
-from app.agent.api_client import CampaignsApi
-from app.agent.factory import build_chat_service
-from app.agent.llm import CACHE_CONTROL, NoImageGenerator, _text_of
-from app.agent.sessions import SessionRegistry
+from app.bootstrap import build_chat_service
+from app.infra.campaigns_api import CampaignsApi
+from app.infra.llm import CACHE_CONTROL, NoImageGenerator, _text_of
+from app.service.chat_sessions import SessionRegistry
 from tests.conftest import MANAGER, MODERATOR
 from tests.test_scenario import CAMPAIGN
 

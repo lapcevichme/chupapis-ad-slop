@@ -5,9 +5,10 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 
-from app.agent import events
-from app.agent.service import ChatService
 from app.api.deps import ERROR_RESPONSES, ActorDep
+from app.api.sse import encode_events
+from app.contracts import chat as events
+from app.service.chat import ChatService
 
 router = APIRouter(prefix="/chat", tags=["chat"], responses=ERROR_RESPONSES)
 
@@ -28,7 +29,7 @@ ChatDep = Annotated[ChatService, Depends(get_chat)]
 
 def _stream(iterator) -> StreamingResponse:
     return StreamingResponse(
-        iterator,
+        encode_events(iterator),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

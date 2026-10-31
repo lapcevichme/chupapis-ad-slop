@@ -11,10 +11,10 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.errors import GraphRecursionError
 from langgraph.types import Command
 
-from app.agent.events import sse
-from app.agent.graph import AgentState, draft_report, refresh_campaign
-from app.agent.sessions import SessionRegistry
 from app.core.errors import not_found
+from app.domain.chat import StreamEvent
+from app.infra.agent.graph import AgentState, draft_report, refresh_campaign
+from app.service.chat_sessions import SessionRegistry
 
 KEEP_ALIVE_SECONDS = 15
 logger = logging.getLogger(__name__)
@@ -148,7 +148,7 @@ class ChatService:
 
     async def send_message(
         self, session_id: str, text: str, user: str, role: str
-    ) -> AsyncIterator[str]:
+    ) -> AsyncIterator[StreamEvent]:
         await self._state(session_id)
         if await self.pending_confirmation(session_id):
             # Сообщение без ответа на подтверждение = отказ, текст уходит агенту как правка (chat-api.md §2).
@@ -165,7 +165,7 @@ class ChatService:
         comment: str | None,
         user: str,
         role: str,
-    ) -> AsyncIterator[str]:
+    ) -> AsyncIterator[StreamEvent]:
         pending = await self.pending_confirmation(session_id)
         if pending and pending["id"] == confirmation_id:
             return self._stream(
@@ -174,7 +174,7 @@ class ChatService:
         # Подтверждение уже выполнено: второй раз не пишем, а продолжаем ход как retry.
         return self._stream(session_id, None, user, role)
 
-    async def retry(self, session_id: str, user: str, role: str) -> AsyncIterator[str]:
+    async def retry(self, session_id: str, user: str, role: str) -> AsyncIterator[StreamEvent]:
         await self._state(session_id)
         return self._stream(session_id, None, user, role)
 
@@ -184,8 +184,8 @@ class ChatService:
 
     async def _stream(
         self, session_id: str, payload: Any, user: str, role: str
-    ) -> AsyncIterator[str]:
-        queue: asyncio.Queue[str | None] = asyncio.Queue()
+    ) -> AsyncIterator[StreamEvent]:
+        queue: asyncio.Queue[StreamEvent | None] = asyncio.Queue()
         config = self._config(session_id, user, role)
 
         async def produce():
@@ -200,18 +200,18 @@ class ChatService:
                         ):
                             text = _text(message)
                             if text:
-                                await queue.put(sse("message_delta", {"text": text}))
+                                await queue.put(StreamEvent("message_delta", {"text": text}))
                     elif mode == "custom":
-                        await queue.put(sse(chunk["event"], chunk["data"]))
+                        await queue.put(StreamEvent(chunk["event"], chunk["data"]))
                     elif mode == "updates" and "__interrupt__" in chunk:
                         await queue.put(
-                            sse("confirmation_required", chunk["__interrupt__"][0].value)
+                            StreamEvent("confirmation_required", chunk["__interrupt__"][0].value)
                         )
-                await queue.put(sse("done", {}))
+                await queue.put(StreamEvent("done", {}))
             except Exception as exc:  # сбой LLM или сети: фронт покажет «Повторить»
                 logger.exception("Ход агента в сессии %s упал", session_id)
                 code, message = describe_failure(exc)
-                await queue.put(sse("error", {"code": code, "message": message}))
+                await queue.put(StreamEvent("error", {"code": code, "message": message}))
             finally:
                 # Привязываем и после сбоя: кампания могла сохраниться до того, как упал следующий шаг.
                 try:
@@ -226,7 +226,7 @@ class ChatService:
                 try:
                     item = await asyncio.wait_for(queue.get(), timeout=KEEP_ALIVE_SECONDS)
                 except TimeoutError:
-                    yield ": keep-alive\n\n"
+                    yield StreamEvent("")
                     continue
                 if item is None:
                     break

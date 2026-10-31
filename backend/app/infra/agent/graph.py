@@ -21,18 +21,18 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.types import interrupt
 
-from app.agent.api_client import ApiCallError, CampaignsApi
-from app.agent.designer import Designer
-from app.agent.llm import with_cache_breakpoints
-from app.agent.operations import (
+from app.infra.agent.designer import Designer
+from app.infra.agent.operations import (
     apply_operations,
     confirmation_changes,
     draft_warnings,
     execute,
     public_draft,
 )
-from app.agent.prompts import load_prompt
-from app.agent.tools import ToolContext, run_tool, step_label, tool_schemas
+from app.infra.agent.prompts import load_prompt
+from app.infra.agent.tools import ToolContext, run_tool, step_label, tool_schemas
+from app.infra.campaigns_api import ApiCallError, CampaignsApi
+from app.infra.llm import with_cache_breakpoints
 
 
 def _replace(_old: Any, new: Any) -> Any:
