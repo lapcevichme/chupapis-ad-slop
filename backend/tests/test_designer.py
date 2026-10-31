@@ -46,3 +46,13 @@ def test_smart_banner_reuses_square_icon():
     assert images.calls == [("banner background", "1024x1024")]
     promo_image = outcome.content["component"]["components"][0]
     assert promo_image["url"] == outcome.banner["image"]["url"] and promo_image["aspectRatio"] == 1.0
+
+
+def test_edit_without_new_image_keeps_previous_one():
+    previous = {"id": 217, "content": {**BANNER_OK, "image": {"url": "/api/media/old.png"}}}
+    images = FakeImages()
+    designer = Designer(ScriptedModel(script=[tool_message(call("DesignResult", {"bannerName": "Тест", "banner": BANNER_OK}, 1))]), images)
+    request = DesignRequest("добавь срок", STORY, with_content=False, generate_image=False, previous=previous)
+    outcome = asyncio.run(designer.design(request))
+    assert images.calls == []
+    assert outcome.banner["image"] == {"url": "/api/media/old.png"}

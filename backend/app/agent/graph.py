@@ -66,6 +66,17 @@ async def refresh_campaign(client: CampaignsApi, campaign_id: int | None) -> dic
         raise
 
 
+def _state_reminder(old: dict[str, Any] | None, new: dict[str, Any] | None) -> str | None:
+    """Состояние кампании меняют и вне этого диалога: модератор решает её судьбу в своём чате."""
+    if not new:
+        return None
+    changed = f", с прошлого хода было {old['state']}" if old and old["state"] != new["state"] else ""
+    return (
+        f"[Служебная заметка, не от пользователя] Кампания {new['id']} сейчас в состоянии {new['state']}{changed}. "
+        "Прошлые сообщения о состоянии могли устареть, опирайся на это."
+    )
+
+
 async def draft_report(client: CampaignsApi, state: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str, Any]]:
     """Черновик для превью и его проверка: у сохранённой кампании без правок — ответ API, иначе локальные правила."""
     pending = state.get("pending") or []
@@ -109,10 +120,13 @@ def build_graph(deps: AgentDeps, checkpointer):
         user, role = actor(config)
         async with deps.api_factory(user, role) as client:
             fresh = await refresh_campaign(client, state.get("campaign_id"))
+        reminder = _state_reminder(state.get("base"), fresh.get("base"))
         state = {**state, **fresh}
         model = deps.chat_model.bind_tools(tool_schemas())
         prompt = SystemMessage(load_prompt("chat") + _context_note(state, config))
-        response = await model.ainvoke([prompt, *state["messages"]], config)
+        # Заметка в конце, а не только в системном промпте: иначе модель верит прошлым сообщениям диалога.
+        tail = [HumanMessage(reminder)] if reminder else []
+        response = await model.ainvoke([prompt, *state["messages"], *tail], config)
         return {"messages": [response], **fresh}
 
     async def tools_node(state: AgentState, config: RunnableConfig):

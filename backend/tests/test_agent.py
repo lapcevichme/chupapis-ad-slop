@@ -6,7 +6,7 @@ from typing import Any
 import httpx
 import pytest
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
 from langgraph.checkpoint.memory import InMemorySaver
 from pydantic import Field
@@ -178,7 +178,7 @@ def test_api_error_is_reported_to_model(client, chat):
     sid = client.post("/chat", json={"campaignId": 101}, headers=MANAGER).json()["sessionId"]
     conf = next(d for k, d in events(client.post(f"/chat/{sid}/messages", json={"text": "Запусти"}, headers=MANAGER)) if k == "confirmation_required")
     client.post(f"/chat/{sid}/confirmations/{conf['id']}", json={"approved": True}, headers=MANAGER)
-    tool_result = model.seen[-1][-1].content
+    tool_result = next(m for m in reversed(model.seen[-1]) if isinstance(m, ToolMessage)).content
     assert "ACTIVATE_NOT_ALLOWED" in tool_result
 
 
@@ -187,7 +187,7 @@ def test_invalid_banner_rejected_before_api(client, chat):
     model = chat([tool_message(call("propose_create_banner", {"campaignId": 101, "banner": banner}, 1)), AIMessage(content="Исправлю.")])
     sid = client.post("/chat", json={"campaignId": 101}, headers=MANAGER).json()["sessionId"]
     client.post(f"/chat/{sid}/messages", json={"text": "Добавь баннер"}, headers=MANAGER)
-    tool_result = model.seen[-1][-1].content
+    tool_result = next(m for m in reversed(model.seen[-1]) if isinstance(m, ToolMessage)).content
     assert "BANNER_TITLE_TOO_LONG" in tool_result and "LINK_REQUIRED" in tool_result
     assert client.get(f"/chat/{sid}", headers=MANAGER).json()["pendingConfirmation"] is None
 
@@ -253,3 +253,6 @@ def test_manager_sees_moderator_decision_from_other_chat(client, chat):
     client.post("/campaigns/103/decline", json={"comment": "Добавьте теги"}, headers=MODERATOR)
     client.post(f"/chat/{sid}/messages", json={"text": "А сейчас?"}, headers=MANAGER)
     assert "состояние NEEDS_WORK" in model.seen[-1][0].content
+    # Напоминание стоит последним: системный промпт модель перебивает прошлыми сообщениями диалога.
+    reminder = model.seen[-1][-1].content
+    assert "сейчас в состоянии NEEDS_WORK, с прошлого хода было ON_MODERATION" in reminder

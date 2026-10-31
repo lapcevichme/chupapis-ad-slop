@@ -173,6 +173,9 @@ class Designer:
                 content_image = {"url": own_url, "aspectRatio": CONTENT_IMAGE_ASPECT}
             elif banner_url and not needs_own_content_image(code) and request.wants_content_image:
                 content_image = {"url": banner_url, "aspectRatio": CONTENT_IMAGE_ASPECT}
+        if not banner_url and request.previous:
+            # Модель картинку не заполняет, поэтому правка текста без новой генерации оставляет прежнюю.
+            banner_url = ((request.previous.get("content") or {}).get("image") or {}).get("url")
 
         if banner_url:
             banner["image"] = {"url": banner_url}
