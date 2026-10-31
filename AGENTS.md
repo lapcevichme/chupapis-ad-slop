@@ -7,7 +7,7 @@ SibКод, кейс 1: AI-помощник собирает рекламную �
 - Сначала [docs/README.md](docs/README.md) и [docs/STATUS.md](docs/STATUS.md), затем только документы текущей задачи.
 - Продукт — [PRODUCT.md](docs/PRODUCT.md), решения — [DECISIONS.md](docs/DECISIONS.md), архитектура — [architecture.md](docs/architecture.md).
 - Перед UI — [DESIGN.md](docs/DESIGN.md), вход через Design Studio. Старый «Изумруд» и существующая раскладка не обязательны для нового дизайна.
-- Правила участия, дедлайны и вопросы — [исследование](docs/research/hackathon.md), [чекпоинт](docs/checkpoint-questions.md). Стоп-кодинг 01.11 в 10:00 есть только в записи команды; часовой пояс нужно подтвердить.
+- Правила участия, дедлайны и вопросы — [исследование](docs/research/hackathon.md), [чекпоинт](docs/checkpoint-questions.md). Стоп-кодинг 01.11 в 10:00 по Новосибирску (UTC+7), время подтвердил участник команды.
 
 ## Источники и домен
 
