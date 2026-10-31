@@ -7,7 +7,7 @@ from typing import Any, Callable, Literal
 from pydantic import BaseModel, Field, ValidationError
 
 from app.agent.api_client import ApiCallError, CampaignsApi
-from app.agent.designer import Designer, DesignError, DesignRequest, image_aspect_ratio
+from app.agent.designer import Designer, DesignError, DesignRequest, insert_content_image
 from app.agent.operations import (
     WRITE_OPS,
     WRITE_OPS_BY_KIND,
@@ -216,6 +216,13 @@ async def _design(ctx: ToolContext, args: DesignArgs, progress: Callable[[str], 
     if args.replaceBannerId and previous is None:
         return f"Ошибка: баннера {args.replaceBannerId} нет в кампании"
 
+    pending_banner = next((op for op in ctx.pending if previous and op["ref"] == args.replaceBannerId), None)
+    # Промо-экраны, которые ещё в пакете и привязаны к переделываемому баннеру: им тоже нужна новая картинка.
+    linked_contents = []
+    if pending_banner is not None:
+        linked = {op["body"].get("contentId") for op in ctx.pending if op["kind"] == "create_creative" and op["body"].get("bannerId") == pending_banner["ref"]}
+        linked_contents = [op for op in ctx.pending if op["kind"] == "create_content" and op["ref"] in linked]
+
     try:
         outcome = await ctx.designer.design(
             DesignRequest(
@@ -225,6 +232,7 @@ async def _design(ctx: ToolContext, args: DesignArgs, progress: Callable[[str], 
                 generate_image=args.generateImage,
                 image_url=args.imageUrl,
                 previous=previous,
+                content_image=bool(linked_contents) if previous else None,
             ),
             progress,
         )
@@ -233,16 +241,17 @@ async def _design(ctx: ToolContext, args: DesignArgs, progress: Callable[[str], 
 
     banner_body = {"name": outcome.banner_name, "bannerTypeId": banner_type["id"], "content": outcome.banner}
     lines = [f"Баннер {code}: «{outcome.banner.get('title', '')}» — {outcome.banner.get('text', '')}"]
-    pending_banner = next((op for op in ctx.pending if previous and op["ref"] == args.replaceBannerId), None)
     if pending_banner is not None:
         # Баннер ещё не сохранён: правим операцию в пакете, а не добавляем вторую.
         pending_banner["body"]["content"] = outcome.banner
-        image = outcome.banner.get("image")
-        linked = {op["body"].get("contentId") for op in ctx.pending if op["kind"] == "create_creative" and op["body"].get("bannerId") == pending_banner["ref"]}
-        for op in ctx.pending:
-            components = op["body"]["content"]["component"]["components"] if op["kind"] == "create_content" and op["ref"] in linked else None
-            if image and components is not None and len(components) < 6 and not any(c["role"] == "image" for c in components):
-                components.insert(0, {"role": "image", "url": image["url"], "aspectRatio": image_aspect_ratio(code)})
+        if outcome.content_image:
+            for op in linked_contents:
+                content = op["body"]["content"]
+                existing = next((c for c in content["component"]["components"] if c["role"] == "image"), None)
+                if existing is not None:
+                    existing.update(outcome.content_image)
+                else:
+                    insert_content_image(content, outcome.content_image)
         ctx.draft_changed = True
         lines.append(f"Операция {pending_banner['ref']} в пакете обновлена, дублей нет.")
     elif previous:
@@ -266,7 +275,9 @@ async def _design(ctx: ToolContext, args: DesignArgs, progress: Callable[[str], 
                 creative = {"name": f"{outcome.banner_name} · {channel}"[:100], "bannerId": banner_ref, "contentId": content_ref, "channelCode": channel}
                 lines.append(await _propose(ctx, WRITE_OPS_BY_KIND["create_creative"], {"creative": creative}))
     if outcome.banner.get("image"):
-        lines.append(f"Картинка добавлена в баннер и промо-экран: {outcome.banner['image']['url']}")
+        lines.append(f"Картинка баннера: {outcome.banner['image']['url']}")
+    if outcome.content_image:
+        lines.append(f"Картинка промо-экрана: {outcome.content_image['url']}")
     lines += outcome.notes
     return "\n".join(lines)
 
