@@ -1,5 +1,6 @@
 """HTTP-клиент API кампаний. Агент не ходит в БД: адрес API задаётся конфигом."""
 
+from collections.abc import Callable
 from typing import Any
 
 import httpx
@@ -31,7 +32,7 @@ class CampaignsApi:
     async def __aenter__(self) -> "CampaignsApi":
         return self
 
-    async def __aexit__(self, *exc) -> None:
+    async def __aexit__(self, *exc: Any) -> None:
         await self._client.aclose()
 
     async def request(self, method: str, path: str, body: Any = None) -> Any:
@@ -50,3 +51,6 @@ class CampaignsApi:
 
     async def get(self, path: str) -> Any:
         return await self.request("GET", path)
+
+
+ApiFactory = Callable[[str, str], CampaignsApi]

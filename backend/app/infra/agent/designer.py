@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 from pydantic import BaseModel, Field
 
 from app.contracts.creative_json import BannerContent, PromoContent
@@ -142,7 +142,7 @@ class Designer:
             and needs_own_content_image(t["code"]),
             "previousVersion": request.previous,
         }
-        messages: list = [
+        messages: list[BaseMessage] = [
             SystemMessage(load_prompt("design")),
             HumanMessage(json.dumps(task, ensure_ascii=False)),
         ]
@@ -189,7 +189,7 @@ class Designer:
         return url
 
     async def _finish(
-        self, args: dict[str, Any], request: DesignRequest, progress
+        self, args: dict[str, Any], request: DesignRequest, progress: Callable[[str], None]
     ) -> DesignOutcome:
         code = request.banner_type["code"]
         banner = BannerContent.model_validate(args["banner"]).model_dump(

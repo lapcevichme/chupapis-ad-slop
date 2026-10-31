@@ -11,14 +11,23 @@ import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Annotated, Any, TypedDict
+from typing import Annotated, Any, TypedDict, cast
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import (
+    AIMessage,
+    AnyMessage,
+    HumanMessage,
+    SystemMessage,
+    ToolCall,
+    ToolMessage,
+)
 from langchain_core.runnables import RunnableConfig
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.config import get_stream_writer
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
+from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import interrupt
 
 from app.infra.agent.designer import Designer
@@ -167,13 +176,16 @@ def _context_note(state: AgentState, config: RunnableConfig, reminder: str | Non
     return "\n".join(lines)
 
 
-def build_graph(deps: AgentDeps, checkpointer):
-    async def agent_node(state: AgentState, config: RunnableConfig):
+AgentGraph = CompiledStateGraph[AgentState, None, AgentState, AgentState]
+
+
+def build_graph(deps: AgentDeps, checkpointer: BaseCheckpointSaver[Any]) -> AgentGraph:
+    async def agent_node(state: AgentState, config: RunnableConfig) -> dict[str, Any]:
         user, role = actor(config)
         async with deps.api_factory(user, role) as client:
             fresh = await refresh_campaign(client, state.get("campaign_id"))
         reminder = _state_reminder(state.get("base"), fresh.get("base"))
-        state = {**state, **fresh}
+        state = cast(AgentState, {**state, **fresh})
         model = deps.chat_model.bind_tools(tool_schemas())
         # Префикс запроса (инструменты, промпт, история) между шагами не меняется и берётся из кеша провайдера.
         # Всё, что меняется каждый шаг — время, черновик, состояние кампании, — идёт одной заметкой в конце
@@ -186,9 +198,9 @@ def build_graph(deps: AgentDeps, checkpointer):
         response = await model.ainvoke(request, config)
         return {"messages": [response], **fresh}
 
-    async def tools_node(state: AgentState, config: RunnableConfig):
+    async def tools_node(state: AgentState, config: RunnableConfig) -> dict[str, Any]:
         writer = get_stream_writer()
-        call_message: AIMessage = state["messages"][-1]
+        call_message = cast(AIMessage, state["messages"][-1])
         user, role = actor(config)
         async with deps.api_factory(user, role) as client:
             ctx = ToolContext(
@@ -217,7 +229,11 @@ def build_graph(deps: AgentDeps, checkpointer):
                         continue
                     ctx.counter += 1
                     awaiting = _awaiting(
-                        ctx.counter, call["args"].get("title"), ctx.base, ctx.pending, call["id"]
+                        ctx.counter,
+                        call["args"].get("title"),
+                        ctx.base,
+                        ctx.pending,
+                        call["id"] or f"conf-{ctx.counter}",
                     )
                     continue
 
@@ -231,7 +247,7 @@ def build_graph(deps: AgentDeps, checkpointer):
                         }
                     )
 
-                def progress(text: str, step_id=step_id):
+                def progress(text: str, step_id: str | None = step_id) -> None:
                     writer(
                         {
                             "event": "step",
@@ -265,15 +281,15 @@ def build_graph(deps: AgentDeps, checkpointer):
             "asked": asked,
         }
 
-    async def auto_confirm_node(state: AgentState):
+    async def auto_confirm_node(state: AgentState) -> dict[str, Any]:
         """Модель закончила ход с непустым пакетом и не попросила подтверждения: карточку показываем сами.
 
         Иначе правка видна в превью, а в базу не попадает. Вызов request_confirmation дописывается в последний
         ответ модели, чтобы результат подтверждения было к чему привязать.
         """
-        last: AIMessage = state["messages"][-1]
+        last = cast(AIMessage, state["messages"][-1])
         counter = state.get("counter", 0) + 1
-        call = {
+        call: ToolCall = {
             "name": "request_confirmation",
             "args": {},
             "id": f"auto-conf-{counter}",
@@ -283,11 +299,19 @@ def build_graph(deps: AgentDeps, checkpointer):
         return {
             "messages": [message],
             "counter": counter,
-            "awaiting": _awaiting(counter, None, state.get("base"), state["pending"], call["id"]),
+            "awaiting": _awaiting(
+                counter,
+                None,
+                state.get("base"),
+                state["pending"],
+                call["id"] or f"auto-conf-{counter}",
+            ),
         }
 
-    async def confirm_node(state: AgentState, config: RunnableConfig):
+    async def confirm_node(state: AgentState, config: RunnableConfig) -> dict[str, Any]:
         awaiting = state["awaiting"]
+        if awaiting is None:
+            raise RuntimeError("Confirmation node requires a pending proposal")
         answer = interrupt({k: v for k, v in awaiting.items() if k != "toolCallId"})
         writer = get_stream_writer()
         call_id = awaiting["toolCallId"]
@@ -380,7 +404,7 @@ def build_graph(deps: AgentDeps, checkpointer):
         # Вопрос с кнопками закрывает ход: иначе модель повторяет те же вопросы вторым сообщением.
         return END if state.get("asked") else "agent"
 
-    graph = StateGraph(AgentState)
+    graph = StateGraph[AgentState, None, AgentState, AgentState](AgentState)
     graph.add_node("agent", agent_node)
     graph.add_node("tools", tools_node)
     graph.add_node("auto_confirm", auto_confirm_node)

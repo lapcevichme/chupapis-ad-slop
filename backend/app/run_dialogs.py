@@ -4,6 +4,7 @@ import sys
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import httpx
 from langgraph.checkpoint.memory import InMemorySaver
@@ -21,7 +22,7 @@ TRANSCRIPTS = DIALOGS / "transcripts"
 ROLE_NAMES = {"campaignManager": "Менеджер", "campaignModerator": "Модератор"}
 
 
-def _events(body: str) -> list[tuple[str, dict]]:
+def _events(body: str) -> list[tuple[str, dict[str, Any]]]:
     result = []
     for block in body.split("\n\n"):
         lines = dict(
@@ -34,10 +35,14 @@ def _events(body: str) -> list[tuple[str, dict]]:
     return result
 
 
-def _render_turn(events: list[tuple[str, dict]]) -> tuple[list[str], dict | None]:
+def _render_turn(
+    events: list[tuple[str, dict[str, Any]]],
+) -> tuple[list[str], dict[str, Any] | None]:
     """Ответ агента в markdown в порядке событий потока и карточка подтверждения, если она появилась."""
     out: list[str] = []
-    text, steps, confirmation = "", {}, None
+    text = ""
+    steps: dict[str, Any] = {}
+    confirmation = None
     marks = {"done": "✓", "failed": "✗", "running": "…"}
 
     def flush() -> None:
@@ -106,7 +111,7 @@ async def run_dialog(path: Path) -> Path:
         return await _run_dialog(path, settings, transport)
 
 
-async def _run_dialog(path, settings, transport) -> Path:
+async def _run_dialog(path: Path, settings: Settings, transport: httpx.ASGITransport) -> Path:
     scenario = json.loads(path.read_text(encoding="utf-8"))
     lines = [
         f"# {scenario['title']}",
@@ -118,7 +123,7 @@ async def _run_dialog(path, settings, transport) -> Path:
         "",
     ]
     sessions: dict[str, str] = {}
-    pending: dict[str, dict | None] = {}
+    pending: dict[str, dict[str, Any] | None] = {}
     async with httpx.AsyncClient(transport=transport, base_url="http://api", timeout=600) as client:
         for number, step in enumerate(scenario["steps"], 1):
             user, role = step.get("as", scenario["user"]), step.get("role", scenario["role"])

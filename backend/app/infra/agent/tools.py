@@ -7,12 +7,17 @@ from typing import Any, Callable, Literal
 
 from pydantic import BaseModel, Field, ValidationError
 
+from app.core.errors import ApiError
 from app.infra.agent.designer import Designer, DesignError, DesignRequest, insert_content_image
 from app.infra.agent.operations import (
     WRITE_OPS,
     WRITE_OPS_BY_KIND,
     WRITE_OPS_BY_TOOL,
+    CreateBannerArgs,
+    CreateContentArgs,
     Ref,
+    UpdateBannerArgs,
+    UpdateContentArgs,
     WriteOp,
     apply_operations,
     build_operation,
@@ -249,7 +254,7 @@ class ToolContext:
         return apply_operations(self.base, self.pending)
 
 
-def _errors_text(errors) -> str:
+def _errors_text(errors: list[ApiError]) -> str:
     return "Ошибка проверки, исправь аргументы:\n" + "\n".join(
         f"- {e.code} ({e.field or '—'}): {e.message}" for e in errors
     )
@@ -262,7 +267,7 @@ async def _propose(ctx: ToolContext, spec: WriteOp, raw: dict[str, Any]) -> str:
         return _errors_text(map_pydantic_errors(exc.errors()))
 
     # Креатив проверяем до API теми же правилами, что и бэкенд (§6.2).
-    if spec.kind in {"create_banner", "update_banner"}:
+    if isinstance(args, (CreateBannerArgs, UpdateBannerArgs)):
         banner_type = (await ctx.banner_types()).get(args.banner.bannerTypeId)
         if banner_type is None:
             return f"Ошибка: типа баннера {args.banner.bannerTypeId} нет в справочнике, смотри list_banner_types"
@@ -275,7 +280,7 @@ async def _propose(ctx: ToolContext, spec: WriteOp, raw: dict[str, Any]) -> str:
         )
         if errors:
             return _errors_text(errors)
-    if spec.kind in {"create_content", "update_content"}:
+    if isinstance(args, (CreateContentArgs, UpdateContentArgs)):
         errors = check_content(args.content.content, prefix="content.content")
         if errors:
             return _errors_text(errors)
@@ -318,13 +323,13 @@ async def _design(ctx: ToolContext, args: DesignArgs, progress: Callable[[str], 
     if args.replaceBannerId and previous is None:
         return f"Ошибка: баннера {args.replaceBannerId} нет в кампании"
 
-    code = args.bannerType
+    code: str | None = args.bannerType
     if code is None and previous is not None:
         # Правка: тип у баннера уже есть.
         code = banner_types.get(previous.get("bannerTypeId"), {}).get("code")
     if code is None and args.placeId is not None:
         place = (await ctx.places()).get(args.placeId) if isinstance(args.placeId, int) else None
-        code = place and place.get("defaultBanner")
+        code = place.get("defaultBanner") if place else None
     if code is None:
         return "Ошибка: не знаю тип баннера. Передай placeId места с defaultBanner или bannerType."
     banner_type = by_code[code]
@@ -509,16 +514,16 @@ async def _run_ui_tool(
         ctx.emit("warning", args.model_dump())
         return "Предупреждение показано. Продолжай, если пользователь не передумал."
     if name == "suggest_options":
-        args = SuggestArgs.model_validate(raw)
-        ctx.emit("suggestions", {"items": [i.model_dump() for i in args.items]})
+        suggestions = SuggestArgs.model_validate(raw)
+        ctx.emit("suggestions", {"items": [i.model_dump() for i in suggestions.items]})
         return "Кнопки показаны. Дождись ответа пользователя."
     if name == "discard_pending":
-        args = DiscardArgs.model_validate(raw)
+        discard = DiscardArgs.model_validate(raw)
         before = len(ctx.pending)
         ctx.pending[:] = (
             []
-            if args.refs is None
-            else [op for op in ctx.pending if op["ref"] not in set(args.refs)]
+            if discard.refs is None
+            else [op for op in ctx.pending if op["ref"] not in set(discard.refs)]
         )
         ctx.draft_changed = True
         return (

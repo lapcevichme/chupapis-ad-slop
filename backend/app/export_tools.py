@@ -4,6 +4,7 @@
 """
 
 import json
+from typing import Any
 
 from app.core.config import BACKEND_DIR
 from app.infra.agent.designer import DesignResult
@@ -12,7 +13,7 @@ from app.infra.agent.tools import tool_schemas
 TARGET = BACKEND_DIR.parent / "docs" / "tools.json"
 
 
-def export() -> dict:
+def export() -> dict[str, Any]:
     return {
         "chatAgent": tool_schemas(),
         "designAgent": [

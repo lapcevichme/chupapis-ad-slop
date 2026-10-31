@@ -3,12 +3,13 @@
 import asyncio
 import base64
 import uuid
-from typing import Protocol
+from typing import Any, Protocol
 
 import httpx
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage
 from langchain_openai import ChatOpenAI
+from pydantic import SecretStr
 
 from app.core.config import Settings
 
@@ -22,7 +23,7 @@ def chat_model(settings: Settings, model: str, *, temperature: float = 0.3) -> B
     return ChatOpenAI(
         model=model,
         base_url=settings.llm_base_url,
-        api_key=settings.llm_api_key or "missing-key",
+        api_key=SecretStr(settings.llm_api_key or "missing-key"),
         temperature=temperature,
         timeout=settings.llm_timeout_seconds,
         # SDK OpenAI сам повторяет сетевые сбои, 429 и 5xx с экспоненциальной паузой: 1 + 3 повтора.
@@ -49,16 +50,19 @@ def _text_of(message: BaseMessage) -> str:
 
 def _mark(message: BaseMessage) -> BaseMessage:
     """Копия сообщения, у которой последний текстовый блок помечен точкой кеша. В истории диалога ничего не меняется."""
+    content: list[str | dict[str, Any]]
     if isinstance(message.content, str):
         content = [{"type": "text", "text": message.content, "cache_control": CACHE_CONTROL}]
     else:
-        content = [dict(block) for block in message.content]
+        content = [dict(block) if isinstance(block, dict) else block for block in message.content]
         last = max(
             i
             for i, block in enumerate(content)
             if isinstance(block, dict) and block.get("type") == "text" and block.get("text")
         )
-        content[last]["cache_control"] = CACHE_CONTROL
+        block = content[last]
+        assert isinstance(block, dict)
+        block["cache_control"] = CACHE_CONTROL
     return message.model_copy(update={"content": content})
 
 
@@ -112,7 +116,7 @@ class OpenRouterImageGenerator:
         (self.settings.media_dir / name).write_bytes(raw)
         return f"{self.settings.media_base_url}/{name}"
 
-    async def _post_with_retries(self, body: dict) -> httpx.Response:
+    async def _post_with_retries(self, body: dict[str, Any]) -> httpx.Response:
         """Сетевые сбои, 429 и 5xx повторяем с растущей паузой; остальные 4xx — ошибка запроса, повторять бессмысленно."""
         last_error: Exception | None = None
         async with httpx.AsyncClient(
@@ -137,7 +141,9 @@ class OpenRouterImageGenerator:
                     continue
                 response.raise_for_status()
                 return response
-        raise last_error
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError("Image generation did not produce a response")
 
 
 class NoImageGenerator:

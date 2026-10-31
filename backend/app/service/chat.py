@@ -3,17 +3,20 @@
 import asyncio
 import logging
 from collections.abc import AsyncIterator
-from typing import Any
+from contextlib import suppress
+from typing import Any, cast
 
 import httpx
 import openai
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from langchain_core.runnables import RunnableConfig
 from langgraph.errors import GraphRecursionError
-from langgraph.types import Command
+from langgraph.types import Command, StateSnapshot
 
 from app.core.errors import not_found
 from app.domain.chat import StreamEvent
-from app.infra.agent.graph import AgentState, draft_report, refresh_campaign
+from app.infra.agent.graph import AgentGraph, AgentState, draft_report, refresh_campaign
+from app.infra.campaigns_api import ApiFactory
 from app.service.chat_sessions import SessionRegistry
 
 KEEP_ALIVE_SECONDS = 15
@@ -60,7 +63,7 @@ def describe_failure(exc: Exception) -> tuple[str, str]:
     return "AGENT_FAILED", "Агент не смог продолжить из-за внутренней ошибки. Нажмите «Повторить»."
 
 
-def _text(message) -> str:
+def _text(message: BaseMessage) -> str:
     content = message.content
     if isinstance(content, str):
         return content
@@ -68,13 +71,13 @@ def _text(message) -> str:
 
 
 class ChatService:
-    def __init__(self, graph, api_factory, sessions: SessionRegistry):
+    def __init__(self, graph: AgentGraph, api_factory: ApiFactory, sessions: SessionRegistry):
         self.graph = graph
         self.api_factory = api_factory
         self.sessions = sessions
 
     @staticmethod
-    def _config(session_id: str, user: str = "", role: str = "") -> dict[str, Any]:
+    def _config(session_id: str, user: str = "", role: str = "") -> RunnableConfig:
         return {
             "configurable": {"thread_id": session_id, "user": user, "role": role},
             "recursion_limit": 60,
@@ -112,7 +115,7 @@ class ChatService:
         }
         await self.graph.aupdate_state(self._config(session_id), values, as_node="__start__")
 
-    async def _state(self, session_id: str):
+    async def _state(self, session_id: str) -> StateSnapshot:
         snapshot = await self.graph.aget_state(self._config(session_id))
         if not snapshot.values or "pending" not in snapshot.values:
             raise not_found("sessionId", session_id)
@@ -188,11 +191,16 @@ class ChatService:
         queue: asyncio.Queue[StreamEvent | None] = asyncio.Queue()
         config = self._config(session_id, user, role)
 
-        async def produce():
+        async def produce() -> None:
             try:
-                async for mode, chunk in self.graph.astream(
-                    payload, config, stream_mode=["messages", "custom", "updates"]
-                ):
+                # Multiple v1 stream modes produce (mode, payload), unlike a single mode.
+                stream = cast(
+                    AsyncIterator[tuple[str, Any]],
+                    self.graph.astream(
+                        payload, config, stream_mode=["messages", "custom", "updates"]
+                    ),
+                )
+                async for mode, chunk in stream:
                     if mode == "messages":
                         message, metadata = chunk
                         if metadata.get("langgraph_node") == "agent" and isinstance(
@@ -234,3 +242,5 @@ class ChatService:
         finally:
             if not task.done():
                 task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task

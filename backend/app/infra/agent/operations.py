@@ -35,17 +35,18 @@ class RefItem(BaseModel):
 
 
 class ProposedCampaign(api.CampaignInfo):
-    tags: list[RefItem] = Field(
+    # Draft references widen API ids until the executor resolves tmp-N to real ids.
+    tags: list[RefItem] = Field(  # type: ignore[assignment]
         default_factory=list, description="Теги: id из list_tags или tmp-N нового тега"
     )
-    places: list[RefItem] = Field(
+    places: list[RefItem] = Field(  # type: ignore[assignment]
         min_length=1, description="Места показа: id из list_places или tmp-N нового места"
     )
 
 
 class ProposedCreative(api.CreativeCreate):
-    bannerId: Ref
-    contentId: Ref | None = None
+    bannerId: Ref  # type: ignore[assignment]
+    contentId: Ref | None = None  # type: ignore[assignment]
 
 
 CAMPAIGN_ID = Field(
@@ -355,7 +356,7 @@ def op_label(kind: str, body: Any, params: dict[str, Any]) -> str:
             return segments_label(b, {})
         case "create_banner" | "update_banner":
             action = "Создать" if kind.startswith("create") else "Заменить"
-            kind_name = {1: "STORY", 2: "SMART_BANNER"}.get(b.get("bannerTypeId"), "")
+            kind_name = {1: "STORY", 2: "SMART_BANNER"}.get(b.get("bannerTypeId") or 0, "")
             return f"{action} баннер {kind_name} «{b.get('name')}»".replace("  ", " ")
         case "create_content" | "update_content":
             return f"{'Создать' if kind.startswith('create') else 'Заменить'} промо-экран «{b.get('name')}»"
@@ -404,7 +405,9 @@ def _header_from_info(body: dict[str, Any]) -> dict[str, Any]:
     return header
 
 
-def _replace(items: list[dict], item_id: Ref, new: dict | None) -> list[dict]:
+def _replace(
+    items: list[dict[str, Any]], item_id: Ref, new: dict[str, Any] | None
+) -> list[dict[str, Any]]:
     result = []
     for item in items:
         if item["id"] == item_id:
@@ -466,7 +469,9 @@ def public_draft(draft: dict[str, Any] | None) -> dict[str, Any] | None:
 
 
 def draft_warnings(
-    draft: dict[str, Any] | None, places: dict[int, dict], banner_types: dict[int, dict]
+    draft: dict[str, Any] | None,
+    places: dict[int, dict[str, Any]],
+    banner_types: dict[int, dict[str, Any]],
 ) -> list[str]:
     """Те же правила, что у GET /warnings (§4, §7.2 mock-data), но по черновику до сохранения."""
     from app.core.codes import WARNINGS

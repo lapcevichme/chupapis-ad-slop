@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     media_base_url: str = "/api/media"
     cors_origins: list[str] = ["http://localhost:5173"]
 
+    log_level: str = "INFO"
+    log_json: bool = False
+
     # --- Агент
     # Любой OpenAI-совместимый провайдер; по умолчанию OpenRouter.
     llm_base_url: str = "https://openrouter.ai/api/v1"
