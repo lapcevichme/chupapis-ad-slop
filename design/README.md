@@ -18,6 +18,6 @@
 
 Бриф — [brief.md](brief.md), источники — [references/README.md](references/README.md), продукт — [PRODUCT.md](../docs/PRODUCT.md), единый журнал решений — [DECISIONS.md](../docs/DECISIONS.md).
 
-Снимки страницы входа — `captures/entry-*.jpg`. Сфера на ней — Созвездие из голосового режима, в обеих темах; сам голосовой режим в светлой теме остаётся с Перламутром. Первая версия с фото есть в истории git, коммит `bf1f619`.
+Снимки страницы входа — `captures/entry-*.jpg`. Сфера на ней — Созвездие, как и в голосовом режиме, в обеих темах. Первая версия с фото есть в истории git, коммит `bf1f619`.
 
 Работающий интерфейс: `frontend/src/workspace.css`, запуск `cd frontend && npm run dev`. Снимки `captures/live-*.jpg` относятся к настоящему API и отдельной БД моков, остальные — к исходным макетам. Система и Motion — [docs/DESIGN.md](../docs/DESIGN.md).

@@ -1,4 +1,5 @@
-import type { OrbRenderer } from './Orb'
+// Перламутр, зелёная сфера: команде больше нравится Созвездие, поэтому в интерфейсе не используется.
+import type { OrbRenderer } from '../Orb'
 
 const VERTEX = 'attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}'
 const FRAGMENT = `precision highp float;uniform vec2 r;uniform float t,a,m;

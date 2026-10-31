@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { createPearl } from './orbPearl'
-import { createStars, DOTS_ON_LIGHT } from './orbStars'
+import { createStars, DOTS_ON_DARK, DOTS_ON_LIGHT } from './orbStars'
 
 export type OrbMode = 'idle' | 'listen' | 'think' | 'speak'
 export type OrbRenderer = (time: number, level: number, think: number, compact: boolean) => void
@@ -15,15 +14,13 @@ interface OrbProps {
   compact: boolean
   size: number
   getLevel: () => number
-  // Сфера из точек в обеих темах; по умолчанию в светлой теме Перламутр.
-  dotsOnly?: boolean
   // Множитель времени: всё движение сферы замедляется или ускоряется целиком.
   speed?: number
   // Вызывается на каждом кадре с тем же временем, что получила сфера.
   onFrame?: (time: number) => void
 }
 
-export function Orb({ mode, dark, compact, size, getLevel, dotsOnly = false, speed = 1, onFrame }: OrbProps) {
+export function Orb({ mode, dark, compact, size, getLevel, speed = 1, onFrame }: OrbProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const state = useRef({ mode, compact, getLevel, onFrame })
 
@@ -42,7 +39,8 @@ export function Orb({ mode, dark, compact, size, getLevel, dotsOnly = false, spe
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const render = dark ? createStars(canvas) : dotsOnly ? createStars(canvas, DOTS_ON_LIGHT) : createPearl(canvas)
+    // Плашка тёмная в обеих темах, поэтому в ней точки всегда светлые.
+    const render = createStars(canvas, dark ? DOTS_ON_DARK : DOTS_ON_LIGHT, DOTS_ON_DARK)
     if (!render) return
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
     const started = performance.now()
@@ -71,7 +69,7 @@ export function Orb({ mode, dark, compact, size, getLevel, dotsOnly = false, spe
     }
     frame = requestAnimationFrame(draw)
     return () => cancelAnimationFrame(frame)
-  }, [dark, dotsOnly, speed])
+  }, [dark, speed])
 
   return <canvas ref={canvasRef} className="block size-full" aria-hidden="true" />
 }

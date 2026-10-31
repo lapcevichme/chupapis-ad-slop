@@ -22,7 +22,7 @@ export function spherePosition(x: number, y: number, z: number, t: number) {
   return { x: x * cos + z * sin, y: y * TILT_COS - z2 * TILT_SIN, z: y * TILT_SIN + z2 * TILT_COS }
 }
 
-export function createStars(canvas: HTMLCanvasElement, color = DOTS_ON_DARK): OrbRenderer | null {
+export function createStars(canvas: HTMLCanvasElement, color: string, compactColor: string): OrbRenderer | null {
   const context = canvas.getContext('2d')
   if (!context) return null
   const points = Array.from({ length: POINTS }, (_, index) => {
@@ -59,7 +59,7 @@ export function createStars(canvas: HTMLCanvasElement, color = DOTS_ON_DARK): Or
       const z3 = y1 * TILT_SIN + z2 * TILT_COS
       const depth = (z3 + 1.4) / 2.4
       const size = compact ? width / 45 : Math.max(1, (width / 560) * (1 + 2.4 * depth * depth))
-      context.fillStyle = `rgba(${color},${(compact ? 0.35 + 0.65 * depth : 0.1 + 0.9 * depth * depth).toFixed(3)})`
+      context.fillStyle = `rgba(${compact ? compactColor : color},${(compact ? 0.35 + 0.65 * depth : 0.1 + 0.9 * depth * depth).toFixed(3)})`
       context.fillRect(width / 2 + x2 * radius - size / 2, height / 2 - y2 * radius - size / 2, size, size)
     }
   }

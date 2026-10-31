@@ -47,7 +47,7 @@ export function EntrySphere({ dark, size, getLevel }: EntrySphereProps) {
 
   return (
     <div className="entry-orb">
-      <Orb key={String(dark)} mode="idle" dark={dark} compact={false} size={size} getLevel={getLevel} dotsOnly speed={SPEED} onFrame={place} />
+      <Orb key={String(dark)} mode="idle" dark={dark} compact={false} size={size} getLevel={getLevel} speed={SPEED} onFrame={place} />
       <ul className="entry-examples" aria-label="Примеры акций">
         {SPHERE_EXAMPLES.map((example, index) => (
           <li
