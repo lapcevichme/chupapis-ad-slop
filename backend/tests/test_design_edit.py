@@ -146,3 +146,40 @@ def test_edit_of_saved_banner_proposes_only_the_changed_objects(client, chat):
     after = client.get("/campaigns/101").json()["banners"][0]
     assert after["content"] == {**before["content"], "title": "Короткий заголовок"}
     assert after["name"] == before["name"]
+
+
+def test_second_edit_of_saved_banner_replaces_the_first_operation(client, chat):
+    # Обе правки попадают в одну операцию: PUT заменяет баннер целиком, вторая строится поверх первой.
+    def edit_call(path, value, n):
+        changes = [{"op": "set", "path": path, "value": value}]
+        return tool_message(call("DesignEdit", {"changes": changes, "summary": "правка"}, n))
+
+    chat(
+        [
+            tool_message(
+                call("design_creative", {"brief": "Фон синий", "replaceBannerId": 201}, 1)
+            ),
+            tool_message(
+                call("design_creative", {"brief": "Заголовок короче", "replaceBannerId": 201}, 2)
+            ),
+            AIMessage(content="Поправил."),
+            AIMessage(content="Сохранил."),
+        ],
+        [
+            edit_call("/banner/background/color", "#0B3D91FF", 1),
+            edit_call("/banner/title", "Короткий заголовок", 2),
+        ],
+    )
+    before = client.get("/campaigns/101").json()["banners"][0]
+    sid = client.post("/chat", json={"campaignId": 101}, headers=MANAGER).json()["sessionId"]
+    reply = events(
+        client.post(f"/chat/{sid}/messages", json={"text": "Синий фон и короче"}, headers=MANAGER)
+    )
+    conf = next(data for kind, data in reply if kind == "confirmation_required")
+    assert [op["kind"] for op in conf["operations"]] == ["update_banner"]
+
+    client.post(f"/chat/{sid}/confirmations/{conf['id']}", json={"approved": True}, headers=MANAGER)
+    after = client.get("/campaigns/101").json()["banners"][0]["content"]
+    assert after["title"] == "Короткий заголовок"
+    assert after["background"]["color"] == "#0B3D91FF"
+    assert after["text"] == before["content"]["text"]

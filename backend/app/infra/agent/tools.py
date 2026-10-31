@@ -276,6 +276,9 @@ def _errors_text(errors: list[ApiError]) -> str:
     )
 
 
+UPDATE_KEYS = {"update_banner": "bannerId", "update_content": "contentId"}
+
+
 async def _propose(ctx: ToolContext, spec: WriteOp, raw: dict[str, Any]) -> str:
     try:
         args = spec.args.model_validate(raw)
@@ -318,6 +321,14 @@ async def _propose(ctx: ToolContext, spec: WriteOp, raw: dict[str, Any]) -> str:
         op["label"] = segments_label(op["body"], names)
     if "campaignId" in op["params"] and op["params"]["campaignId"] is None:
         return "Ошибка: кампании ещё нет. Сначала propose_create_campaign."
+    if spec.kind in UPDATE_KEYS:
+        # PUT — полная замена, а новое тело собрано из черновика с прежней правкой: она больше не нужна.
+        key = UPDATE_KEYS[spec.kind]
+        ctx.pending[:] = [
+            p
+            for p in ctx.pending
+            if not (p["kind"] == spec.kind and p["params"].get(key) == op["params"][key])
+        ]
     ctx.pending.append(op)
     ctx.draft_changed = True
     ref = f" Ссылка: {op['ref']}." if op["ref"] else ""
