@@ -88,7 +88,7 @@ export function CampaignPicker({ campaigns, currentId, name, state, role, disabl
       />
       <Popover.Portal>
         <Popover.Positioner side="bottom" align="start" sideOffset={8} className="z-50">
-          <Popover.Popup initialFocus={input} className="flex max-h-[min(70dvh,480px)] w-[min(460px,calc(100vw-2rem))] flex-col rounded-lg border bg-popover text-popover-foreground shadow-lg outline-none">
+          <Popover.Popup initialFocus={input} className="flex max-h-[min(70dvh,480px)] w-[min(460px,calc(100vw-2rem))] flex-col rounded-lg border bg-popover text-popover-foreground shadow-lg outline-none transition-[opacity,transform] duration-150 origin-[var(--transform-origin)] data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0">
             <div className="flex items-center gap-2 border-b px-3">
               <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
               <input

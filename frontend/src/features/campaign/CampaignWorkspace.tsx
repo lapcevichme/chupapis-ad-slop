@@ -123,7 +123,7 @@ export function CampaignWorkspace() {
 
         <div className="flex min-w-0 flex-[1_1_400px] flex-col gap-3 xl:overflow-y-auto">
           {failed && <Message>Не удалось загрузить данные с сервера. Обновите страницу.</Message>}
-          {saved && <CampaignLifecycle state={saved.state} audit={audit.data} />}
+          {saved && <CampaignLifecycle key={`lifecycle-${saved.id}`} state={saved.state} audit={audit.data} />}
           {details && validation && dictionaries.data ? (
             <CampaignPassport
               key={campaignId ?? NEW_CAMPAIGN}

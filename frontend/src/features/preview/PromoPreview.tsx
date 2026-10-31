@@ -34,7 +34,7 @@ export function PromoPreview({ content }: { content: PromoContent }) {
 
   return (
     <div
-      className="flex min-h-full flex-col gap-3 p-4"
+      className="flex min-h-full animate-stagger flex-col gap-3 p-4"
       style={{ background: container?.style?.backgroundColor ?? '#FFFFFF', color: '#000000' }}
     >
       {container?.components?.map((item, index) => <PromoItem key={index} item={item} />)}

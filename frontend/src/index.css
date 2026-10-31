@@ -157,9 +157,53 @@
   animation: flash-ring 1.6s ease-out forwards;
 }
 
+/* Появление элементов. Заполнение backwards: после анимации transform не остаётся и не ломает слои. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  60% {
+    transform: scale(1.15);
+  }
+}
+
+.animate-rise,
+.animate-stagger > * {
+  animation: rise 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+.animate-fade {
+  animation: fade 0.4s ease-out backwards;
+}
+
+.animate-pop {
+  animation: pop 0.32s ease-out backwards;
+}
+
+.animate-stagger > :nth-child(2) { animation-delay: 80ms; }
+.animate-stagger > :nth-child(3) { animation-delay: 160ms; }
+.animate-stagger > :nth-child(4) { animation-delay: 240ms; }
+.animate-stagger > :nth-child(5) { animation-delay: 320ms; }
+.animate-stagger > :nth-child(n + 6) { animation-delay: 400ms; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
     transition-duration: 0.01ms !important;
   }
 }

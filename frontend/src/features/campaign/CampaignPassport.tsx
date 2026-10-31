@@ -30,7 +30,7 @@ function Field({ label, value, code, flash }: { label: string; value: ReactNode;
 
 function Row({ name, code, aside, notice }: { name: string; code: string; aside?: string; notice?: string }) {
   return (
-    <li className="flex items-center justify-between gap-3 border-t py-2 first:border-t-0 first:pt-0 last:pb-0">
+    <li className="flex animate-rise items-center justify-between gap-3 border-t py-2 first:border-t-0 first:pt-0 last:pb-0">
       <div className="flex min-w-0 flex-col gap-0.5">
         <span className="text-sm leading-5 font-medium wrap-anywhere">{name}</span>
         <span className="font-mono text-xs leading-4 wrap-anywhere text-muted-foreground">{code}</span>
@@ -80,7 +80,7 @@ export function CampaignPassport({ campaign, validation, dictionaries, selectedB
   const tagNames = (campaign.tags ?? []).map((id) => dictionaries.tags.find((tag) => tag.id === id)?.name ?? `Тег ${id}`)
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex animate-stagger flex-col gap-3">
       <Section title="Основное">
         <div className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3.5">
           <Field label="Название" value={campaign.name ?? NOT_SET} />
@@ -143,7 +143,7 @@ export function CampaignPassport({ campaign, validation, dictionaries, selectedB
                 const channels = creatives.filter((creative) => creative.bannerId === banner.id).map((creative) => creative.channelCode)
                 const selected = banner.id === selectedBannerId
                 return (
-                  <li key={banner.id}>
+                  <li key={banner.id} className="animate-rise">
                     <button
                       type="button"
                       aria-current={selected}

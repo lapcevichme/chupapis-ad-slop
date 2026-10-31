@@ -12,9 +12,9 @@ export function ModerationQueue({ campaigns, onOpen }: ModerationQueueProps) {
   }
 
   return (
-    <section aria-label="Очередь модерации" className="flex flex-col gap-3">
+    <section aria-label="Очередь модерации" className="flex animate-rise flex-col gap-3">
       <p className="m-0 text-sm leading-5">Эти кампании ждут вашего решения. Откройте кампанию, чтобы проверить её.</p>
-      <ul className="m-0 flex list-none flex-col gap-2 p-0">
+      <ul className="m-0 flex animate-stagger list-none flex-col gap-2 p-0">
         {campaigns.map((campaign) => (
           <li key={campaign.id}>
             <button

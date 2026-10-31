@@ -20,7 +20,7 @@ const STICK_THRESHOLD_PX = 48
 
 function Step({ step }: { step: ChatStep }) {
   return (
-    <li className={cn('flex items-center gap-2 text-[13px] leading-[18px] text-muted-foreground', step.status === 'failed' && 'text-destructive')}>
+    <li className={cn('animate-rise flex items-center gap-2 text-[13px] leading-[18px] text-muted-foreground', step.status === 'failed' && 'text-destructive')}>
       {step.status === 'running' && <LoaderCircle className="size-4 shrink-0 animate-spin" aria-hidden="true" />}
       {step.status === 'done' && <Check className="size-4 shrink-0" aria-hidden="true" />}
       {step.status === 'failed' && <X className="size-4 shrink-0" aria-hidden="true" />}
@@ -64,7 +64,7 @@ function Message({ message, thinking }: { message: ChatMessage; thinking: boolea
       {message.warnings.map((warning) => (
         <Warning key={warning.message} warning={warning} />
       ))}
-      {thinking && <p className="m-0 text-[13px] leading-[18px] text-muted-foreground">Ассистент думает…</p>}
+      {thinking && <p className="m-0 animate-pulse text-[13px] leading-[18px] text-muted-foreground">Ассистент думает…</p>}
     </div>
   )
 }
@@ -121,21 +121,28 @@ export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role
       <div ref={log} role="log" aria-label="Сообщения" onScroll={handleScroll} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
         {showQueue && <ModerationQueue campaigns={moderationQueue} onOpen={onOpenCampaign} />}
         {empty && !moderator && campaignId === null && (
-          <div className="flex flex-col gap-3">
+          <div className="flex animate-rise flex-col gap-3">
             <p className="m-0 text-sm leading-5">Опишите кампанию своими словами: продукт, аудиторию, сроки. Я соберу черновик и покажу его перед сохранением.</p>
             <SuggestionButton onClick={() => submit(EXAMPLE_BRIEF)}>{EXAMPLE_BRIEF}</SuggestionButton>
           </div>
         )}
         {empty && !moderator && campaignId !== null && (
-          <p className="m-0 text-sm leading-5">Что поменять в кампании? Могу поправить поля и креативы, объяснить статус или ошибки проверки.</p>
+          <p className="m-0 animate-rise text-sm leading-5">Что поменять в кампании? Могу поправить поля и креативы, объяснить статус или ошибки проверки.</p>
         )}
         {empty && moderator && campaignId !== null && (
-          <p className="m-0 text-sm leading-5">Проверьте кампанию справа и примите решение. Можно спросить меня, что с ней не так.</p>
+          <p className="m-0 animate-rise text-sm leading-5">Проверьте кампанию справа и примите решение. Можно спросить меня, что с ней не так.</p>
         )}
         {messages.map((message, index) => (
-          <Message key={index} message={message} thinking={thinking && index === messages.length - 1} />
+          // Анимируем только новый ход, иначе при открытии истории дёрнется вся лента.
+          <div key={index} className={cn('flex flex-col', index >= messages.length - 2 && 'animate-rise')}>
+            <Message message={message} thinking={thinking && index === messages.length - 1} />
+          </div>
         ))}
-        {suggestions.length > 0 && !busy && <Suggestions key={suggestions.map((item) => item.value).join()} items={suggestions} onSend={submit} />}
+        {suggestions.length > 0 && !busy && (
+          <div className="animate-rise">
+            <Suggestions key={suggestions.map((item) => item.value).join()} items={suggestions} onSend={submit} />
+          </div>
+        )}
         {confirmation && !busy && (
           <ConfirmationCard
             confirmation={confirmation}
@@ -151,7 +158,7 @@ export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role
           />
         )}
         {error && (
-          <div role="alert" className="flex flex-col gap-2 rounded-md bg-error px-3 py-2 text-[13px] leading-[18px] text-error-foreground">
+          <div role="alert" className="flex animate-rise flex-col gap-2 rounded-md bg-error px-3 py-2 text-[13px] leading-[18px] text-error-foreground">
             <p className="m-0 flex items-start gap-2">
               <CircleAlert className="mt-px size-4 shrink-0" aria-hidden="true" />
               {error.message}
@@ -166,13 +173,13 @@ export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role
       </div>
 
       {awaitsModeration && !confirmation && !busy && (
-        <div className="max-h-[60%] shrink-0 overflow-y-auto border-t p-3">
+        <div className="max-h-[60%] shrink-0 animate-rise overflow-y-auto border-t p-3">
           <ModerationBar onSend={submit} />
         </div>
       )}
       {/* Пока агент ждёт ответа на свой вопрос, не предлагаем другое действие. */}
       {nextStep && !confirmation && !busy && suggestions.length === 0 && (
-        <div className="shrink-0 border-t p-3">
+        <div className="shrink-0 animate-rise border-t p-3">
           <NextStepBar step={nextStep} onSend={submit} />
         </div>
       )}

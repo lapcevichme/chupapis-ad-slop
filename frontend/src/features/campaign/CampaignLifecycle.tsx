@@ -1,6 +1,7 @@
 import { Check, Circle, CircleDot, MessageSquareWarning } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { AuditRecord, CampaignState } from '@/types/api'
+import { Flash } from './Flash'
 import { formatTimestamp, STATE_LABELS } from './format'
 
 // Основной поток из §2.3 задания. Возвраты и остановка занимают тот же шаг под своей подписью.
@@ -45,7 +46,7 @@ function Steps({ state }: { state: CampaignState }) {
             aria-current={active ? 'step' : undefined}
             className={cn('flex items-center gap-1.5 rounded-md py-1 text-muted-foreground', active && 'bg-accent px-2 font-semibold text-accent-foreground')}
           >
-            <Icon className="size-4 shrink-0" aria-hidden="true" />
+            <Icon key={String(active)} className={cn('size-4 shrink-0', active && 'animate-pop')} aria-hidden="true" />
             {STATE_LABELS[active ? state : states[0]]}
           </li>
         )
@@ -61,15 +62,21 @@ interface CampaignLifecycleProps {
 
 export function CampaignLifecycle({ state, audit = [] }: CampaignLifecycleProps) {
   // Сервер отдаёт журнал от старых записей к новым, а записи одного пакета могут совпасть по времени.
-  const records = [...audit].reverse().sort((a, b) => b.at.localeCompare(a.at))
+  // Номер в журнале не меняется при появлении новых записей, поэтому годится как ключ.
+  const records = audit
+    .map((record, order) => ({ ...record, order }))
+    .reverse()
+    .sort((a, b) => b.at.localeCompare(a.at))
   const decline = state === 'NEEDS_WORK' ? records.find((record) => record.action === 'DECLINE') : undefined
 
   return (
     <section className="flex flex-col gap-3 rounded-lg border bg-card p-4 text-card-foreground">
       <h2 className="m-0 text-sm leading-5 font-semibold">Ход кампании</h2>
-      <Steps state={state} />
+      <Flash value={state}>
+        <Steps state={state} />
+      </Flash>
       {decline && (
-        <div className="flex items-start gap-2 rounded-md bg-warning px-3 py-2 text-[13px] leading-[18px] text-warning-foreground">
+        <div className="flex animate-rise items-start gap-2 rounded-md bg-warning px-3 py-2 text-[13px] leading-[18px] text-warning-foreground">
           <MessageSquareWarning className="mt-px size-4 shrink-0" aria-hidden="true" />
           <div className="flex min-w-0 flex-col gap-0.5">
             <span className="font-semibold">Комментарий модератора</span>
@@ -86,8 +93,8 @@ export function CampaignLifecycle({ state, audit = [] }: CampaignLifecycleProps)
             Журнал действий: {records.length}
           </summary>
           <ol className="m-0 flex list-none flex-col p-0">
-            {records.map((record, index) => (
-              <li key={index} className="flex flex-col gap-0.5 border-t py-2 last:pb-0">
+            {records.map((record) => (
+              <li key={record.order} className="flex animate-rise flex-col gap-0.5 border-t py-2 last:pb-0">
                 <span className="text-[13px] leading-[18px] font-medium">{recordTitle(record)}</span>
                 <span className="text-xs leading-4 text-muted-foreground">
                   {record.actor}, {formatTimestamp(record.at)}

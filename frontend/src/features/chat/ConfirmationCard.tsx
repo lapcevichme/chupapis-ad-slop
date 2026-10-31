@@ -67,7 +67,7 @@ export function ConfirmationCard({ confirmation, dictionaries, onApprove, onReje
   const toModeration = confirmation.operations.some((operation) => operation.kind === 'to_moderation')
 
   return (
-    <section aria-label="Подтверждение записи" className="flex flex-col gap-3 rounded-lg border border-accent-foreground/30 bg-accent p-4 text-accent-foreground">
+    <section aria-label="Подтверждение записи" className="flex animate-rise flex-col gap-3 rounded-lg border border-accent-foreground/30 bg-accent p-4 text-accent-foreground">
       <h3 className="m-0 text-sm leading-5 font-semibold wrap-anywhere">{confirmation.title}</h3>
       {confirmation.operations.length > 0 && (
         <ul className="m-0 flex list-disc flex-col gap-1 pl-5 text-[13px] leading-[18px]">

@@ -29,9 +29,17 @@ function PhoneFrame({ children }: { children: ReactNode }) {
 export function DesignPlaceholder({ label }: { label: string }) {
   return (
     <PhoneFrame>
-      <div role="status" className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-sm leading-5 text-black/60">
-        <LoaderCircle className="size-6 animate-spin" aria-hidden="true" />
-        {label}
+      <div role="status" className="flex h-full flex-col justify-end gap-3 p-4 text-sm leading-5 text-black/60">
+        <div aria-hidden="true" className="flex animate-pulse flex-col gap-2">
+          <div className="h-7 w-4/5 rounded-md bg-black/10" />
+          <div className="h-4 w-full rounded-md bg-black/10" />
+          <div className="h-4 w-2/3 rounded-md bg-black/10" />
+          <div className="mt-2 h-11 rounded-xl bg-black/10" />
+        </div>
+        <p className="m-0 flex items-center gap-2">
+          <LoaderCircle className="size-4 shrink-0 animate-spin" aria-hidden="true" />
+          {label}
+        </p>
       </div>
     </PhoneFrame>
   )

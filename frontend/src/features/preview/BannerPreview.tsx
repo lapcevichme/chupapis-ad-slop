@@ -20,7 +20,7 @@ function BannerCta({ content }: BannerBodyProps) {
   // В схеме баннера нет стиля кнопки, поэтому берём цвета самого баннера.
   return (
     <span
-      className="flex min-h-11 items-center justify-center rounded-xl px-4 text-center text-sm font-semibold"
+      className="flex min-h-11 animate-rise items-center justify-center rounded-xl px-4 text-center text-sm font-semibold [animation-delay:240ms]"
       style={{
         background: content.titleStyle?.textColor ?? DEFAULT_TEXT,
         color: content.background?.color ?? DEFAULT_BACKGROUND,
@@ -46,7 +46,7 @@ function StoryBody({ content }: BannerBodyProps) {
   if (!content.image) {
     return (
       <div className="flex flex-1 flex-col gap-3 p-4 text-left">
-        <div className="mt-auto flex flex-col gap-2">
+        <div className="mt-auto flex animate-stagger flex-col gap-2">
           {title}
           {text}
           <BannerCta content={content} />
@@ -60,7 +60,7 @@ function StoryBody({ content }: BannerBodyProps) {
     <div className="relative flex flex-1 flex-col text-left">
       <CreativeImage url={content.image.url} className="absolute inset-0 size-full" />
       <div className="relative flex flex-1 flex-col justify-between gap-3 p-4">
-        <div className="flex flex-col gap-2">
+        <div className="flex animate-stagger flex-col gap-2">
           {title}
           {text}
         </div>
@@ -74,7 +74,7 @@ function SmartBannerBody({ content }: BannerBodyProps) {
   return (
     <div className="flex flex-col gap-3 p-3 text-left">
       <div className="flex items-start gap-3">
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex min-w-0 flex-1 animate-stagger flex-col gap-1">
           {content.title && (
             <strong className="font-semibold wrap-anywhere" style={textStyleToCss(content.titleStyle)}>
               {content.title}

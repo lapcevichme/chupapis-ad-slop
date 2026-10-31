@@ -46,7 +46,7 @@ export function UserMenu({ login, disabled, onSelect }: UserMenuProps) {
       />
       <Menu.Portal>
         <Menu.Positioner side="bottom" align="end" sideOffset={8} className="z-50">
-          <Menu.Popup className="w-72 rounded-lg border bg-popover p-2 text-popover-foreground shadow-lg outline-none">
+          <Menu.Popup className="w-72 rounded-lg border bg-popover p-2 text-popover-foreground shadow-lg outline-none transition-[opacity,transform] duration-150 origin-[var(--transform-origin)] data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0">
             <Menu.RadioGroup
               value={login}
               onValueChange={(value: string) => {

@@ -25,5 +25,5 @@ export function CreativeImage({ url, className, style }: CreativeImageProps) {
     )
   }
 
-  return <img src={url} alt="" className={`bg-black/10 object-cover ${className ?? ''}`} style={style} onError={() => setFailedUrl(url)} />
+  return <img src={url} alt="" className={`animate-fade bg-black/10 object-cover ${className ?? ''}`} style={style} onError={() => setFailedUrl(url)} />
 }
