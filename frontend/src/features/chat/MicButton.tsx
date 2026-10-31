@@ -23,7 +23,7 @@ export function MicButton({ status, onToggle }: MicButtonProps) {
     <Button
       type="button"
       size="icon"
-      variant={recording ? 'destructive' : 'secondary'}
+      variant={recording ? 'destructive' : 'ghost'}
       aria-label={LABELS[status]}
       aria-pressed={recording}
       title={LABELS[status]}

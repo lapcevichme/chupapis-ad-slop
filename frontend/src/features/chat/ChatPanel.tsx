@@ -1,4 +1,4 @@
-import { AudioLines, Check, CircleAlert, Info, LoaderCircle, SendHorizontal, TriangleAlert, X } from 'lucide-react'
+import { ArrowUp, AudioLines, Check, CircleAlert, Info, LoaderCircle, TriangleAlert, X } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, SyntheticEvent } from 'react'
 import { Button } from '@/components/ui/button'
@@ -251,14 +251,15 @@ export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role
             className="min-w-0 flex-1 resize-none outline-none placeholder:text-muted-foreground"
           />
           <MicButton status={dictation.status} onToggle={dictation.toggle} />
-          {onOpenVoiceMode && (
-            <Button type="button" size="icon" variant="secondary" aria-label="Открыть голосовой режим" title="Голосовой режим" onClick={onOpenVoiceMode}>
+          {!text.trim() && onOpenVoiceMode ? (
+            <Button type="button" size="icon" aria-label="Открыть голосовой режим" title="Голосовой режим" disabled={dictation.status !== 'idle'} onClick={onOpenVoiceMode}>
               <AudioLines aria-hidden="true" />
             </Button>
+          ) : (
+            <Button type="submit" size="icon" aria-label="Отправить" disabled={busy || !text.trim()}>
+              <ArrowUp aria-hidden="true" />
+            </Button>
           )}
-          <Button type="submit" size="icon" variant={text.trim() ? 'default' : 'secondary'} aria-label="Отправить" disabled={busy || !text.trim()}>
-            <SendHorizontal aria-hidden="true" />
-          </Button>
         </form>
       )}
     </div>

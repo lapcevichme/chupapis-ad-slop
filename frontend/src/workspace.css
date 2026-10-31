@@ -42,9 +42,13 @@
 .pilot-assistant .chat-panel{flex:1;min-height:0;height:auto}
 .pilot-assistant [role=log]{padding:24px 22px;gap:24px}
 .pilot-assistant [role=log]>div>p{line-height:1.7}
-.chat-composer{border:1px solid var(--border);border-radius:16px;margin:14px;padding:6px;gap:4px;box-shadow:0 4px 16px color-mix(in srgb,var(--foreground) 3%,transparent);background:var(--card)}
+.chat-composer{border:1px solid var(--border);border-radius:28px;margin:14px;padding:6px;gap:4px;box-shadow:0 4px 16px color-mix(in srgb,var(--foreground) 3%,transparent);background:var(--card)}
+.chat-composer:focus-within{border-color:var(--input)}
+.chat-composer:has(textarea:focus-visible){outline:2px solid var(--ring);outline-offset:2px}
 .chat-composer textarea{background:transparent;border:0;border-radius:8px;font-size:14px;line-height:22px;padding:11px 8px;min-height:44px;max-height:176px;overflow-y:auto;scrollbar-width:thin}
-.chat-composer>button{border-radius:10px}
+.chat-composer textarea:focus-visible{outline:none}
+.chat-composer>button{border-radius:50%}
+.chat-composer>button svg{width:20px;height:20px}
 .chat-panel [role=log] h1{font-family:var(--font-editorial);font-weight:400;font-size:38px;line-height:1.25;letter-spacing:-1px}
 .chat-welcome>div>p{font-size:15px;line-height:1.7;max-width:540px}
 .chat-welcome>div:last-child{margin-top:16px}
