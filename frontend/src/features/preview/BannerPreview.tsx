@@ -71,24 +71,40 @@ function StoryBody({ content }: BannerBodyProps) {
 }
 
 function SmartBannerBody({ content }: BannerBodyProps) {
-  return (
-    <div className="flex flex-col gap-3 p-3 text-left">
-      <div className="flex items-start gap-3">
-        <div className="flex min-w-0 flex-1 animate-stagger flex-col gap-1">
-          {content.title && (
-            <strong className="font-semibold wrap-anywhere" style={textStyleToCss(content.titleStyle)}>
-              {content.title}
-            </strong>
-          )}
-          {content.text && (
-            <span className="wrap-anywhere" style={textStyleToCss(content.textStyle)}>
-              {content.text}
-            </span>
-          )}
-        </div>
-        {content.image && <CreativeImage url={content.image.url} className="size-16 shrink-0 rounded-lg" />}
+  const texts = (
+    <>
+      {content.title && (
+        <strong className="font-semibold wrap-anywhere" style={textStyleToCss(content.titleStyle)}>
+          {content.title}
+        </strong>
+      )}
+      {content.text && (
+        <span className="wrap-anywhere" style={textStyleToCss(content.textStyle)}>
+          {content.text}
+        </span>
+      )}
+    </>
+  )
+
+  if (!content.image) {
+    return (
+      <div className="flex flex-col gap-3 p-3 text-left">
+        <div className="flex animate-stagger flex-col gap-1">{texts}</div>
+        <BannerCta content={content} />
       </div>
-      <BannerCta content={content} />
+    )
+  }
+
+  // Картинка — фон всей карточки и генерируется под этот макет: слева ровный фон под текст, акцент справа.
+  return (
+    <div className="relative flex min-h-36 flex-col text-left">
+      <CreativeImage url={content.image.url} className="absolute inset-0 size-full" />
+      <div className="relative flex flex-1 flex-col justify-between gap-3 p-3">
+        <div className="flex w-3/5 animate-stagger flex-col gap-1">{texts}</div>
+        <div className="self-start">
+          <BannerCta content={content} />
+        </div>
+      </div>
     </div>
   )
 }

@@ -65,7 +65,7 @@ class SvgPatternGenerator:
         self.model = model
 
     async def generate(self, *, theme: str, kind: str, base_color: str, text_color: str, size: str) -> str | None:
-        """kind — STORY (фон всего экрана) или SQUARE (иконка смарт-баннера, картинка промо-экрана)."""
+        """kind — STORY (фон сторис), CARD (фон карточки смарт-баннера) или WIDE (полоса над текстом промо-экрана)."""
         width, height = (int(v) for v in size.split("x"))
         task = {
             "kind": kind,

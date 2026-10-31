@@ -299,14 +299,19 @@ def test_suggestions_end_the_turn(client, chat):
 
 
 def test_promo_image_for_saved_campaign_updates_content(client, chat):
-    # У сохранённой кампании 101 смарт-баннер с иконкой: промо-экран получает её, баннер не меняется.
+    # У сохранённой кампании 101 смарт-баннер: промо-экран получает свою широкую картинку, баннер не меняется.
+    from tests.test_designer import FakeImages
+
+    reply_args = {"bannerName": "Тест", "banner": BANNER_OK, "contentImagePrompt": "wide promo"}
+    images = FakeImages()
     chat(
         [
             tool_message(call("design_creative", {"brief": "Картинку на промо", "replaceBannerId": 201, "generateImage": True, "promoImageOnly": True}, 1)),
             AIMessage(content="Подготовил картинку для промо-экрана."),
             AIMessage(content="Сохранил."),
         ],
-        [design_reply(BANNER_OK, 1)],
+        [tool_message(call("DesignResult", reply_args, 1))],
+        images=images,
     )
     banner_image = client.get("/campaigns/101").json()["banners"][0]["content"]["image"]["url"]
     sid = client.post("/chat", json={"campaignId": 101}, headers=MANAGER).json()["sessionId"]
@@ -317,7 +322,9 @@ def test_promo_image_for_saved_campaign_updates_content(client, chat):
     client.post(f"/chat/{sid}/confirmations/{conf['id']}", json={"approved": True}, headers=MANAGER)
     content = client.get("/campaigns/101").json()["contents"][0]["content"]
     image = next(c for c in content["component"]["components"] if c["role"] == "image")
-    assert image["url"] == banner_image and image["aspectRatio"] == 1.0
+    assert images.calls == [("wide promo", "1536x1024")]
+    assert image["url"] == "/api/media/1.png" and image["aspectRatio"] == 1.5
+    assert client.get("/campaigns/101").json()["banners"][0]["content"]["image"]["url"] == banner_image
 
 
 def test_request_prefix_is_stable_for_prompt_cache(client, chat):

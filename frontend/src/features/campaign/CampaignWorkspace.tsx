@@ -66,7 +66,7 @@ export function CampaignWorkspace() {
   const content = details?.contents?.find((item) => item.id === contentId)
   const failed = campaign.isError || warnings.isError || dictionaries.isError
   const role = USERS.find((user) => user.login === login)?.role
-  const nextStep = role === 'campaignManager' && saved && warnings.data ? managerNextStep(saved.state, warnings.data.errors.length > 0) : null
+  const nextStep = role === 'campaignManager' && saved && warnings.data ? managerNextStep(saved.state, warnings.data.errors.length > 0, (saved.creatives?.length ?? 0) > 0) : null
   const designStep = chat.messages.at(-1)?.steps.find((step) => step.status === 'running' && DESIGN_STEP.test(step.label))
 
   async function applyChange(change: CampaignChange) {

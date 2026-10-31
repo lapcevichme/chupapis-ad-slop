@@ -19,18 +19,16 @@ from app.domain.creatives import validate_banner_json, validate_content_json
 from app.schemas.creative_json import BannerContent, PromoContent
 
 MAX_ATTEMPTS = 3
-# Сторис: картинка — фон всего экрана, текст поверх. Смарт-баннер: картинка — квадратная иконка в карточке.
-IMAGE_SIZES = {"STORY": "1024x1536", "SMART_BANNER": "1024x1024"}
-# На промо-экране картинка стоит над текстом во всю ширину, поэтому там всегда квадрат с предметом на весь кадр.
-CONTENT_IMAGE_SIZE = "1024x1024"
-CONTENT_IMAGE_ASPECT = 1.0
-# Своя картинка пользователя: пропорции неизвестны, на промо-экране показываем её широкой полосой.
+# Сторис: картинка — фон всего экрана, текст поверх. Смарт-баннер: картинка — фон всей карточки, текст слева поверх.
+IMAGE_SIZES = {"STORY": "1024x1536", "SMART_BANNER": "1536x1024"}
+# Вид кадра для фона-паттерна: где лежит текст и куда можно ставить акценты.
+PATTERN_KINDS = {"STORY": "STORY", "SMART_BANNER": "CARD"}
+# На промо-экране картинка стоит над текстом во всю ширину. Квадрат занимал почти половину экрана, и промо-экран
+# не влезал без прокрутки, поэтому у промо-экрана всегда своя широкая картинка 3:2 (такой кадр умеет gpt-image).
+CONTENT_IMAGE_SIZE = "1536x1024"
+CONTENT_IMAGE_ASPECT = 1.5
+# Своя картинка пользователя: пропорции неизвестны, на промо-экране показываем её той же полосой.
 USER_IMAGE_ASPECT = 1.5
-
-
-def needs_own_content_image(type_code: str) -> bool:
-    """Фон сторис с пустыми зонами под текст на промо-экране не годится; квадратная иконка смарт-баннера годится."""
-    return type_code == "STORY"
 
 
 class DesignResult(BaseModel):
@@ -44,7 +42,7 @@ class DesignResult(BaseModel):
         None, description="Промпт на английском для генерации картинки баннера: без людей и без текста на картинке"
     )
     contentImagePrompt: str | None = Field(
-        None, description="Только для STORY с промо-экраном: промпт квадратной картинки промо-экрана, предмет на весь кадр"
+        None, description="Промпт широкой картинки промо-экрана (3:2): тот же предмет по центру, без пустых зон под текст"
     )
 
 
@@ -73,10 +71,8 @@ class DesignRequest:
         return (((self.previous or {}).get("content") or {}).get("image") or {}).get("url")
 
     def generates_banner_image(self, type_code: str) -> bool:
-        if not self.generate_image:
-            return False
-        # Промо-экрану смарт-баннера хватает прежней иконки, промо-экрану сторис нужна своя картинка.
-        return not (self.promo_only and (needs_own_content_image(type_code) or self.previous_image))
+        # У промо-экрана своя картинка, поэтому просьба «только промо» картинку баннера не трогает.
+        return self.generate_image and not self.promo_only
 
 
 @dataclass
@@ -132,7 +128,8 @@ class Designer:
             "withContent": request.with_content,
             "needImagePrompt": illustration and request.generates_banner_image(t["code"]),
             "imageSize": IMAGE_SIZES.get(t["code"]) if illustration and request.generates_banner_image(t["code"]) else None,
-            "needContentImagePrompt": illustration and request.wants_content_image and needs_own_content_image(t["code"]),
+            "needContentImagePrompt": illustration and request.wants_content_image,
+            "contentImageSize": CONTENT_IMAGE_SIZE if request.wants_content_image else None,
             "previousVersion": request.previous,
         }
         messages: list = [SystemMessage(load_prompt("design")), HumanMessage(json.dumps(task, ensure_ascii=False))]
@@ -156,9 +153,8 @@ class Designer:
             ]
         raise DesignError("Не удалось собрать валидный JSON: " + "; ".join(problems))
 
-    async def _picture(self, request: DesignRequest, banner: dict[str, Any], prompt: str | None, size: str, what: str, notes: list[str]) -> str | None:
+    async def _picture(self, request: DesignRequest, banner: dict[str, Any], prompt: str | None, size: str, kind: str, what: str, notes: list[str]) -> str | None:
         """Иллюстрация по промпту или фон-паттерн. Если иллюстрацию сделать не удалось, ставим паттерн."""
-        kind = "STORY" if size == IMAGE_SIZES["STORY"] else "SQUARE"
         if request.image_style == "pattern":
             url = await self._pattern(request, banner, kind, size)
             if url is None:
@@ -204,18 +200,15 @@ class Designer:
         if banner_url:
             content_image = {"url": banner_url, "aspectRatio": USER_IMAGE_ASPECT}
         elif request.generate_image:
-            own = request.wants_content_image and needs_own_content_image(code)
+            own = request.wants_content_image
             progress("Генерирую картинки" if own else "Генерирую картинку")
             # Промо-экрану сторис нужна своя квадратная картинка. Генерируем по очереди, а не параллельно:
             # OpenRouter заранее резервирует деньги под каждый запрос, и два сразу упираются в небольшой лимит ключа.
             if request.generates_banner_image(code):
-                banner_url = await self._picture(request, banner, args.get("imagePrompt"), IMAGE_SIZES[code], "Картинка баннера", notes)
-            own_url = await self._picture(request, banner, args.get("contentImagePrompt"), CONTENT_IMAGE_SIZE, "Картинка промо-экрана", notes) if own else None
-            icon = banner_url or request.previous_image
+                banner_url = await self._picture(request, banner, args.get("imagePrompt"), IMAGE_SIZES[code], PATTERN_KINDS[code], "Картинка баннера", notes)
+            own_url = await self._picture(request, banner, args.get("contentImagePrompt"), CONTENT_IMAGE_SIZE, "WIDE", "Картинка промо-экрана", notes) if own else None
             if own_url:
                 content_image = {"url": own_url, "aspectRatio": CONTENT_IMAGE_ASPECT}
-            elif icon and not needs_own_content_image(code) and request.wants_content_image:
-                content_image = {"url": icon, "aspectRatio": CONTENT_IMAGE_ASPECT}
         if not banner_url:
             # Модель картинку не заполняет, поэтому правка без новой генерации оставляет прежнюю.
             banner_url = request.previous_image

@@ -113,6 +113,8 @@ export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role
   const thinking = busy && last?.role === 'assistant' && !last.text && last.steps.every((step) => step.status !== 'running')
   const moderator = role === 'campaignModerator'
   const empty = messages.length === 0 && !busy
+  // Агент задал вопрос текстом и ждёт ответа: подсказку следующего шага не показываем.
+  const asking = last?.role === 'assistant' && last.text.trim().endsWith('?')
   // Модератору без кампании обсуждать с агентом нечего: кампании создаёт менеджер.
   const showQueue = empty && moderator && campaignId === null
 
@@ -178,7 +180,7 @@ export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role
         </div>
       )}
       {/* Пока агент ждёт ответа на свой вопрос, не предлагаем другое действие. */}
-      {nextStep && !confirmation && !busy && suggestions.length === 0 && (
+      {nextStep && !confirmation && !busy && suggestions.length === 0 && !asking && (
         <div className="shrink-0 animate-rise border-t p-3">
           <NextStepBar step={nextStep} onSend={submit} />
         </div>
