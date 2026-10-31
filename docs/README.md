@@ -13,6 +13,7 @@
 | Готовить чекпоинт/защиту | [Вопросы](checkpoint-questions.md), [хакатон](research/hackathon.md) |
 | Проверить происхождение утверждения | [Источники и пробелы данных](research/sources.md) |
 | Работать с бэкендом | [Архитектура](architecture.md), [контракты](CONTRACTS.md), [правила backend](../backend/AGENTS.md) |
+| Редактировать и генерировать креативы | [Студия: модель, экспорт, ограничения](studio.md), [DESIGN.md](DESIGN.md) |
 | Менять существующий chat transport | [Действующий chat-api.md](contracts/chat.md) и OpenAPI |
 
 ## Структура и статус
