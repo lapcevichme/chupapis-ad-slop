@@ -12,7 +12,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from pydantic import BaseModel, Field
 
-from app.agent.llm import ImageGenerator
+from app.agent.llm import ImageGenerator, with_cache_breakpoints
 from app.agent.prompts import load_prompt
 from app.domain.creatives import validate_banner_json, validate_content_json
 from app.schemas.creative_json import BannerContent, PromoContent
@@ -133,7 +133,7 @@ class Designer:
         messages: list = [SystemMessage(load_prompt("design")), HumanMessage(json.dumps(task, ensure_ascii=False))]
         for attempt in range(1, MAX_ATTEMPTS + 1):
             progress(f"Дизайнер собирает креатив, попытка {attempt}")
-            response: AIMessage = await self.model.ainvoke(messages)
+            response: AIMessage = await self.model.ainvoke(with_cache_breakpoints(messages, stable=1))
             call = next((c for c in response.tool_calls if c["name"] == "DesignResult"), None)
             if call is None:
                 problems = ["модель ответила текстом вместо вызова DesignResult"]

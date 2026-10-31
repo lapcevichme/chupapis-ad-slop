@@ -13,7 +13,7 @@ from pydantic import Field
 
 from app.agent.api_client import CampaignsApi
 from app.agent.factory import build_chat_service
-from app.agent.llm import NoImageGenerator
+from app.agent.llm import CACHE_CONTROL, NoImageGenerator, _text_of
 from app.main import app
 from tests.conftest import MANAGER, MODERATOR
 from tests.test_scenario import CAMPAIGN
@@ -178,7 +178,7 @@ def test_api_error_is_reported_to_model(client, chat):
     sid = client.post("/chat", json={"campaignId": 101}, headers=MANAGER).json()["sessionId"]
     conf = next(d for k, d in events(client.post(f"/chat/{sid}/messages", json={"text": "Запусти"}, headers=MANAGER)) if k == "confirmation_required")
     client.post(f"/chat/{sid}/confirmations/{conf['id']}", json={"approved": True}, headers=MANAGER)
-    tool_result = next(m for m in reversed(model.seen[-1]) if isinstance(m, ToolMessage)).content
+    tool_result = _text_of(next(m for m in reversed(model.seen[-1]) if isinstance(m, ToolMessage)))
     assert "ACTIVATE_NOT_ALLOWED" in tool_result
 
 
@@ -187,7 +187,7 @@ def test_invalid_banner_rejected_before_api(client, chat):
     model = chat([tool_message(call("propose_create_banner", {"campaignId": 101, "banner": banner}, 1)), AIMessage(content="Исправлю.")])
     sid = client.post("/chat", json={"campaignId": 101}, headers=MANAGER).json()["sessionId"]
     client.post(f"/chat/{sid}/messages", json={"text": "Добавь баннер"}, headers=MANAGER)
-    tool_result = next(m for m in reversed(model.seen[-1]) if isinstance(m, ToolMessage)).content
+    tool_result = _text_of(next(m for m in reversed(model.seen[-1]) if isinstance(m, ToolMessage)))
     assert "BANNER_TITLE_TOO_LONG" in tool_result and "LINK_REQUIRED" in tool_result
     assert client.get(f"/chat/{sid}", headers=MANAGER).json()["pendingConfirmation"] is None
 
@@ -248,13 +248,13 @@ def test_manager_sees_moderator_decision_from_other_chat(client, chat):
     model = chat([AIMessage(content="Кампания на модерации."), AIMessage(content="Её вернули на правки.")])
     sid = client.post("/chat", json={"campaignId": 103}, headers=MANAGER).json()["sessionId"]
     client.post(f"/chat/{sid}/messages", json={"text": "Что с кампанией?"}, headers=MANAGER)
-    assert "состояние ON_MODERATION" in model.seen[-1][0].content
+    assert "состояние ON_MODERATION" in _text_of(model.seen[-1][-1])
 
     client.post("/campaigns/103/decline", json={"comment": "Добавьте теги"}, headers=MODERATOR)
     client.post(f"/chat/{sid}/messages", json={"text": "А сейчас?"}, headers=MANAGER)
-    assert "состояние NEEDS_WORK" in model.seen[-1][0].content
+    assert "состояние NEEDS_WORK" in _text_of(model.seen[-1][-1])
     # Напоминание стоит последним: системный промпт модель перебивает прошлыми сообщениями диалога.
-    reminder = model.seen[-1][-1].content
+    reminder = _text_of(model.seen[-1][-1])
     assert "сейчас в состоянии NEEDS_WORK, с прошлого хода было ON_MODERATION" in reminder
 
 
@@ -276,7 +276,7 @@ def test_unconfirmed_changes_get_confirmation_card(client, chat):
 
     client.post(f"/chat/{sid}/confirmations/{conf['id']}", json={"approved": True}, headers=MANAGER)
     assert "Осень" in [t["name"] for t in client.get("/tags").json()]
-    assert "Пользователь подтвердил" in next(m for m in reversed(model.seen[-1]) if isinstance(m, ToolMessage)).content
+    assert "Пользователь подтвердил" in _text_of(next(m for m in reversed(model.seen[-1]) if isinstance(m, ToolMessage)))
 
 
 def test_question_with_ready_changes_is_not_interrupted(client, chat):
@@ -318,3 +318,18 @@ def test_promo_image_for_saved_campaign_updates_content(client, chat):
     content = client.get("/campaigns/101").json()["contents"][0]["content"]
     image = next(c for c in content["component"]["components"] if c["role"] == "image")
     assert image["url"] == banner_image and image["aspectRatio"] == 1.0
+
+
+def test_request_prefix_is_stable_for_prompt_cache(client, chat):
+    # Кеш провайдера работает, только если начало запроса не меняется между шагами:
+    # системный промпт одинаковый, история только растёт, всё изменчивое — в последнем сообщении.
+    model = chat([AIMessage(content="Кампания на модерации."), AIMessage(content="Всё ещё там.")])
+    sid = client.post("/chat", json={"campaignId": 103}, headers=MANAGER).json()["sessionId"]
+    client.post(f"/chat/{sid}/messages", json={"text": "Что с кампанией?"}, headers=MANAGER)
+    client.post(f"/chat/{sid}/messages", json={"text": "А сейчас?"}, headers=MANAGER)
+    first, second = model.seen
+    assert first[0].content == second[0].content and first[0].content[-1]["cache_control"] == CACHE_CONTROL
+    assert "## Контекст" not in _text_of(first[0]) and "## Контекст" in _text_of(second[-1])
+    # Точка кеша на последнем сообщении истории, а не на изменчивой заметке.
+    assert second[-2].content[-1]["cache_control"] == CACHE_CONTROL and isinstance(second[-1].content, str)
+    assert _text_of(second[1]) == _text_of(first[1]) and _text_of(second[2]) == "Кампания на модерации."

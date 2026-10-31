@@ -27,6 +27,11 @@ class Settings(BaseSettings):
     # Генерация картинок для баннера. Пустая строка выключает генерацию.
     image_model: str = "openai/gpt-image-2.5-sunburst"
     llm_timeout_seconds: float = 90.0
+    # Провайдеры OpenRouter в порядке приоритета, через запятую. Кеш промпта живёт у конкретного провайдера:
+    # без фиксации OpenRouter раскидывает запросы по разным и кеш не попадает. Пустая строка — выбор OpenRouter.
+    llm_providers: str = "anthropic"
+    # Точки кеша Anthropic (cache_control) в запросах чат- и дизайн-агента.
+    llm_prompt_cache: bool = True
     # Агент ходит в API кампаний по HTTP, поэтому заглушку можно заменить реальным бэкендом.
     campaigns_api_url: str = "http://localhost:8000"
     checkpoint_db: Path = BACKEND_DIR / "data" / "checkpoints.db"

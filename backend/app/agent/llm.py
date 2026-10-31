@@ -7,6 +7,7 @@ from typing import Protocol
 
 import httpx
 from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import BaseMessage
 from langchain_openai import ChatOpenAI
 
 from app.config import settings
@@ -17,6 +18,7 @@ IMAGE_RETRY_DELAYS = (2, 4, 8)
 
 
 def chat_model(model: str, *, temperature: float = 0.3) -> BaseChatModel:
+    providers = [p.strip() for p in settings.llm_providers.split(",") if p.strip()]
     return ChatOpenAI(
         model=model,
         base_url=settings.llm_base_url,
@@ -25,7 +27,44 @@ def chat_model(model: str, *, temperature: float = 0.3) -> BaseChatModel:
         timeout=settings.llm_timeout_seconds,
         # SDK OpenAI сам повторяет сетевые сбои, 429 и 5xx с экспоненциальной паузой: 1 + 3 повтора.
         max_retries=3,
+        # Всегда сначала один и тот же провайдер, чтобы попадать в его кеш. Запасной — только если он упал.
+        extra_body={"provider": {"order": providers, "allow_fallbacks": True}} if providers else None,
     )
+
+
+CACHE_CONTROL = {"type": "ephemeral"}
+
+
+def _text_of(message: BaseMessage) -> str:
+    if isinstance(message.content, str):
+        return message.content
+    return "".join(block.get("text", "") for block in message.content if isinstance(block, dict) and block.get("type") == "text")
+
+
+def _mark(message: BaseMessage) -> BaseMessage:
+    """Копия сообщения, у которой последний текстовый блок помечен точкой кеша. В истории диалога ничего не меняется."""
+    if isinstance(message.content, str):
+        content = [{"type": "text", "text": message.content, "cache_control": CACHE_CONTROL}]
+    else:
+        content = [dict(block) for block in message.content]
+        last = max(i for i, block in enumerate(content) if isinstance(block, dict) and block.get("type") == "text" and block.get("text"))
+        content[last]["cache_control"] = CACHE_CONTROL
+    return message.model_copy(update={"content": content})
+
+
+def with_cache_breakpoints(messages: list[BaseMessage], stable: int) -> list[BaseMessage]:
+    """Точки кеша Anthropic: на первом сообщении (системный промпт, перед ним в кеш попадают инструменты)
+    и на последнем непустом из первых `stable` сообщений — это история, которая между шагами только растёт.
+    Всё после `stable` меняется каждый шаг и в кеш не идёт.
+    """
+    if not settings.llm_prompt_cache or not messages:
+        return messages
+    result = list(messages)
+    marks = {0} | {next((i for i in range(min(stable, len(result)) - 1, 0, -1) if _text_of(result[i]).strip()), 0)}
+    for i in marks:
+        if _text_of(result[i]).strip():
+            result[i] = _mark(result[i])
+    return result
 
 
 class ImageGenerator(Protocol):

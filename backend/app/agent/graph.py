@@ -23,6 +23,7 @@ from langgraph.types import interrupt
 
 from app.agent.api_client import ApiCallError, CampaignsApi
 from app.agent.designer import Designer
+from app.agent.llm import with_cache_breakpoints
 from app.agent.operations import apply_operations, confirmation_changes, draft_warnings, execute, public_draft
 from app.agent.prompts import load_prompt
 from app.agent.tools import ToolContext, run_tool, step_label, tool_schemas
@@ -89,10 +90,7 @@ def _state_reminder(old: dict[str, Any] | None, new: dict[str, Any] | None) -> s
     if not new:
         return None
     changed = f", с прошлого хода было {old['state']}" if old and old["state"] != new["state"] else ""
-    return (
-        f"[Служебная заметка, не от пользователя] Кампания {new['id']} сейчас в состоянии {new['state']}{changed}. "
-        "Прошлые сообщения о состоянии могли устареть, опирайся на это."
-    )
+    return f"Кампания {new['id']} сейчас в состоянии {new['state']}{changed}. Прошлые сообщения о состоянии могли устареть, опирайся на это."
 
 
 async def draft_report(client: CampaignsApi, state: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str, Any]]:
@@ -113,7 +111,7 @@ def _context_note(state: AgentState, config: RunnableConfig) -> str:
     user, role = actor(config)
     base = state.get("base")
     lines = [
-        "",
+        "[Служебная заметка, не от пользователя]",
         "## Контекст",
         "Это состояние на текущий момент: блок пересобирается перед каждым твоим ответом и уже учитывает все выполненные записи. Если кампания здесь появилась после подтверждения — это та самая кампания, которую ты создал.",
         f"Сейчас {datetime.now(UTC):%Y-%m-%d %H:%M} UTC. Пользователь {user}, роль {role or 'не задана'}.",
@@ -144,10 +142,13 @@ def build_graph(deps: AgentDeps, checkpointer):
         reminder = _state_reminder(state.get("base"), fresh.get("base"))
         state = {**state, **fresh}
         model = deps.chat_model.bind_tools(tool_schemas())
-        prompt = SystemMessage(load_prompt("chat") + _context_note(state, config))
-        # Заметка в конце, а не только в системном промпте: иначе модель верит прошлым сообщениям диалога.
-        tail = [HumanMessage(reminder)] if reminder else []
-        response = await model.ainvoke([prompt, *state["messages"], *tail], config)
+        # Префикс запроса (инструменты, промпт, история) между шагами не меняется и берётся из кеша провайдера.
+        # Всё, что меняется каждый шаг — время, черновик, состояние кампании, — идёт одной заметкой в конце
+        # и в историю не попадает. Заодно модель видит её последней и не верит устаревшим сообщениям.
+        note = _context_note(state, config) + (f"\n{reminder}" if reminder else "")
+        history = [SystemMessage(load_prompt("chat")), *state["messages"]]
+        request = with_cache_breakpoints([*history, HumanMessage(note)], stable=len(history))
+        response = await model.ainvoke(request, config)
         return {"messages": [response], **fresh}
 
     async def tools_node(state: AgentState, config: RunnableConfig):
