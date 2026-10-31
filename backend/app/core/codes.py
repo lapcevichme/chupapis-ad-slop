@@ -6,6 +6,12 @@ ERRORS: dict[str, str] = {
     "FIELD_INVALID": "Некорректное значение поля",
     "USER_REQUIRED": "Не передан заголовок X-User",
     "ROLE_FORBIDDEN": "Действие недоступно для этой роли",
+    # Распознавание речи
+    "AUDIO_EMPTY": "Запись пустая",
+    "AUDIO_TOO_LARGE": "Запись слишком длинная",
+    "AUDIO_FORMAT_UNSUPPORTED": "Такой формат записи не поддерживается",
+    "TRANSCRIPTION_UNAVAILABLE": "Распознавание речи не настроено",
+    "TRANSCRIPTION_FAILED": "Не удалось распознать запись, попробуйте ещё раз",
     # Шапка кампании
     "NAME_REQUIRED": "Название обязательно",
     "NAME_TOO_LONG": "Название длиннее 100 символов",
