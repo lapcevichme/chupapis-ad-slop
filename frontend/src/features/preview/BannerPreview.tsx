@@ -32,20 +32,38 @@ function BannerCta({ content }: BannerBodyProps) {
 }
 
 function StoryBody({ content }: BannerBodyProps) {
+  const title = content.title && (
+    <strong className="font-bold wrap-anywhere" style={textStyleToCss(content.titleStyle)}>
+      {content.title}
+    </strong>
+  )
+  const text = content.text && (
+    <span className="wrap-anywhere" style={textStyleToCss(content.textStyle)}>
+      {content.text}
+    </span>
+  )
+
+  if (!content.image) {
+    return (
+      <div className="flex flex-1 flex-col gap-3 p-4 text-left">
+        <div className="mt-auto flex flex-col gap-2">
+          {title}
+          {text}
+          <BannerCta content={content} />
+        </div>
+      </div>
+    )
+  }
+
+  // Картинка генерируется под этот макет: верх и нижняя полоса пустые, поэтому текст читается без подложки.
   return (
-    <div className="flex flex-1 flex-col gap-3 p-4 text-left">
-      {content.image && <CreativeImage url={content.image.url} className="min-h-40 w-full flex-1 rounded-xl" />}
-      <div className="mt-auto flex flex-col gap-2">
-        {content.title && (
-          <strong className="font-bold wrap-anywhere" style={textStyleToCss(content.titleStyle)}>
-            {content.title}
-          </strong>
-        )}
-        {content.text && (
-          <span className="wrap-anywhere" style={textStyleToCss(content.textStyle)}>
-            {content.text}
-          </span>
-        )}
+    <div className="relative flex flex-1 flex-col text-left">
+      <CreativeImage url={content.image.url} className="absolute inset-0 size-full" />
+      <div className="relative flex flex-1 flex-col justify-between gap-3 p-4">
+        <div className="flex flex-col gap-2">
+          {title}
+          {text}
+        </div>
         <BannerCta content={content} />
       </div>
     </div>
