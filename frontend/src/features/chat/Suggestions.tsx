@@ -13,7 +13,7 @@ interface SuggestionButtonProps {
 
 export function SuggestionButton({ children, pressed, onClick }: SuggestionButtonProps) {
   return (
-    <Button variant={pressed ? 'default' : 'outline'} aria-pressed={pressed} className="h-auto min-h-11 py-2 text-left whitespace-normal" onClick={onClick}>
+    <Button variant={pressed ? 'default' : 'outline'} aria-pressed={pressed} className="h-auto min-h-11 justify-start py-2 text-left whitespace-normal" onClick={onClick}>
       {pressed && <Check aria-hidden="true" />}
       {children}
     </Button>

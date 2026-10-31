@@ -1,5 +1,5 @@
-import { Check, CircleAlert, Info, LoaderCircle, SendHorizontal, TriangleAlert, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { AudioLines, Check, CircleAlert, Info, LoaderCircle, SendHorizontal, TriangleAlert, X } from 'lucide-react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, SyntheticEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import type { NextStep } from '@/features/campaign/nextStep'
@@ -83,12 +83,14 @@ interface ChatPanelProps {
   role?: UserRole
   moderationQueue: CampaignListItem[]
   onOpenCampaign: (id: number) => void
+  onOpenVoiceMode?: () => void
 }
 
-export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role, moderationQueue, onOpenCampaign }: ChatPanelProps) {
+export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role, moderationQueue, onOpenCampaign, onOpenVoiceMode }: ChatPanelProps) {
   const { busy, campaignId, messages, suggestions, confirmation, error, send, answer, retry } = chat
   const [text, setText] = useState('')
   const log = useRef<HTMLDivElement>(null)
+  const input = useRef<HTMLTextAreaElement>(null)
   const stickToBottom = useRef(true)
   // Распознанное попадает в поле, а не уходит сразу: Whisper ошибается, и текст должен увидеть человек.
   const dictation = useDictation((spoken) => setText((current) => (current.trim() ? `${current.trimEnd()} ${spoken}` : spoken)))
@@ -125,6 +127,27 @@ export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role
   const asking = last?.role === 'assistant' && last.text.trim().endsWith('?')
   // Модератору без кампании обсуждать с агентом нечего: кампании создаёт менеджер.
   const showQueue = empty && moderator && campaignId === null
+
+  useLayoutEffect(() => {
+    const field = input.current
+    if (!field) return
+    field.style.height = 'auto'
+    field.style.height = `${field.scrollHeight}px`
+  }, [text, showQueue])
+
+  useEffect(() => {
+    const field = input.current
+    if (!field) return
+    let width = field.clientWidth
+    const observer = new ResizeObserver(() => {
+      if (field.clientWidth === width) return
+      width = field.clientWidth
+      field.style.height = 'auto'
+      field.style.height = `${field.scrollHeight}px`
+    })
+    observer.observe(field)
+    return () => observer.disconnect()
+  }, [showQueue])
 
   return (
     <div className="chat-panel flex h-full flex-col">
@@ -218,16 +241,21 @@ export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role
           }}
         >
           <textarea
+            ref={input}
             aria-label="Сообщение ассистенту"
-            rows={2}
+            rows={1}
             value={text}
-            placeholder={dictation.status === 'recording' ? 'Говорите…' : confirmation ? 'Что изменить?' : 'Опишите идею или скажите, что изменить…'}
+            placeholder={dictation.status === 'recording' ? 'Говорите…' : confirmation ? 'Что изменить?' : 'Сообщение…'}
             onChange={(event) => setText(event.target.value)}
             onKeyDown={handleKeyDown}
-            className="field-sizing-content max-h-40 min-h-[58px] min-w-0 flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm leading-5 outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            className="min-w-0 flex-1 resize-none outline-none placeholder:text-muted-foreground"
           />
           <MicButton status={dictation.status} onToggle={dictation.toggle} />
-          {/* Пустая кнопка не зелёная: зелёным на экране выделено одно главное действие. */}
+          {onOpenVoiceMode && (
+            <Button type="button" size="icon" variant="secondary" aria-label="Открыть голосовой режим" title="Голосовой режим" onClick={onOpenVoiceMode}>
+              <AudioLines aria-hidden="true" />
+            </Button>
+          )}
           <Button type="submit" size="icon" variant={text.trim() ? 'default' : 'secondary'} aria-label="Отправить" disabled={busy || !text.trim()}>
             <SendHorizontal aria-hidden="true" />
           </Button>

@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { AudioLines, ArrowUpRight, LayoutGrid, Menu, MessageSquare, Plus, X } from 'lucide-react'
+import { ArrowUpRight, LayoutGrid, Menu, MessageSquare, Plus, X } from 'lucide-react'
 import { useState } from 'react'
 import { getCampaign, getCampaignAudit, getCampaignWarnings, getDictionaries, listCampaigns, saveCampaignChange } from '@/api/campaigns'
 import type { CampaignChange } from '@/api/campaigns'
@@ -121,6 +121,9 @@ export function CampaignWorkspace() {
     nextStep, role,
     moderationQueue: campaigns.data?.filter((item) => item.state === 'ON_MODERATION') ?? [],
     onOpenCampaign: openCampaign,
+    onOpenVoiceMode: VOICE_ENABLED && role === 'campaignManager' && dictationSupported()
+      ? () => { voiceAudio.unlock(); setVoiceOpen(true) }
+      : undefined,
   }
 
   return (
@@ -143,7 +146,7 @@ export function CampaignWorkspace() {
           <button className="mobile-menu" aria-label="Открыть меню кампаний" onClick={() => setNavOpen(true)}><Menu size={21} /></button>
           <div className="workspace-location"><span>Кампании</span><span className="location-divider">/</span><strong>{details?.name ?? (moderator ? 'На проверке' : 'Новая кампания')}</strong></div>
           <div className="topbar-actions">{saved && <StatusBadge state={saved.state} />}{chat.confirmation && <span className="unsaved-label">Предложенные изменения</span>}
-          {VOICE_ENABLED && role === 'campaignManager' && dictationSupported() && <Button variant="ghost" aria-label="Открыть голосовой режим" onClick={() => {voiceAudio.unlock(); setVoiceOpen(true)}}><AudioLines /><span className="voice-label">Голосом</span></Button>}</div>
+          </div>
         </header>
         <div className="pilot-stage">
           {hasResult && <main className="campaign-canvas" aria-label="Рабочая область кампании">
