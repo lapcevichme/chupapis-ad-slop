@@ -2,6 +2,7 @@ import type { StudioDocument, StudioLayer } from '@/api/studio'
 import { ImageOff } from 'lucide-react'
 import { useState } from 'react'
 import { layerStyle } from './sceneStyle'
+import { illustrationSource } from './illustrations'
 
 function StudioImage({ layer }: { layer: StudioLayer }) {
   const [failed, setFailed] = useState(false)
@@ -9,6 +10,7 @@ function StudioImage({ layer }: { layer: StudioLayer }) {
 }
 
 export function LayerContent({ layer }: { layer: StudioLayer }) {
+  if (layer.kind === 'illustration') return <StudioImage key={layer.symbol} layer={{ ...layer, src: illustrationSource(layer.symbol), fit: 'contain' }} />
   if (layer.kind === 'image') return <StudioImage key={layer.src} layer={layer} />
   return layer.kind === 'text' ? layer.text : null
 }

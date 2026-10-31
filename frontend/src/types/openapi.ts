@@ -1337,6 +1337,14 @@ export interface components {
              * @default 3
              */
             count: number;
+            /**
+             * Mode
+             * @default variants
+             * @enum {string}
+             */
+            mode: "variants" | "edit";
+            /** Selectedlayerids */
+            selectedLayerIds?: string[];
         };
         /** StudioGenerationResult */
         StudioGenerationResult: {
@@ -1353,7 +1361,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "text" | "shape" | "image";
+            kind: "text" | "shape" | "image" | "illustration";
             /**
              * Role
              * @default decoration
@@ -1437,6 +1445,12 @@ export interface components {
              * @enum {string}
              */
             fit: "cover" | "contain";
+            /**
+             * Symbol
+             * @default coffee
+             * @enum {string}
+             */
+            symbol: "coffee" | "card" | "travel" | "car";
         };
         /** SynthesisBody */
         SynthesisBody: {

@@ -12,7 +12,7 @@ class StudioModel(BaseModel):
 class StudioLayer(StudioModel):
     id: str = Field(min_length=1, max_length=80)
     name: str = Field(max_length=100)
-    kind: Literal["text", "shape", "image"]
+    kind: Literal["text", "shape", "image", "illustration"]
     role: Literal["title", "body", "button", "decoration"] = "decoration"
     x: float = Field(ge=-2400, le=2400)
     y: float = Field(ge=-2400, le=2400)
@@ -31,6 +31,7 @@ class StudioLayer(StudioModel):
     radius: float = Field(0, ge=0, le=600)
     src: str = Field("", max_length=2000)
     fit: Literal["cover", "contain"] = "cover"
+    symbol: Literal["coffee", "card", "travel", "car"] = "coffee"
 
     @model_validator(mode="after")
     def image_source(self) -> "StudioLayer":
@@ -71,6 +72,16 @@ class StudioGenerationBody(StudioModel):
     document: StudioDocument
     prompt: str = Field(min_length=1, max_length=2000)
     count: int = Field(3, ge=1, le=3)
+    mode: Literal["variants", "edit"] = "variants"
+    selectedLayerIds: list[str] = Field(default_factory=list, max_length=40)
+
+    @model_validator(mode="after")
+    def valid_selection(self) -> "StudioGenerationBody":
+        if not set(self.selectedLayerIds) <= {layer.id for layer in self.document.layers}:
+            raise ValueError("Выделенный слой не найден в документе")
+        if self.mode == "edit" and self.count != 1:
+            raise ValueError("Правка возвращает один новый вариант")
+        return self
 
 
 class StudioGenerationResult(StudioModel):

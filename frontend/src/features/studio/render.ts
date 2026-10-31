@@ -1,4 +1,5 @@
 import type { StudioDocument, StudioLayer } from '@/api/studio'
+import { illustrationSource } from './illustrations'
 
 export function readImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -54,7 +55,7 @@ function drawLayer(context: CanvasRenderingContext2D, layer: StudioLayer, image?
     const x = layer.textAlign === 'center' ? layer.width / 2 : layer.textAlign === 'right' ? layer.width : 0
     textLines(context, layer.text, layer.width).forEach((line, index) => context.fillText(line, x, index * layer.fontSize * 1.15))
   } else if (image) {
-    const scale = (layer.fit === 'contain' ? Math.min : Math.max)(layer.width / image.naturalWidth, layer.height / image.naturalHeight)
+    const scale = (layer.fit === 'contain' || layer.kind === 'illustration' ? Math.min : Math.max)(layer.width / image.naturalWidth, layer.height / image.naturalHeight)
     const w = image.naturalWidth * scale, h = image.naturalHeight * scale
     context.drawImage(image, (layer.width - w) / 2, (layer.height - h) / 2, w, h)
   }
@@ -71,7 +72,7 @@ export async function renderDocument(document: StudioDocument): Promise<Blob> {
   context.fillStyle = document.background
   context.fillRect(0, 0, document.width, document.height)
   const layers = document.layers.filter(x => !x.hidden)
-  const images = await Promise.all(layers.map(layer => layer.kind === 'image' ? readImage(layer.src) : undefined))
+  const images = await Promise.all(layers.map(layer => layer.kind === 'image' ? readImage(layer.src) : layer.kind === 'illustration' ? readImage(illustrationSource(layer.symbol)) : undefined))
   layers.forEach((layer, i) => drawLayer(context, layer, images[i]))
   return canvasBlob(canvas)
 }

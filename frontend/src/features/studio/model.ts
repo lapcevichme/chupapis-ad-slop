@@ -7,7 +7,7 @@ export type PromoButton = Extract<PromoComponent, { role: 'button' }>
 export const buttonActionLabel = (action: PromoButton['actionType']) => ({ default: 'Основное действие', externalLink: 'Открыть ссылку', openSmartLink: 'Открыть ссылку приложения', closeCampaign: 'Закрыть кампанию', doneCampaign: 'Завершить кампанию' })[action]
 
 export function newLayer(kind: StudioLayer['kind'], values: Partial<StudioLayer> = {}): StudioLayer {
-  return { id: crypto.randomUUID(), name: kind === 'text' ? 'Текст' : kind === 'image' ? 'Изображение' : 'Фигура', kind, role: kind === 'text' ? 'body' : 'decoration', x: 24, y: 24, width: 220, height: 64, rotation: 0, opacity: 1, hidden: false, locked: false, text: kind === 'text' ? 'Ваш текст' : '', fontSize: 24, fontWeight: 600, textAlign: 'left', fill: '#ffffff', shape: 'rect', radius: 0, src: '', fit: 'cover', ...values }
+  return { id: crypto.randomUUID(), name: kind === 'text' ? 'Текст' : kind === 'image' ? 'Изображение' : 'Фигура', kind, role: kind === 'text' ? 'body' : 'decoration', x: 24, y: 24, width: 220, height: 64, rotation: 0, opacity: 1, hidden: false, locked: false, text: kind === 'text' ? 'Ваш текст' : '', fontSize: 24, fontWeight: 600, textAlign: 'left', fill: '#ffffff', shape: 'rect', radius: 0, src: '', fit: 'cover', symbol: 'coffee', ...values }
 }
 
 const color = (value?: string | null, fallback = '#3155ff') => /^#[\da-f]{6}([\da-f]{2})?$/i.test(value ?? '') ? value! : fallback

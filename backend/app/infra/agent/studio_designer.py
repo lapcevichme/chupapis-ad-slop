@@ -25,6 +25,8 @@ class StudioDesigner:
                 raise ValueError("AI вернул не все варианты")
             original = {x.id: x.text for x in body.document.layers if x.kind == "text"}
             original_layers = {x.id: x for x in body.document.layers if x.kind == "text"}
+            selected = set(body.selectedLayerIds)
+            source_layers = {x.id: x for x in body.document.layers}
             sources = {x.src for x in body.document.layers if x.kind == "image"}
             for document in result.variants:
                 if (document.width, document.height, document.format) != (
@@ -33,8 +35,22 @@ class StudioDesigner:
                     body.document.format,
                 ):
                     raise ValueError("AI поменял формат")
-                if {x.id: x.text for x in document.layers if x.kind == "text"} != original:
+                allowed_text = selected if body.mode == "edit" else set()
+                actual_text = {x.id: x.text for x in document.layers if x.kind == "text"}
+                if set(actual_text) != set(original) or any(
+                    actual_text[key] != value
+                    for key, value in original.items()
+                    if key not in allowed_text
+                ):
                     raise ValueError("AI поменял текст оффера")
+                if body.mode == "edit" and selected:
+                    updated = {x.id: x for x in document.layers}
+                    if document.background != body.document.background or any(
+                        updated.get(key) != layer
+                        for key, layer in source_layers.items()
+                        if key not in selected
+                    ):
+                        raise ValueError("AI поменял невыделенные слои")
                 for layer in document.layers:
                     if layer.kind != "text":
                         continue

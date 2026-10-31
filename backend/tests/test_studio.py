@@ -160,3 +160,56 @@ def test_ai_cannot_hide_or_crop_offer(patch):
         asyncio.run(
             generator.generate(StudioGenerationBody(document=DOCUMENT, prompt="Ярче", count=1))
         )
+
+
+def test_selected_text_can_change_but_other_layers_are_preserved():
+    document = json.loads(json.dumps(DOCUMENT))
+    document["layers"].append(
+        {**document["layers"][0], "id": "body", "role": "body", "text": "До ноября", "y": 160}
+    )
+    changed = json.loads(json.dumps(document))
+    changed["layers"][0]["text"] = "Вклад под 16%"
+    for tamper in (False, True):
+        if tamper:
+            changed["layers"][1]["x"] = 35
+        generator = StudioDesigner(
+            ScriptedModel(
+                script=[tool_message(call("StudioGenerationResult", {"variants": [changed]}, 1))]
+            )
+        )
+        body = StudioGenerationBody(
+            document=document,
+            prompt="Уточни заголовок",
+            count=1,
+            mode="edit",
+            selectedLayerIds=["title"],
+        )
+        if tamper:
+            with pytest.raises(Exception, match="несовместимый"):
+                asyncio.run(generator.generate(body))
+        else:
+            result = asyncio.run(generator.generate(body))
+            assert result.variants[0].layers[0].text == "Вклад под 16%"
+            assert result.variants[0].layers[1].text == "До ноября"
+
+
+def test_illustration_is_a_supported_editable_layer(client):
+    document = json.loads(json.dumps(DOCUMENT))
+    document["layers"].append(
+        {
+            "id": "cup",
+            "kind": "illustration",
+            "symbol": "coffee",
+            "name": "Кофе",
+            "x": 70,
+            "y": 220,
+            "width": 160,
+            "height": 160,
+        }
+    )
+    saved = save(client, document=document)
+    assert saved.status_code == 201
+    restored = client.get(f"/studio/documents/{saved.json()['id']}", headers=MANAGER).json()
+    assert restored["layers"][1]["symbol"] == "coffee"
+    document["layers"][1]["symbol"] = "javascript:alert(1)"
+    assert codes(save(client, document=document)) == ["STUDIO_DOCUMENT_INVALID"]

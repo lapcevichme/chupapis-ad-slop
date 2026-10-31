@@ -32,3 +32,8 @@ export async function generateStudioVariants(document: StudioDocument, prompt: s
   const result = await apiRequest<{ variants: StudioDocument[] }>('/studio/generate', { method: 'POST', body: { document, prompt, count: 3 } })
   return result.variants
 }
+
+export async function editStudioDocument(document: StudioDocument, prompt: string, selectedLayerIds: string[]): Promise<StudioDocument> {
+  const result = await apiRequest<{ variants: StudioDocument[] }>('/studio/generate', { method: 'POST', body: { document, prompt, count: 1, mode: 'edit', selectedLayerIds } })
+  return result.variants[0]
+}

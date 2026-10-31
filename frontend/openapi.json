@@ -5735,6 +5735,23 @@
             "minimum": 1.0,
             "title": "Count",
             "default": 3
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "variants",
+              "edit"
+            ],
+            "title": "Mode",
+            "default": "variants"
+          },
+          "selectedLayerIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 40,
+            "title": "Selectedlayerids"
           }
         },
         "additionalProperties": false,
@@ -5782,7 +5799,8 @@
             "enum": [
               "text",
               "shape",
-              "image"
+              "image",
+              "illustration"
             ],
             "title": "Kind"
           },
@@ -5916,6 +5934,17 @@
             ],
             "title": "Fit",
             "default": "cover"
+          },
+          "symbol": {
+            "type": "string",
+            "enum": [
+              "coffee",
+              "card",
+              "travel",
+              "car"
+            ],
+            "title": "Symbol",
+            "default": "coffee"
           }
         },
         "additionalProperties": false,
