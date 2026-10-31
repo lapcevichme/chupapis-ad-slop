@@ -539,6 +539,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/media/images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload Image */
+        post: operations["upload_image"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -687,6 +704,11 @@ export interface components {
         };
         /** Body_transcribe_speech */
         Body_transcribe_speech: {
+            /** File */
+            file: string;
+        };
+        /** Body_upload_image */
+        Body_upload_image: {
             /** File */
             file: string;
         };
@@ -1226,6 +1248,11 @@ export interface components {
         Transcription: {
             /** Text */
             text: string;
+        };
+        /** UploadedImage */
+        UploadedImage: {
+            /** Url */
+            url: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -3318,6 +3345,60 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    upload_image: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User"?: string | null;
+                "X-Role"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_image"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadedImage"];
+                };
+            };
+            /** @description Ошибки валидации или жизненного цикла */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ENTITY_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

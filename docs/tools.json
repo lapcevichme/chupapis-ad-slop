@@ -2954,7 +2954,7 @@
                 }
               ],
               "default": null,
-              "description": "Картинка пользователя (https), если он её прислал",
+              "description": "Картинка пользователя: https или адрес загруженного файла /api/media/…, если он её прислал",
               "title": "Imageurl"
             },
             "replaceBannerId": {

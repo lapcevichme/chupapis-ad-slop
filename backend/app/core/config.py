@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     media_dir: Path = BACKEND_DIR / "data" / "media"
     # Картинки, которые раздаёт сам бэкенд. Валидатор баннера принимает их наравне с https-ссылками.
     media_base_url: str = "/api/media"
+    # Фото от менеджера. Клиент сжимает его сам, сервер только не пускает лишнее и не даёт забить том.
+    media_upload_max_bytes: int = 5 * 1024 * 1024
+    media_upload_max_total_bytes: int = 300 * 1024 * 1024
     cors_origins: list[str] = ["http://localhost:5173"]
 
     log_level: str = "INFO"

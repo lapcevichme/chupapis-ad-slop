@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, SyntheticEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import type { NextStep } from '@/features/campaign/nextStep'
+import { parseImageMessage } from '@/features/imageUpload/imageMessage'
 import { cn } from '@/lib/utils'
 import type { CampaignListItem, ChatStep, ChatWarning, Dictionaries, UserRole } from '@/types/api'
 import { AnimatedAnswer } from './AnimatedAnswer'
@@ -54,6 +55,20 @@ function Warning({ warning }: { warning: ChatWarning }) {
 
 function Message({ message, thinking, active }: { message: ChatMessage; thinking: boolean; active: boolean }) {
   if (message.role === 'user') {
+    const image = parseImageMessage(message.text)
+    if (image) {
+      return (
+        <figure className="chat-user-message flex flex-col gap-2">
+          <img src={image.url} alt="Загруженное фото" className="max-h-40 rounded-md object-contain" />
+          <figcaption className="flex items-center gap-1.5 px-1">
+            Загружено фото
+            {image.colors.map((color) => (
+              <span key={color} className="size-3.5 rounded-full border" style={{ backgroundColor: color }} aria-hidden="true" />
+            ))}
+          </figcaption>
+        </figure>
+      )
+    }
     return <p className="chat-user-message">{message.text}</p>
   }
 

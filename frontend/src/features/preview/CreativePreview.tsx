@@ -19,6 +19,8 @@ interface CreativePreviewProps {
   content?: Content
   // Что сейчас делает дизайнер, если он пересобирает этот креатив.
   status?: string
+  // Действие над макетом, например своё фото.
+  action?: ReactNode
 }
 
 function PhoneFrame({ children }: { children: ReactNode }) {
@@ -78,7 +80,7 @@ function LengthCounter({ label, value, max }: { label: string; value?: string | 
   )
 }
 
-export function CreativePreview({ banner, bannerType, content, status }: CreativePreviewProps) {
+export function CreativePreview({ banner, bannerType, content, status, action }: CreativePreviewProps) {
   const [requestedView, setRequestedView] = useState<View>('banner')
   const [size, setSize] = useState<SmartBannerSize>('card')
   const view = content ? requestedView : 'banner'
@@ -99,6 +101,7 @@ export function CreativePreview({ banner, bannerType, content, status }: Creativ
   return (
     <Dialog.Root>
     <div className="creative-preview">
+      {action}
       <div className="preview-toolbar">
       <div className="flex min-w-0 flex-1 gap-1" role="group" aria-label="Что показать в телефоне">
         <ViewTab selected={view === 'banner'} onClick={() => setRequestedView('banner')}>

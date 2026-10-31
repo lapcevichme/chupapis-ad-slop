@@ -166,7 +166,9 @@ class DesignArgs(BaseModel):
         description="pattern — абстрактный фон-паттерн, тема передаётся цветом; illustration — картинка с предметом по смыслу оффера",
     )
     imageUrl: str | None = Field(
-        None, description="Картинка пользователя (https), если он её прислал"
+        None,
+        description="Картинка пользователя: https или адрес загруженного файла /api/media/…, "
+        "если он её прислал",
     )
     replaceBannerId: Ref | None = Field(
         None,

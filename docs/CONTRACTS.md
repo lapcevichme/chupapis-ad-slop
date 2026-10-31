@@ -59,6 +59,7 @@
 ## Служебное и совместимость данных
 
 - `/health` и `/mock/cbro/export` сохраняются. CBRO — успешная локальная заглушка.
+- `POST /media/images` — multipart с полем `file`, только `campaignManager`, ответ 201 `{"url": "/api/media/upload-….jpg"}`. Формат определяется по содержимому: JPEG или PNG. Ошибки 400: `ROLE_FORBIDDEN`, `IMAGE_EMPTY`, `IMAGE_TOO_LARGE` (больше 5 МБ), `IMAGE_FORMAT_UNSUPPORTED`, `MEDIA_STORAGE_FULL` (все загрузки больше 300 МБ).
 - `/media/*` отдаёт файлы; текущий клиентский URL `/api/media/*` сохраняется.
 - Существующие SQLite-таблицы и две ревизии Alembic сохраняют имена/идентификаторы.
   Изменение слоёв само по себе не требует сбрасывать БД и диалоги.

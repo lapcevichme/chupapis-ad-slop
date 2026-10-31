@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { ChatPanel } from '@/features/chat/ChatPanel'
 import { useChat } from '@/features/chat/useChat'
 import { dictationSupported } from '@/features/chat/useDictation'
+import { ImageUploadMenu } from '@/features/imageUpload/ImageUploadMenu'
 import { CreativePreview, DesignPlaceholder } from '@/features/preview/CreativePreview'
 import { voiceAudio } from '@/features/voice/voiceAudio'
 import { VoiceMode } from '@/features/voice/VoiceMode'
@@ -114,6 +115,8 @@ export function CampaignWorkspace() {
   }
 
   const hasResult = Boolean(details)
+  const imageAction = (voice: boolean) =>
+    edit && banner ? <ImageUploadMenu banner={banner} disabled={chat.busy} onSend={(message) => void chat.send(message, voice)} /> : undefined
   const creativeSelector = banners.length > 1 && <div className="creative-selector" aria-label="Выбор креатива">{banners.map((item,index) => <button key={item.id} aria-pressed={banner?.id === item.id} onClick={() => setRequestedBannerId(item.id)}><span>{String(index+1).padStart(2,'0')}</span>{item.name}</button>)}</div>
   const chatProps = {
     chat, dictionaries: dictionaries.data,
@@ -156,7 +159,7 @@ export function CampaignWorkspace() {
               {failed && <div role="alert" className="workspace-error"><p>Не удалось загрузить часть данных.</p><Button variant="outline" onClick={() => {void campaign.refetch(); void warnings.refetch(); void dictionaries.refetch()}}>Повторить загрузку</Button></div>}
               {pane === 'creative' && <><div className="creative-gallery">
                 {creativeSelector}
-                <section className="creative-stage" aria-label="Превью">{banner && bannerType ? <CreativePreview key={banner.id} banner={banner} bannerType={bannerType} content={content} status={designStep?.label} /> : <DesignPlaceholder idle={!designStep} label={designStep?.label ?? 'Креатив появится здесь. Попросите ассистента собрать баннер.'} />}</section>
+                <section className="creative-stage" aria-label="Превью">{banner && bannerType ? <CreativePreview key={banner.id} banner={banner} bannerType={bannerType} content={content} status={designStep?.label} action={imageAction(false)} /> : <DesignPlaceholder idle={!designStep} label={designStep?.label ?? 'Креатив появится здесь. Попросите ассистента собрать баннер.'} />}</section>
               </div>{validation && <div className="canvas-validation"><ValidationSummary validation={validation} /></div>}</>}
               {pane === 'details' && details && dictionaries.data && <div className="passport-sheet"><CampaignPassport key={campaignId ?? NEW_CAMPAIGN} campaign={details} dictionaries={dictionaries.data} selectedBannerId={banner?.id} onSelectBanner={(id) => {setRequestedBannerId(id); setPane('creative')}} edit={edit} /></div>}
               {pane === 'history' && details && <CampaignLifecycle key={`lifecycle-${saved?.id ?? NEW_CAMPAIGN}`} state={saved?.state ?? 'DRAFT'} audit={saved && audit.data} validation={validation} />}
@@ -175,7 +178,7 @@ export function CampaignWorkspace() {
           dictionaries={dictionaries.data}
           nextStep={nextStep}
           campaignState={saved?.state}
-          preview={banner && bannerType ? <div className="voice-creatives">{creativeSelector}<CreativePreview key={banner.id} banner={banner} bannerType={bannerType} content={content} status={designStep?.label} /></div> : undefined}
+          preview={banner && bannerType ? <div className="voice-creatives">{creativeSelector}<CreativePreview key={banner.id} banner={banner} bannerType={bannerType} content={content} status={designStep?.label} action={imageAction(true)} /></div> : undefined}
           onClose={() => setVoiceOpen(false)}
         />
       )}

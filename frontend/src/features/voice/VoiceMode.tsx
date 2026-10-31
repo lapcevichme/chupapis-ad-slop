@@ -9,6 +9,7 @@ import { ConfirmationCard } from '@/features/chat/ConfirmationCard'
 import { NextStepBar } from '@/features/chat/NextStepBar'
 import type { useChat } from '@/features/chat/useChat'
 import { useDictation } from '@/features/chat/useDictation'
+import { userMessageSummary } from '@/features/imageUpload/imageMessage'
 import { cn } from '@/lib/utils'
 import type { CampaignState, Dictionaries } from '@/types/api'
 import { Orb } from './Orb'
@@ -254,7 +255,7 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview
               {failed && <CircleAlert className="size-4 shrink-0" aria-hidden="true" />}
               {status}
             </p>
-            {lastHeard && waiting && <p className="m-0 line-clamp-2 text-[15px] leading-5 text-muted-foreground">«{lastHeard.text}»</p>}
+            {lastHeard && waiting && <p className="m-0 line-clamp-2 text-[15px] leading-5 text-muted-foreground">«{userMessageSummary(lastHeard.text)}»</p>}
             {onModeration ? (
               <VoiceSummary elapsedMs={elapsedMs} startedFresh={startedFresh} questions={questionsAsked} confirmations={confirmations} />
             ) : (
