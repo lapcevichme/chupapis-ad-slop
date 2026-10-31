@@ -9,6 +9,7 @@ import { ConfirmationCard } from '@/features/chat/ConfirmationCard'
 import { NextStepBar } from '@/features/chat/NextStepBar'
 import type { useChat } from '@/features/chat/useChat'
 import { useDictation } from '@/features/chat/useDictation'
+import { ImageUploadMenu } from '@/features/imageUpload/ImageUploadMenu'
 import { userMessageSummary } from '@/features/imageUpload/imageMessage'
 import { cn } from '@/lib/utils'
 import type { CampaignState, Dictionaries } from '@/types/api'
@@ -52,11 +53,12 @@ interface VoiceModeProps {
   dictionaries?: Dictionaries
   nextStep: NextStep | null
   campaignState?: CampaignState
+  imageUpload?: { banner?: { id: unknown; name: string } }
   preview?: ReactNode
   onClose: () => void
 }
 
-export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview, onClose }: VoiceModeProps) {
+export function VoiceMode({ chat, dictionaries, nextStep, campaignState, imageUpload, preview, onClose }: VoiceModeProps) {
   const { busy, messages, suggestions, confirmation, error, send, answer, retry } = chat
   const [speaking, setSpeaking] = useState(false)
   const [muted, setMuted] = useState(voiceAudio.muted)
@@ -233,6 +235,15 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview
   // Остальные шаги в разговоре ведёт агент, а кнопка рядом с его вопросом только сбивает.
   const askNext = nextStep && !confirmation && !questionnaire && nextStep.actions.some((action) => action.message === TO_MODERATION)
 
+  // Фото заменяет ответ анкеты, поэтому уже отмеченные ответы уходят вместе с ним, а сама анкета закрывается.
+  const sendImage = (message: string) => {
+    const answers = questionnaire ? formatAnswers(questionnaire.pages, questionnaire.answers) : ''
+    setQuestionnaire(null)
+    startDiscussion(null)
+    void send(answers ? `${message}\n${answers}` : message, true)
+  }
+  const imageMenu = imageUpload && <ImageUploadMenu banner={imageUpload.banner} disabled={busy} onSend={sendImage} />
+
   return (
     <div role="dialog" aria-modal="true" aria-label="Голосовой режим" className="fixed inset-0 z-50 overflow-hidden bg-background text-foreground">
       {showPreview && (
@@ -280,6 +291,7 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview
                 Вернуться к анкете
               </Button>
             )}
+            {settled && !onModeration && imageMenu}
             {settled && !onModeration && askNext && <div className="w-full text-left"><NextStepBar step={nextStep} onSend={handleText} /></div>}
             {onModeration ? (
               <Button className="h-16 min-w-44 rounded-full px-7 font-semibold" onClick={onClose}>
@@ -357,6 +369,8 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview
               }}
             />
           )}
+          {/* На ПК рядом виден макет со своей кнопкой, на телефоне анкета его закрывает. */}
+          {sheet === 'form' && (preview === undefined || width < 900) && imageMenu}
           {sheet === 'confirm' && confirmation && (
             <>
               <ConfirmationCard

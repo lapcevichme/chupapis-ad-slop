@@ -1,6 +1,6 @@
 import { ArrowDown, ArrowUp, AudioLines, Check, ChevronDown, CircleAlert, Info, LoaderCircle, TriangleAlert, X } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { KeyboardEvent, SyntheticEvent } from 'react'
+import type { KeyboardEvent, ReactNode, SyntheticEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import type { NextStep } from '@/features/campaign/nextStep'
 import { parseImageMessage } from '@/features/imageUpload/imageMessage'
@@ -106,9 +106,10 @@ interface ChatPanelProps {
   moderationQueue: CampaignListItem[]
   onOpenCampaign: (id: number) => void
   onOpenVoiceMode?: () => void
+  imageAction?: ReactNode
 }
 
-export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role, moderationQueue, onOpenCampaign, onOpenVoiceMode }: ChatPanelProps) {
+export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role, moderationQueue, onOpenCampaign, onOpenVoiceMode, imageAction }: ChatPanelProps) {
   const { busy, campaignId, messages, suggestions, confirmation, error, send, answer, retry } = chat
   const [text, setText] = useState('')
   const log = useRef<HTMLDivElement>(null)
@@ -262,6 +263,7 @@ export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role
           <NextStepBar step={nextStep} onSend={submit} />
         </div>
       )}
+      {imageAction && messages.length > 0 && !confirmation && !showQueue && <div className="shrink-0 border-t p-3">{imageAction}</div>}
       {dictation.error && !showQueue && (
         <p role="alert" className="m-0 flex shrink-0 items-start gap-2 border-t bg-error px-3 py-2 text-[13px] leading-[18px] text-error-foreground">
           <CircleAlert className="mt-px size-4 shrink-0" aria-hidden="true" />

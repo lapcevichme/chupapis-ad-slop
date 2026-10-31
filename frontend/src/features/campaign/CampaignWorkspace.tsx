@@ -129,7 +129,7 @@ export function CampaignWorkspace({ initialBrief, onSignOut }: CampaignWorkspace
 
   const hasResult = Boolean(details)
   const imageAction = (voice: boolean) =>
-    edit && banner ? <ImageUploadMenu banner={banner} disabled={chat.busy} onSend={(message) => void chat.send(message, voice)} /> : undefined
+    edit ? <ImageUploadMenu banner={banner} disabled={chat.busy} onSend={(message) => void chat.send(message, voice)} /> : undefined
   const creativeSelector = banners.length > 1 && <div className="creative-selector" aria-label="Выбор креатива">{banners.map((item,index) => <button key={item.id} aria-pressed={banner?.id === item.id} onClick={() => setRequestedBannerId(item.id)}><span>{String(index+1).padStart(2,'0')}</span>{item.name}</button>)}</div>
   const chatProps = {
     chat, dictionaries: dictionaries.data,
@@ -137,6 +137,8 @@ export function CampaignWorkspace({ initialBrief, onSignOut }: CampaignWorkspace
     nextStep, role,
     moderationQueue: campaigns.data?.filter((item) => item.state === 'ON_MODERATION') ?? [],
     onOpenCampaign: openCampaign,
+    // Пока баннера нет, макета тоже нет: фото загружают из чата.
+    imageAction: banner ? undefined : imageAction(false),
     onOpenVoiceMode: VOICE_ENABLED && role === 'campaignManager' && dictationSupported()
       ? () => { voiceAudio.unlock(); setVoiceOpen(true) }
       : undefined,
@@ -191,6 +193,7 @@ export function CampaignWorkspace({ initialBrief, onSignOut }: CampaignWorkspace
           dictionaries={dictionaries.data}
           nextStep={nextStep}
           campaignState={saved?.state}
+          imageUpload={edit ? { banner } : undefined}
           preview={banner && bannerType ? <div className="voice-creatives">{creativeSelector}<CreativePreview key={banner.id} banner={banner} bannerType={bannerType} content={content} status={designStep?.label} action={imageAction(true)} /></div> : undefined}
           onClose={() => setVoiceOpen(false)}
         />
