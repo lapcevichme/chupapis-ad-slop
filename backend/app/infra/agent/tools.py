@@ -382,7 +382,15 @@ async def _design(ctx: ToolContext, args: DesignArgs, progress: Callable[[str], 
     image_style = args.imageStyle if ctx.image_mode == "ask" else ctx.image_mode
     if previous is not None and not args.redesign and not args.promoImageOnly:
         return await _edit_design(
-            ctx, args, previous, banner_type, pending_banner, linked_contents, saved_contents, image_style, progress
+            ctx,
+            args,
+            previous,
+            banner_type,
+            pending_banner,
+            linked_contents,
+            saved_contents,
+            image_style,
+            progress,
         )
 
     try:
@@ -510,14 +518,20 @@ async def _edit_design(
     pending_banner: dict[str, Any] | None,
     linked_contents: list[dict[str, Any]],
     saved_contents: list[dict[str, Any]],
-    image_style: str,
+    image_style: Literal["illustration", "pattern", "mixed"],
     progress: Callable[[str], None],
 ) -> str:
     """Точечная правка готового баннера и его промо-экрана: дизайнер меняет только то, что просили."""
     # У баннера от дизайнера один промо-экран, его и правим вместе с баннером.
     pending_content = linked_contents[0] if linked_contents else None
     saved_content = saved_contents[0] if saved_contents else None
-    content = pending_content["body"]["content"] if pending_content else saved_content["content"] if saved_content else None
+    content = (
+        pending_content["body"]["content"]
+        if pending_content
+        else saved_content["content"]
+        if saved_content
+        else None
+    )
     try:
         outcome = await ctx.designer.edit(
             EditRequest(
@@ -535,9 +549,14 @@ async def _edit_design(
     except DesignError as exc:
         return f"Ошибка дизайн-агента: {exc}"
 
-    banner_changed = outcome.banner != previous["content"] or outcome.banner_name != previous["name"]
+    banner_changed = (
+        outcome.banner != previous["content"] or outcome.banner_name != previous["name"]
+    )
     content_changed = content is not None and outcome.content != content
-    lines = [f"Дизайнер поправил: {outcome.summary or 'правка применена'}", f"Баннер: «{outcome.banner.get('title', '')}» — {outcome.banner.get('text', '')}"]
+    lines = [
+        f"Дизайнер поправил: {outcome.summary or 'правка применена'}",
+        f"Баннер: «{outcome.banner.get('title', '')}» — {outcome.banner.get('text', '')}",
+    ]
     if not banner_changed and not content_changed:
         lines.append("Креатив не изменился: уточни у пользователя, что именно поменять.")
     elif pending_banner is not None:
@@ -549,11 +568,31 @@ async def _edit_design(
         lines.append(f"Операция {pending_banner['ref']} в пакете обновлена, дублей нет.")
     else:
         if banner_changed:
-            body = {"name": outcome.banner_name, "bannerTypeId": banner_type["id"], "content": outcome.banner}
-            lines.append(await _propose(ctx, WRITE_OPS_BY_KIND["update_banner"], {"bannerId": previous["id"], "banner": body}))
+            body = {
+                "name": outcome.banner_name,
+                "bannerTypeId": banner_type["id"],
+                "content": outcome.banner,
+            }
+            lines.append(
+                await _propose(
+                    ctx,
+                    WRITE_OPS_BY_KIND["update_banner"],
+                    {"bannerId": previous["id"], "banner": body},
+                )
+            )
         if saved_content is not None and content_changed:
-            body = {"name": saved_content["name"], "contentType": saved_content["contentType"], "content": outcome.content}
-            lines.append(await _propose(ctx, WRITE_OPS_BY_KIND["update_content"], {"contentId": saved_content["id"], "content": body}))
+            body = {
+                "name": saved_content["name"],
+                "contentType": saved_content["contentType"],
+                "content": outcome.content,
+            }
+            lines.append(
+                await _propose(
+                    ctx,
+                    WRITE_OPS_BY_KIND["update_content"],
+                    {"contentId": saved_content["id"], "content": body},
+                )
+            )
     if content_changed:
         lines.append("Промо-экран тоже поправлен.")
     image = (outcome.banner.get("image") or {}).get("url")
