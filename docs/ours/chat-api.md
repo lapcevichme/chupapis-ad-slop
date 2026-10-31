@@ -21,7 +21,7 @@
 ```text
 message_delta          {text}                                  текст ассистента по кускам
 step                   {id, label, status}                     шаг агента: "Ищу сегменты…"; status: running | done | failed
-suggestions            {items: [{label, value}]}               кнопки-варианты, например сегменты
+suggestions            {items: [{label, value, group?}]}       кнопки-варианты, например сегменты
 confirmation_required  {id, title, operations, changes}        просим подтвердить запись (§2)
 draft_updated          {draft, validation}                     текущий черновик для паспорта и превью (§3)
 campaign_updated       {campaignId}                            запись прошла, фронт перечитывает кампанию
@@ -31,6 +31,8 @@ done                   {}                                      ответ зак
 ```
 
 Сырые аргументы инструментов в `step` не отдаём.
+
+Кнопки без `group` или с одной группой отправляют `value` сразу. Если групп несколько, пользователь выбирает по варианту в каждой и отправляет их одним сообщением, значения идут через перевод строки.
 
 Каждое событие в потоке — строки `event: <тип>` и `data: <JSON>`. Схемы данных описаны Pydantic-моделями и лежат в `openapi.json` в `components.schemas` под именами `ChatEvent*` (`ChatEventMessageDelta`, `ChatEventStep` и т. д.), фронт генерирует типы из них.
 

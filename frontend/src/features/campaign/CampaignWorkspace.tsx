@@ -7,6 +7,7 @@ import { useChat } from '@/features/chat/useChat'
 import { CreativePreview } from '@/features/preview/CreativePreview'
 import type { EntityId } from '@/types/api'
 import { CampaignPassport } from './CampaignPassport'
+import { STATE_LABELS } from './format'
 import { StatusBadge } from './StatusBadge'
 
 const NEW_CAMPAIGN = ''
@@ -77,7 +78,7 @@ export function CampaignWorkspace() {
               <option value={NEW_CAMPAIGN}>Новая кампания</option>
               {campaigns.data?.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {item.id}: {item.name}
+                  {item.id} · {STATE_LABELS[item.state]} · {item.name}
                 </option>
               ))}
             </select>
@@ -112,7 +113,11 @@ export function CampaignWorkspace() {
           aria-label="Диалог с ассистентом"
           className="h-[70dvh] min-h-96 min-w-0 flex-[1_1_340px] overflow-hidden rounded-lg border bg-card xl:h-auto xl:min-h-0"
         >
-          <ChatPanel chat={chat} />
+          <ChatPanel
+            chat={chat}
+            dictionaries={dictionaries.data}
+            awaitsModeration={saved?.state === 'ON_MODERATION' && USERS.find((user) => user.login === login)?.role === 'campaignModerator'}
+          />
         </section>
 
         <div className="min-w-0 flex-[1_1_400px] xl:overflow-y-auto">

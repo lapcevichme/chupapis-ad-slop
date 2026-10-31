@@ -1,3 +1,16 @@
+import type { CampaignState } from '@/types/api'
+
+export const STATE_LABELS: Record<CampaignState, string> = {
+  DRAFT: 'Черновик',
+  ON_MODERATION: 'На модерации',
+  NEEDS_WORK: 'Нужны правки',
+  APPROVED: 'Одобрена',
+  ACTIVE: 'Активна',
+  ACTIVE_EDITING: 'Активна, есть правки',
+  STOPPED: 'Остановлена',
+  ARCHIVED: 'В архиве',
+}
+
 const DATE_FORMAT = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
 const COUNT_FORMAT = new Intl.NumberFormat('ru-RU')
 

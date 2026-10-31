@@ -420,6 +420,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Chat Session */
+        post: operations["create_chat_session"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/chat/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Chat Session */
+        get: operations["get_chat_session"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/chat/{session_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send Chat Message */
+        post: operations["send_chat_message"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/chat/{session_id}/confirmations/{confirmation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Answer Chat Confirmation */
+        post: operations["answer_chat_confirmation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/chat/{session_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry Chat Turn */
+        post: operations["retry_chat_turn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -461,8 +546,11 @@ export interface components {
             code: string;
             /** Message */
             message: string;
-            /** Field */
-            field?: string | null;
+            /**
+             * Field
+             * @default null
+             */
+            field: string | null;
         };
         /**
          * AudienceType
@@ -726,6 +814,27 @@ export interface components {
             /** Description */
             description: string;
         };
+        /** ChatEventConfirmationRequired */
+        ChatEventConfirmationRequired: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Operations */
+            operations: components["schemas"]["ConfirmationOperation"][];
+            /** Changes */
+            changes: components["schemas"]["ConfirmationChange"][];
+        };
+        /** ChatMessage */
+        ChatMessage: {
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "user" | "assistant";
+            /** Text */
+            text: string;
+        };
         /** ComponentStyle */
         ComponentStyle: {
             /** Backgroundcolor */
@@ -739,6 +848,37 @@ export interface components {
             fontWeight?: string | null;
             /** Textcolor */
             textColor?: string | null;
+        };
+        /** ConfirmationBody */
+        ConfirmationBody: {
+            /** Approved */
+            approved: boolean;
+            /** Comment */
+            comment?: string | null;
+        };
+        /** ConfirmationChange */
+        ConfirmationChange: {
+            /** Field */
+            field: string;
+            /** Label */
+            label: string;
+            /**
+             * From
+             * @default null
+             */
+            from: unknown;
+            /**
+             * To
+             * @default null
+             */
+            to: unknown;
+        };
+        /** ConfirmationOperation */
+        ConfirmationOperation: {
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string;
         };
         /** ContentCreate */
         ContentCreate: {
@@ -766,6 +906,11 @@ export interface components {
             content: {
                 [key: string]: unknown;
             };
+        };
+        /** CreateSessionBody */
+        CreateSessionBody: {
+            /** Campaignid */
+            campaignId?: number | null;
         };
         /** CreativeCreate */
         CreativeCreate: {
@@ -800,6 +945,13 @@ export interface components {
         DeclineBody: {
             /** Comment */
             comment?: string | null;
+        };
+        /** DraftValidation */
+        DraftValidation: {
+            /** Errors */
+            errors: components["schemas"]["ApiError"][];
+            /** Warnings */
+            warnings: string[];
         };
         /** ErrorResponse */
         ErrorResponse: {
@@ -848,6 +1000,11 @@ export interface components {
             style?: components["schemas"]["ComponentStyle"] | null;
             /** Components */
             components: (components["schemas"]["PromoText"] | components["schemas"]["PromoImage"] | components["schemas"]["PromoButton"])[];
+        };
+        /** MessageBody */
+        MessageBody: {
+            /** Text */
+            text: string;
         };
         /** PlaceCreate */
         PlaceCreate: {
@@ -953,6 +1110,24 @@ export interface components {
             /** Excluded */
             excluded?: string[];
         };
+        /** SessionCreated */
+        SessionCreated: {
+            /** Sessionid */
+            sessionId: string;
+        };
+        /** SessionSnapshot */
+        SessionSnapshot: {
+            /** Campaignid */
+            campaignId: number | null;
+            /** Messages */
+            messages: components["schemas"]["ChatMessage"][];
+            /** Draft */
+            draft: {
+                [key: string]: unknown;
+            } | null;
+            validation: components["schemas"]["DraftValidation"];
+            pendingConfirmation: components["schemas"]["ChatEventConfirmationRequired"] | null;
+        };
         /** TagCreate */
         TagCreate: {
             /** Name */
@@ -1013,6 +1188,76 @@ export interface components {
             /** Warnings */
             warnings: string[];
         };
+        /** ChatEventMessageDelta */
+        ChatEventMessageDelta: {
+            /** Text */
+            text: string;
+        };
+        /** ChatEventStep */
+        ChatEventStep: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "running" | "done" | "failed";
+        };
+        /** SuggestionItem */
+        SuggestionItem: {
+            /** Label */
+            label: string;
+            /** Value */
+            value: string;
+            /**
+             * Group
+             * @default null
+             */
+            group: string | null;
+        };
+        /** ChatEventSuggestions */
+        ChatEventSuggestions: {
+            /** Items */
+            items: components["schemas"]["SuggestionItem"][];
+        };
+        /** ChatEventDraftUpdated */
+        ChatEventDraftUpdated: {
+            /** Draft */
+            draft: {
+                [key: string]: unknown;
+            };
+            validation: components["schemas"]["DraftValidation"];
+        };
+        /** ChatEventCampaignUpdated */
+        ChatEventCampaignUpdated: {
+            /** Campaignid */
+            campaignId: number | null;
+        };
+        /**
+         * ChatEventWarning
+         * @description Предупреждение агента о спорном решении пользователя. Агент при этом не отказывается выполнять просьбу.
+         */
+        ChatEventWarning: {
+            /** Message */
+            message: string;
+            /**
+             * Severity
+             * @default warning
+             * @enum {string}
+             */
+            severity: "info" | "warning";
+        };
+        /** ChatEventError */
+        ChatEventError: {
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
+        };
+        /** ChatEventDone */
+        ChatEventDone: Record<string, never>;
     };
     responses: never;
     parameters: never;
@@ -2573,6 +2818,277 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CbroExportResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_chat_session: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User"?: string | null;
+                "X-Role"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSessionBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionCreated"];
+                };
+            };
+            /** @description Ошибки валидации или жизненного цикла */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ENTITY_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_chat_session: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User"?: string | null;
+                "X-Role"?: string | null;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionSnapshot"];
+                };
+            };
+            /** @description Ошибки валидации или жизненного цикла */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ENTITY_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_chat_message: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User"?: string | null;
+                "X-Role"?: string | null;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MessageBody"];
+            };
+        };
+        responses: {
+            /** @description Поток событий ChatEvent* (chat-api.md §1) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": unknown;
+                };
+            };
+            /** @description Ошибки валидации или жизненного цикла */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ENTITY_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    answer_chat_confirmation: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User"?: string | null;
+                "X-Role"?: string | null;
+            };
+            path: {
+                session_id: string;
+                confirmation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmationBody"];
+            };
+        };
+        responses: {
+            /** @description Поток событий ChatEvent* (chat-api.md §1) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": unknown;
+                };
+            };
+            /** @description Ошибки валидации или жизненного цикла */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ENTITY_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retry_chat_turn: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User"?: string | null;
+                "X-Role"?: string | null;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Поток событий ChatEvent* (chat-api.md §1) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": unknown;
+                };
+            };
+            /** @description Ошибки валидации или жизненного цикла */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ENTITY_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Validation Error */

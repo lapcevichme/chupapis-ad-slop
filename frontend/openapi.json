@@ -5070,6 +5070,18 @@
           "value": {
             "title": "Value",
             "type": "string"
+          },
+          "group": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Group"
           }
         },
         "required": [

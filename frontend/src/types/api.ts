@@ -52,7 +52,7 @@ export interface Dictionaries {
   topics: Topic[]
 }
 
-// Контракт чата: docs/ours/chat-api.md.
+// Контракт чата: docs/ours/chat-api.md. Схемы событий тоже в openapi.json, руками собираем только их объединение по типу.
 
 export type UserRole = 'campaignManager' | 'campaignModerator'
 
@@ -61,9 +61,7 @@ export interface User {
   role: UserRole
 }
 
-// Типы чата написаны руками: схем ChatEvent* в openapi.json пока нет. Появятся — заменяем сгенерированными.
-
-// Пока собирается бриф, части полей ещё нет, поэтому всё необязательно.
+// Пока собирается бриф, части полей ещё нет, поэтому всё необязательно. В схеме черновик описан как произвольный объект.
 export type CampaignDraft = Partial<
   Omit<SavedCampaign, 'id' | 'state' | 'published' | 'author' | 'lastEditAuthor' | 'banners' | 'contents' | 'creatives'>
 > & {
@@ -72,74 +70,25 @@ export type CampaignDraft = Partial<
   creatives?: Creative[]
 }
 
-export type OperationKind =
-  | 'create_campaign'
-  | 'update_campaign'
-  | 'set_segments'
-  | 'create_banner'
-  | 'update_banner'
-  | 'delete_banner'
-  | 'create_content'
-  | 'update_content'
-  | 'delete_content'
-  | 'create_creative'
-  | 'update_creative'
-  | 'delete_creative'
-  | 'create_place'
-  | 'create_tag'
-  | 'to_moderation'
-  | 'approve'
-  | 'decline'
-  | 'activate'
-  | 'stop'
-  | 'delete_campaign'
+export type Confirmation = Schemas['ChatEventConfirmationRequired']
+export type ConfirmationChange = Schemas['ConfirmationChange']
+export type ChatStep = Schemas['ChatEventStep']
+export type ChatWarning = Schemas['ChatEventWarning']
+export type Suggestion = Schemas['SuggestionItem']
+export type ConfirmationAnswer = Schemas['ConfirmationBody']
+export type DraftValidation = Schemas['DraftValidation']
 
-export interface ConfirmationChange {
-  field: string
-  label: string
-  from: unknown
-  to: unknown
-}
-
-export interface Confirmation {
-  id: string
-  title: string
-  operations: { kind: OperationKind; label: string }[]
-  changes: ConfirmationChange[]
-}
-
-export interface ChatStep {
-  id: string
-  label: string
-  status: 'running' | 'done' | 'failed'
-}
-
-export interface Suggestion {
-  label: string
-  value: string
-}
+type DraftUpdated = { draft: CampaignDraft; validation: DraftValidation }
 
 export type ChatEvent =
-  | { event: 'message_delta'; data: { text: string } }
+  | { event: 'message_delta'; data: Schemas['ChatEventMessageDelta'] }
   | { event: 'step'; data: ChatStep }
-  | { event: 'suggestions'; data: { items: Suggestion[] } }
+  | { event: 'suggestions'; data: Schemas['ChatEventSuggestions'] }
   | { event: 'confirmation_required'; data: Confirmation }
-  | { event: 'draft_updated'; data: { draft: CampaignDraft; validation: CampaignValidation } }
-  | { event: 'campaign_updated'; data: { campaignId: number } }
-  | { event: 'error'; data: { code: string; message: string } }
-  | { event: 'done'; data: Record<string, never> }
+  | { event: 'draft_updated'; data: DraftUpdated }
+  | { event: 'campaign_updated'; data: Schemas['ChatEventCampaignUpdated'] }
+  | { event: 'warning'; data: ChatWarning }
+  | { event: 'error'; data: Schemas['ChatEventError'] }
+  | { event: 'done'; data: Schemas['ChatEventDone'] }
 
-export interface StoredChatMessage {
-  role: 'user' | 'assistant'
-  text: string
-}
-
-export interface ChatSession {
-  campaignId: number | null
-  messages: StoredChatMessage[]
-  draft: CampaignDraft | null
-  validation: CampaignValidation | null
-  pendingConfirmation: Confirmation | null
-}
-
-export type ConfirmationAnswer = { approved: true } | { approved: false; comment?: string }
+export type ChatSession = Omit<Schemas['SessionSnapshot'], 'draft'> & { draft: CampaignDraft | null }

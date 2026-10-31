@@ -1,11 +1,13 @@
-import { Check, CircleAlert, LoaderCircle, SendHorizontal, X } from 'lucide-react'
+import { Check, CircleAlert, Info, LoaderCircle, SendHorizontal, TriangleAlert, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, SyntheticEvent } from 'react'
-import { CHAT_IS_MOCK } from '@/api/chat'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import type { ChatStep } from '@/types/api'
+import type { ChatStep, ChatWarning, Dictionaries } from '@/types/api'
+import { ChatMarkdown } from './ChatMarkdown'
 import { ConfirmationCard } from './ConfirmationCard'
+import { ModerationBar } from './ModerationBar'
+import { SuggestionButton, Suggestions } from './Suggestions'
 import type { ChatMessage, useChat } from './useChat'
 
 // Бриф из §9 задания: с него начинается демо.
@@ -27,6 +29,20 @@ function Step({ step }: { step: ChatStep }) {
   )
 }
 
+function Warning({ warning }: { warning: ChatWarning }) {
+  const info = warning.severity === 'info'
+  const Icon = info ? Info : TriangleAlert
+  return (
+    <p className={cn('m-0 flex items-start gap-2 rounded-md px-3 py-2 text-[13px] leading-[18px] wrap-anywhere', info ? 'bg-info text-info-foreground' : 'bg-warning text-warning-foreground')}>
+      <Icon className="mt-px size-4 shrink-0" aria-hidden="true" />
+      <span>
+        <span className="font-medium">{info ? 'На заметку: ' : 'Предупреждение: '}</span>
+        {warning.message}
+      </span>
+    </p>
+  )
+}
+
 function Message({ message, thinking }: { message: ChatMessage; thinking: boolean }) {
   if (message.role === 'user') {
     return <p className="m-0 max-w-[85%] self-end rounded-lg bg-secondary px-3 py-2 text-sm leading-5 wrap-anywhere whitespace-pre-wrap text-secondary-foreground">{message.text}</p>
@@ -41,22 +57,22 @@ function Message({ message, thinking }: { message: ChatMessage; thinking: boolea
           ))}
         </ul>
       )}
-      {/* Текст приходит от LLM, поэтому выводим его только как текст */}
-      {message.text && <p className="m-0 text-sm leading-5 wrap-anywhere whitespace-pre-wrap">{message.text}</p>}
+      {message.text && <ChatMarkdown text={message.text} />}
+      {message.warnings.map((warning) => (
+        <Warning key={warning.message} warning={warning} />
+      ))}
       {thinking && <p className="m-0 text-[13px] leading-[18px] text-muted-foreground">Ассистент думает…</p>}
     </div>
   )
 }
 
-function SuggestionButton({ children, onClick }: { children: string; onClick: () => void }) {
-  return (
-    <Button variant="outline" className="h-auto min-h-11 py-2 text-left whitespace-normal" onClick={onClick}>
-      {children}
-    </Button>
-  )
+interface ChatPanelProps {
+  chat: ReturnType<typeof useChat>
+  dictionaries?: Dictionaries
+  awaitsModeration: boolean
 }
 
-export function ChatPanel({ chat }: { chat: ReturnType<typeof useChat> }) {
+export function ChatPanel({ chat, dictionaries, awaitsModeration }: ChatPanelProps) {
   const { busy, messages, suggestions, confirmation, error, send, answer, retry } = chat
   const [text, setText] = useState('')
   const log = useRef<HTMLDivElement>(null)
@@ -101,18 +117,11 @@ export function ChatPanel({ chat }: { chat: ReturnType<typeof useChat> }) {
         {messages.map((message, index) => (
           <Message key={index} message={message} thinking={thinking && index === messages.length - 1} />
         ))}
-        {suggestions.length > 0 && !busy && (
-          <div className="flex flex-wrap gap-2">
-            {suggestions.map((item) => (
-              <SuggestionButton key={item.value} onClick={() => submit(item.value)}>
-                {item.label}
-              </SuggestionButton>
-            ))}
-          </div>
-        )}
+        {suggestions.length > 0 && !busy && <Suggestions key={suggestions.map((item) => item.value).join()} items={suggestions} onSend={submit} />}
         {confirmation && !busy && (
           <ConfirmationCard
             confirmation={confirmation}
+            dictionaries={dictionaries}
             onApprove={() => {
               stickToBottom.current = true
               void answer(confirmation.id, { approved: true })
@@ -138,7 +147,11 @@ export function ChatPanel({ chat }: { chat: ReturnType<typeof useChat> }) {
         )}
       </div>
 
-      {CHAT_IS_MOCK && <p className="m-0 border-t px-3 py-2 text-xs leading-4 text-muted-foreground">Имитация ассистента: идёт по сценарию §9 и не читает бриф, но пишет через настоящий API.</p>}
+      {awaitsModeration && !confirmation && !busy && (
+        <div className="max-h-[60%] shrink-0 overflow-y-auto border-t p-3">
+          <ModerationBar onSend={submit} />
+        </div>
+      )}
       <form
         className="flex items-end gap-2 border-t p-3"
         onSubmit={(event) => {

@@ -62,6 +62,7 @@ class WarnArgs(BaseModel):
 class Suggestion(BaseModel):
     label: str = Field(description="Текст кнопки")
     value: str = Field(description="Текст, который уйдёт в чат при нажатии")
+    group: str | None = Field(None, description="Тема вопроса, например «Дата начала». Нужна, только если за раз спрашиваешь о нескольких темах")
 
 
 class SuggestArgs(BaseModel):

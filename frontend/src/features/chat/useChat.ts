@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useReducer, useRef } from 'react'
 import { answerChatConfirmation, createChatSession, getChatSession, retryChat, sendChatMessage } from '@/api/chat'
-import type { CampaignDraft, CampaignValidation, ChatEvent, ChatSession, ChatStep, Confirmation, ConfirmationAnswer, Suggestion } from '@/types/api'
+import type { CampaignDraft, ChatEvent, ChatSession, ChatStep, ChatWarning, Confirmation, ConfirmationAnswer, DraftValidation, Suggestion } from '@/types/api'
 
 const SESSION_KEY = 'adpilot.chat.session'
 const CONNECTION_ERROR = 'Не удалось получить ответ. Проверьте соединение и попробуйте ещё раз.'
@@ -10,6 +10,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant'
   text: string
   steps: ChatStep[]
+  warnings: ChatWarning[]
 }
 
 interface ChatError {
@@ -24,7 +25,7 @@ interface ChatState {
   suggestions: Suggestion[]
   confirmation: Confirmation | null
   draft: CampaignDraft | null
-  validation: CampaignValidation | null
+  validation: DraftValidation | null
   error: ChatError | null
 }
 
@@ -66,20 +67,28 @@ function applyEvent(state: ChatState, event: ChatEvent): ChatState {
         ...state,
         messages: updateAnswer(state.messages, (answer) => ({
           ...answer,
+          // Агент работает циклом: текст после шага — это уже следующий ответ модели.
+          text: answer.text && !answer.text.endsWith('\n') ? `${answer.text}\n\n` : answer.text,
           steps: answer.steps.some((step) => step.id === event.data.id)
             ? answer.steps.map((step) => (step.id === event.data.id ? event.data : step))
             : [...answer.steps, event.data],
         })),
       }
+    case 'warning':
+      return { ...state, messages: updateAnswer(state.messages, (answer) => ({ ...answer, warnings: [...answer.warnings, event.data] })) }
     case 'suggestions':
-      return { ...state, suggestions: event.data.items }
+      // За один ход агент может вызвать suggest_options несколько раз, поэтому варианты копим.
+      return {
+        ...state,
+        suggestions: [...state.suggestions, ...event.data.items.filter((item) => !state.suggestions.some((known) => known.value === item.value))],
+      }
     case 'confirmation_required':
       return { ...state, confirmation: event.data }
     case 'draft_updated':
       return { ...state, draft: event.data.draft, validation: event.data.validation }
     case 'campaign_updated':
       // Запись прошла: источник правды теперь API. Неподтверждённые правки придут следующим draft_updated.
-      return { ...state, campaignId: event.data.campaignId, draft: null, validation: null }
+      return { ...state, campaignId: event.data.campaignId ?? null, draft: null, validation: null }
     case 'error':
       return {
         ...state,
@@ -103,7 +112,7 @@ function reducer(state: ChatState, action: ChatAction): ChatState {
         ...EMPTY,
         busy: false,
         campaignId: action.session.campaignId,
-        messages: action.session.messages.map((message) => ({ role: message.role, text: message.text, steps: [] })),
+        messages: action.session.messages.map((message) => ({ role: message.role, text: message.text, steps: [], warnings: [] })),
         confirmation: action.session.pendingConfirmation,
         draft: action.session.draft,
         validation: action.session.validation,
@@ -113,14 +122,14 @@ function reducer(state: ChatState, action: ChatAction): ChatState {
     case 'start': {
       // При повторе ответ, оборвавшийся на ошибке, заменяется новым.
       const previous = action.retry && state.messages.at(-1)?.role === 'assistant' ? state.messages.slice(0, -1) : state.messages
-      const messages: ChatMessage[] = action.userText ? [...previous, { role: 'user', text: action.userText, steps: [] }] : previous
+      const messages: ChatMessage[] = action.userText ? [...previous, { role: 'user', text: action.userText, steps: [], warnings: [] }] : previous
       return {
         ...state,
         busy: true,
         error: null,
         suggestions: [],
         confirmation: null,
-        messages: [...messages, { role: 'assistant', text: '', steps: [] }],
+        messages: [...messages, { role: 'assistant', text: '', steps: [], warnings: [] }],
       }
     }
     case 'event':
@@ -167,7 +176,7 @@ export function useChat() {
           dispatch({ type: 'event', event })
           if (event.event === 'campaign_updated') {
             void queryClient.invalidateQueries({ queryKey: ['campaigns'] })
-            void queryClient.invalidateQueries({ queryKey: ['campaign', event.data.campaignId] })
+            void queryClient.invalidateQueries({ queryKey: ['campaign'] })
           }
         }
       } catch {

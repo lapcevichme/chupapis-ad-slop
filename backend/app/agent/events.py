@@ -21,6 +21,7 @@ class ChatEventStep(BaseModel):
 class SuggestionItem(BaseModel):
     label: str
     value: str
+    group: str | None = None
 
 
 class ChatEventSuggestions(BaseModel):

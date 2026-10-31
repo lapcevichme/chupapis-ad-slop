@@ -189,3 +189,14 @@ def test_invalid_banner_rejected_before_api(client, chat):
     tool_result = model.seen[-1][-1].content
     assert "BANNER_TITLE_TOO_LONG" in tool_result and "LINK_REQUIRED" in tool_result
     assert client.get(f"/chat/{sid}", headers=MANAGER).json()["pendingConfirmation"] is None
+
+
+def test_suggestions_keep_groups(client, chat):
+    items = [{"label": "5 ноября", "value": "С 5 ноября", "group": "Дата начала"}, {"label": "Главный экран", "value": "На главном", "group": "Место показа"}]
+    chat([tool_message(call("suggest_options", {"items": items}, 1)), AIMessage(content="Что выбираем?")])
+    sid = client.post("/chat", json={}, headers=MANAGER).json()["sessionId"]
+
+    reply = events(client.post(f"/chat/{sid}/messages", json={"text": "Бриф"}, headers=MANAGER))
+
+    suggestions = next(data for kind, data in reply if kind == "suggestions")
+    assert suggestions["items"] == items

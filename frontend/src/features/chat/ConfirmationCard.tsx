@@ -1,9 +1,10 @@
 import { CircleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import type { Confirmation, ConfirmationChange, OperationKind } from '@/types/api'
+import { formatDateTime } from '@/features/campaign/format'
+import type { Confirmation, ConfirmationChange, Dictionaries } from '@/types/api'
 
 // Глагол на кнопке называет действие. Опасные действия контурные: цвет сам по себе их не отличает.
-const ACTIONS: Partial<Record<OperationKind, { label: string; danger?: boolean }>> = {
+const ACTIONS: Record<string, { label: string; danger?: boolean }> = {
   delete_campaign: { label: 'Удалить кампанию', danger: true },
   stop: { label: 'Остановить показ', danger: true },
   decline: { label: 'Вернуть на правки', danger: true },
@@ -17,22 +18,37 @@ const ACTIONS: Partial<Record<OperationKind, { label: string; danger?: boolean }
 
 function primaryAction(confirmation: Confirmation) {
   const kinds = confirmation.operations.map((operation) => operation.kind)
-  const known = Object.entries(ACTIONS).find(([kind]) => kinds.includes(kind as OperationKind))
+  const known = Object.entries(ACTIONS).find(([kind]) => kinds.includes(kind))
   return known?.[1] ?? { label: 'Подтвердить', danger: false }
 }
 
-function formatValue(value: unknown) {
-  if (value === null || value === undefined || value === '') return 'не задано'
-  if (Array.isArray(value)) return value.join(', ')
+const AUDIENCE_LABELS: Record<string, string> = { ALL_USERS: 'Все пользователи', SEGMENTED: 'По сегментам' }
+
+function isEmpty(value: unknown) {
+  return value === null || value === undefined || value === '' || (Array.isArray(value) && value.length === 0)
+}
+
+// В changes приходят сырые значения полей: человек подтверждает запись, поэтому показываем ему названия из справочников.
+function formatValue(field: string, value: unknown, dictionaries?: Dictionaries): string {
+  if (isEmpty(value)) return 'не задано'
+  if (Array.isArray(value)) return value.map((item) => formatValue(field, item, dictionaries)).join(', ')
+  if (field === 'audienceType') return AUDIENCE_LABELS[String(value)] ?? String(value)
+  if (field === 'startDate' || field === 'endDate') return formatDateTime(String(value))
+  if (field === 'topic') return dictionaries?.topics.find((item) => item.value === value)?.label ?? String(value)
+  if (field === 'tags') return dictionaries?.tags.find((item) => item.id === value)?.name ?? String(value)
+  if (field === 'places') return dictionaries?.places.find((item) => item.id === value)?.description ?? String(value)
+  if (field.startsWith('segments.')) return dictionaries?.segments.find((item) => item.code === value)?.name ?? String(value)
   return typeof value === 'object' ? JSON.stringify(value) : String(value)
 }
 
-function Change({ change }: { change: ConfirmationChange }) {
+function Change({ change, dictionaries }: { change: ConfirmationChange; dictionaries?: Dictionaries }) {
+  const to = formatValue(change.field, change.to, dictionaries)
   return (
-    <div className="flex flex-col gap-0.5">
-      <dt className="text-xs leading-4 opacity-80">{change.label}</dt>
-      <dd className="m-0 text-[13px] leading-[18px] wrap-anywhere">
-        {formatValue(change.from)} → <span className="font-medium">{formatValue(change.to)}</span>
+    <div className="text-[13px] leading-[18px] wrap-anywhere">
+      <dt className="inline opacity-80">{change.label}: </dt>
+      <dd className="m-0 inline">
+        {!isEmpty(change.from) && <>{formatValue(change.field, change.from, dictionaries)} → </>}
+        <span className="font-medium">{to}</span>
       </dd>
     </div>
   )
@@ -40,12 +56,14 @@ function Change({ change }: { change: ConfirmationChange }) {
 
 interface ConfirmationCardProps {
   confirmation: Confirmation
+  dictionaries?: Dictionaries
   onApprove: () => void
   onReject: () => void
 }
 
-export function ConfirmationCard({ confirmation, onApprove, onReject }: ConfirmationCardProps) {
+export function ConfirmationCard({ confirmation, dictionaries, onApprove, onReject }: ConfirmationCardProps) {
   const action = primaryAction(confirmation)
+  const changes = confirmation.changes.filter((change) => !isEmpty(change.from) || !isEmpty(change.to))
   const toModeration = confirmation.operations.some((operation) => operation.kind === 'to_moderation')
 
   return (
@@ -60,10 +78,10 @@ export function ConfirmationCard({ confirmation, onApprove, onReject }: Confirma
           ))}
         </ul>
       )}
-      {confirmation.changes.length > 0 && (
-        <dl className="m-0 flex flex-col gap-2 border-t border-accent-foreground/30 pt-3">
-          {confirmation.changes.map((change) => (
-            <Change key={change.field} change={change} />
+      {changes.length > 0 && (
+        <dl className="m-0 flex flex-col gap-1 border-t border-accent-foreground/30 pt-3">
+          {changes.map((change) => (
+            <Change key={change.field} change={change} dictionaries={dictionaries} />
           ))}
         </dl>
       )}
