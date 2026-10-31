@@ -1,0 +1,37 @@
+# Бэкенд AdPilot на Fly.io. Деплой: `fly deploy --ha=false` из backend/ (в CI то же самое).
+app = "adpilot-ai-api"
+primary_region = "fra"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  # SQLite, checkpointer и картинки лежат на томе. БД одна, поэтому машина тоже одна.
+  DATABASE_URL = "sqlite:////app/data/adpilot.db"
+  LOG_JSON = "true"
+  # Фронт ходит через rewrite Vercel на тот же origin, CORS не нужен.
+
+[[mounts]]
+  source = "adpilot_data"
+  destination = "/app/data"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  # Демо не должно ждать холодного старта с миграциями.
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/health"
+    interval = "15s"
+    timeout = "5s"
+    # На старте идут миграции и сид.
+    grace_period = "30s"
+
+[[vm]]
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1

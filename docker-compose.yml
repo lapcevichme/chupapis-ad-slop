@@ -6,6 +6,8 @@ x-backend: &backend
       required: false
   environment:
     DATABASE_URL: sqlite:////app/data/adpilot.db
+    # Миграции делает сервис migrate, entrypoint их повторять не должен.
+    RUN_MIGRATIONS: "false"
   volumes:
     - backend-data:/app/data
 

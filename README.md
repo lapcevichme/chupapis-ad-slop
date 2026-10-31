@@ -27,6 +27,13 @@ make check
 сохранение, затем отправку на модерацию. Модератор `petrova.m` одобряет либо возвращает
 с комментарием. Правки и переходы журналируются; изображение не обязательно для сценария.
 
+## Деплой
+
+- Фронтенд: Vercel, проект `adpilot-ai`, https://adpilot-ai-navy.vercel.app. `frontend/vercel.json` проксирует `/api/*` на бэкенд, как dev-прокси Vite, поэтому CORS не нужен.
+- Бэкенд: Fly.io, приложение `adpilot-ai-api` (`backend/fly.toml`), https://adpilot-ai-api.fly.dev. SQLite, checkpointer и картинки лежат на томе `adpilot_data`, поэтому машина одна (`--ha=false`). Миграции и сид идут при старте контейнера.
+- Ключ модели задаётся один раз: `fly secrets set LLM_API_KEY=... -a adpilot-ai-api`. Остальные переменные — в `[env]` файла `fly.toml` или через `fly secrets set`.
+- Автодеплой: [.github/workflows/ci.yml](.github/workflows/ci.yml). На каждый PR и пуш идут линтеры, типы, тесты и сборка. После зелёного пуша в `main` деплоятся только изменившиеся части: сначала бэкенд, затем фронт. Нужны секреты репозитория `FLY_API_TOKEN` (`fly tokens create deploy -a adpilot-ai-api`), `VERCEL_TOKEN`, `VERCEL_ORG_ID` и `VERCEL_PROJECT_ID` (из `frontend/.vercel/project.json` после `vercel link`). Без них шаги деплоя пропускаются с предупреждением. Вручную: вкладка Actions → CI → Run workflow.
+
 ## Контекст и артефакты
 
 - [Навигация](docs/README.md), [статус проверок](docs/STATUS.md), [решения](docs/DECISIONS.md).
