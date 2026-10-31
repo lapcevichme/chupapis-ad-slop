@@ -6,8 +6,8 @@ import { ThemeToggle } from '@/features/campaign/ThemeToggle'
 import { Avatar } from '@/features/campaign/UserMenu'
 import { Orb } from '@/features/voice/Orb'
 
-// Размер буфера, а не вёрстки: на телефоне сфера маленькая, и большой шейдер ей не нужен.
-const ORB_SIZE = { phone: 260, desktop: 640 }
+// Размер буфера, а не вёрстки: на телефоне сфера маленькая, а на большом экране точки не должны расплываться.
+const ORB_SIZE = { phone: 260, desktop: 720 }
 const TYPING_LEVEL = 0.5
 const TYPING_DECAY_MS = 700
 
@@ -90,7 +90,7 @@ export function EntryPage({ onEnter }: EntryPageProps) {
         </div>
       </main>
       <div className="entry-orb">
-        <Orb key={String(dark)} mode="idle" dark={dark} compact={false} size={orbSize} getLevel={typingLevel} />
+        <Orb key={String(dark)} mode="idle" dark={dark} compact={false} size={orbSize} getLevel={typingLevel} dotsOnly />
       </div>
     </div>
   )

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { createPearl } from './orbPearl'
-import { createStars } from './orbStars'
+import { createStars, DOTS_ON_LIGHT } from './orbStars'
 
 export type OrbMode = 'idle' | 'listen' | 'think' | 'speak'
 export type OrbRenderer = (time: number, level: number, think: number, compact: boolean) => void
@@ -14,9 +14,11 @@ interface OrbProps {
   compact: boolean
   size: number
   getLevel: () => number
+  // Сфера из точек в обеих темах; по умолчанию в светлой теме Перламутр.
+  dotsOnly?: boolean
 }
 
-export function Orb({ mode, dark, compact, size, getLevel }: OrbProps) {
+export function Orb({ mode, dark, compact, size, getLevel, dotsOnly = false }: OrbProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const state = useRef({ mode, compact, getLevel })
 
@@ -35,7 +37,7 @@ export function Orb({ mode, dark, compact, size, getLevel }: OrbProps) {
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const render = dark ? createStars(canvas) : createPearl(canvas)
+    const render = dark ? createStars(canvas) : dotsOnly ? createStars(canvas, DOTS_ON_LIGHT) : createPearl(canvas)
     if (!render) return
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
     const started = performance.now()
@@ -59,7 +61,7 @@ export function Orb({ mode, dark, compact, size, getLevel }: OrbProps) {
     }
     frame = requestAnimationFrame(draw)
     return () => cancelAnimationFrame(frame)
-  }, [dark])
+  }, [dark, dotsOnly])
 
   return <canvas ref={canvasRef} className="block size-full" aria-hidden="true" />
 }
