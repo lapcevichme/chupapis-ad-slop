@@ -9,6 +9,19 @@ export const DOTS_ON_DARK = '236,239,232'
 // Цвет текста панели (--foreground светлой темы).
 export const DOTS_ON_LIGHT = '40,39,37'
 
+const IDLE_SPIN = 0.16
+// Радиус сферы как доля стороны холста.
+export const SPHERE_RADIUS = 0.4
+
+// Где окажется точка единичной сферы в момент t, если сфера не «думает»: x вправо, y вверх, z к зрителю.
+// Формула та же, что в цикле отрисовки ниже, чтобы закреплённое на сфере двигалось вместе с точками.
+export function spherePosition(x: number, y: number, z: number, t: number) {
+  const cos = Math.cos(t * IDLE_SPIN)
+  const sin = Math.sin(t * IDLE_SPIN)
+  const z2 = -x * sin + z * cos
+  return { x: x * cos + z * sin, y: y * TILT_COS - z2 * TILT_SIN, z: y * TILT_SIN + z2 * TILT_COS }
+}
+
 export function createStars(canvas: HTMLCanvasElement, color = DOTS_ON_DARK): OrbRenderer | null {
   const context = canvas.getContext('2d')
   if (!context) return null
@@ -22,10 +35,10 @@ export function createStars(canvas: HTMLCanvasElement, color = DOTS_ON_DARK): Or
 
   return (t, level, think, compact) => {
     const { width, height } = canvas
-    const radius = Math.min(width, height) * 0.4
+    const radius = Math.min(width, height) * SPHERE_RADIUS
     context.clearRect(0, 0, width, height)
     band += ((think > 0.5 ? 1 : 0) - band) * 0.05
-    const rotation = t * (0.16 + 0.35 * think)
+    const rotation = t * (IDLE_SPIN + 0.35 * think)
     const cos = Math.cos(rotation)
     const sin = Math.sin(rotation)
     // В плашке холст сжат в десять раз: мелкие точки исчезли бы, поэтому там они крупнее и реже.

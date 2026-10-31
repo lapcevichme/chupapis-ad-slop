@@ -7,6 +7,7 @@ export type OrbRenderer = (time: number, level: number, think: number, compact: 
 
 const MAX_CANVAS_PX = 720
 const RESTING_LEVEL: Record<OrbMode, number> = { idle: 0.06, listen: 0.08, think: 0.22, speak: 0.1 }
+const REDUCED_MOTION_TIME = 4
 
 interface OrbProps {
   mode: OrbMode
@@ -16,15 +17,19 @@ interface OrbProps {
   getLevel: () => number
   // Сфера из точек в обеих темах; по умолчанию в светлой теме Перламутр.
   dotsOnly?: boolean
+  // Множитель времени: всё движение сферы замедляется или ускоряется целиком.
+  speed?: number
+  // Вызывается на каждом кадре с тем же временем, что получила сфера.
+  onFrame?: (time: number) => void
 }
 
-export function Orb({ mode, dark, compact, size, getLevel, dotsOnly = false }: OrbProps) {
+export function Orb({ mode, dark, compact, size, getLevel, dotsOnly = false, speed = 1, onFrame }: OrbProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const state = useRef({ mode, compact, getLevel })
+  const state = useRef({ mode, compact, getLevel, onFrame })
 
   useEffect(() => {
-    state.current = { mode, compact, getLevel }
-  }, [mode, compact, getLevel])
+    state.current = { mode, compact, getLevel, onFrame }
+  }, [mode, compact, getLevel, onFrame])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -49,19 +54,24 @@ export function Orb({ mode, dark, compact, size, getLevel, dotsOnly = false }: O
       const target = Math.max(RESTING_LEVEL[current.mode], current.getLevel())
       level += (target - level) * (target > level ? 0.3 : 0.1)
       think += ((current.mode === 'think' ? 1 : 0) - think) * 0.05
-      render((now - started) / 1000, level, think, current.compact)
+      const time = ((now - started) / 1000) * speed
+      render(time, level, think, current.compact)
+      current.onFrame?.(time)
       frame = requestAnimationFrame(draw)
     }
     if (reduced) {
       // Без движения сфера стоит на месте, а состояние передаёт подпись рядом.
-      const redraw = () => render(4, 0.06, 0, state.current.compact)
+      const redraw = () => {
+        render(REDUCED_MOTION_TIME, 0.06, 0, state.current.compact)
+        state.current.onFrame?.(REDUCED_MOTION_TIME)
+      }
       redraw()
       const timer = setInterval(redraw, 500)
       return () => clearInterval(timer)
     }
     frame = requestAnimationFrame(draw)
     return () => cancelAnimationFrame(frame)
-  }, [dark, dotsOnly])
+  }, [dark, dotsOnly, speed])
 
   return <canvas ref={canvasRef} className="block size-full" aria-hidden="true" />
 }
