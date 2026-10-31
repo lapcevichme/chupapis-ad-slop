@@ -46,6 +46,8 @@ class VoiceAudio {
   private currentVolume = storedVolume()
   private microphone: AnalyserNode | null = null
   private microphoneSource: MediaStreamAudioSourceNode | null = null
+  private liveOutput: AnalyserNode | null = null
+  private liveOutputSource: MediaStreamAudioSourceNode | null = null
   private playing: AudioBufferSourceNode | null = null
   private abort: AbortController | null = null
   private cues = new Map<string, Promise<AudioBuffer>>()
@@ -186,10 +188,31 @@ class VoiceAudio {
     this.microphoneSource = null
   }
 
-  // Громкость 0..1 из того, что сейчас активно: микрофон или озвучка.
+  // Голос GPT-Live только измеряем: играет его элемент audio, см. liveSession.ts.
+  attachLiveOutput(stream: MediaStream) {
+    if (!this.context) return
+    this.liveOutputSource?.disconnect()
+    this.liveOutput ??= createAnalyser(this.context)
+    this.liveOutputSource = this.context.createMediaStreamSource(stream)
+    this.liveOutputSource.connect(this.liveOutput)
+  }
+
+  detachLive() {
+    this.liveOutputSource?.disconnect()
+    this.liveOutputSource = null
+    this.detachMicrophone()
+  }
+
+  // Громкость 0..1 из того, что сейчас активно: микрофон, озвучка или оба сразу в разговоре с GPT-Live.
   level() {
+    if (this.liveOutputSource && this.liveOutput) {
+      return Math.max(this.measure(this.liveOutput), this.microphoneSource && this.microphone ? this.measure(this.microphone) : 0)
+    }
     const analyser = this.microphoneSource ? this.microphone : this.playing ? this.output : null
-    if (!analyser) return 0
+    return analyser ? this.measure(analyser) : 0
+  }
+
+  private measure(analyser: AnalyserNode) {
     analyser.getByteTimeDomainData(this.samples.subarray(0, analyser.fftSize))
     let sum = 0
     for (let index = 0; index < analyser.fftSize; index++) {

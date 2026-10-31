@@ -1,4 +1,4 @@
-import { CircleAlert, LoaderCircle, Mic, Square, Volume2, VolumeX, X } from 'lucide-react'
+import { CircleAlert, LoaderCircle, Mic, MicOff, Square, Volume2, VolumeX, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
@@ -20,9 +20,14 @@ import { VoiceSummary } from './VoiceSummary'
 import { buildPages, discussionMessage, formatAnswers, mergeOptions } from './questionnaire'
 import type { Answers, QuestionPage } from './questionnaire'
 import { spokenText } from './spokenText'
+import { useLiveVoice } from './useLiveVoice'
 import { voiceAudio } from './voiceAudio'
 
 const MORE_CUE_DELAY_MS = 6000
+const LIVE_CONFIRM_REPORT = 'На экране карточка. Попроси проверить её и нажать кнопку: голосом запись не выполняется.'
+const LIVE_FORM_REPORT = 'На экране вопросы. Попроси ответить на них там.'
+const LIVE_FAILED_REPORT = 'Бэкенд не ответил, ничего не записано. Предложи повторить.'
+const LIVE_MORE_REPORT = 'Работа ещё идёт. Скажи об этом одной короткой фразой.'
 const PILL_ORB_PX = 36
 const PILL_WIDTH_PX = 340
 const PILL_TOP_PX = 12
@@ -89,18 +94,49 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, imageUp
   const recording = dictation.status === 'starting' || dictation.status === 'recording'
   const transcribing = dictation.status === 'transcribing'
 
+  const [micOpen, setMicOpen] = useState(true)
+  // «Сказать правку» убирает карточку только на время речи: сама карточка отклоняется, когда агент получит правку.
+  const [editing, setEditing] = useState(false)
+  const hasSheetContent = confirmation !== null || (questionnaire !== null && discussing === null)
+  const finished = campaignState === 'ON_MODERATION' && startState !== 'ON_MODERATION'
+  const acceptsSpeech = !finished && (!hasSheetContent || editing)
+  const handleLiveRequest = useCallback(
+    (text: string) => {
+      startedAt.current ??= Date.now()
+      handleText(text)
+    },
+    [handleText],
+  )
+  const live = useLiveVoice({
+    busy,
+    acceptsRequests: acceptsSpeech,
+    greet: messages.length === 0,
+    microphoneEnabled: micOpen && acceptsSpeech,
+    volume: muted ? 0 : volume,
+    onRequest: handleLiveRequest,
+  })
+  const { report: liveReport } = live
+  const liveActive = useRef(live.active)
   useEffect(() => {
-    if (!recording) voiceAudio.detachMicrophone()
-  }, [recording])
+    liveActive.current = live.active
+  })
+
+  useEffect(() => {
+    if (!recording && !live.active && live.status !== 'connecting') voiceAudio.detachMicrophone()
+  }, [recording, live.active, live.status])
+
+  useEffect(() => {
+    if (busy) setEditing(false)
+  }, [busy])
 
   const lastAnswer = messages.findLast((message) => message.role === 'assistant')
   const lastHeard = messages.findLast((message) => message.role === 'user')
   const startedEmpty = useRef(messages.length === 0)
   const waitCuePlayed = useRef(false)
   const wasBusy = useRef(busy)
-  const latest = useRef({ text: lastAnswer?.text ?? '', hasConfirmation: confirmation !== null, hasSuggestions: suggestions.length > 0 })
+  const latest = useRef({ text: lastAnswer?.text ?? '', hasConfirmation: confirmation !== null, hasSuggestions: suggestions.length > 0, failed: error !== null })
   useEffect(() => {
-    latest.current = { text: lastAnswer?.text ?? '', hasConfirmation: confirmation !== null, hasSuggestions: suggestions.length > 0 }
+    latest.current = { text: lastAnswer?.text ?? '', hasConfirmation: confirmation !== null, hasSuggestions: suggestions.length > 0, failed: error !== null }
   })
 
   useEffect(() => {
@@ -131,14 +167,29 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, imageUp
   }, [campaignState, startState])
 
   useEffect(() => {
-    // В уже начатом диалоге приветствие не к месту.
-    if (startedEmpty.current) void voiceAudio.cue('greet')
-    return () => voiceAudio.stop()
-  }, [])
+    // В уже начатом диалоге приветствие не к месту. GPT-Live здоровается сам, заготовка нужна только прежней схеме.
+    if (live.status === 'fallback' && startedEmpty.current) void voiceAudio.cue('greet')
+  }, [live.status])
+
+  useEffect(() => () => voiceAudio.stop(), [])
 
   useEffect(() => {
     if (busy === wasBusy.current) return
     wasBusy.current = busy
+    // В разговоре с GPT-Live говорит только модель: заготовка и озвучка наложились бы на её голос.
+    if (liveActive.current) {
+      if (busy) {
+        const timer = setTimeout(() => liveReport(LIVE_MORE_REPORT, false), MORE_CUE_DELAY_MS)
+        return () => clearTimeout(timer)
+      }
+      const { text, hasConfirmation, hasSuggestions, failed } = latest.current
+      const spoken = spokenText(text)
+      if (failed) liveReport(LIVE_FAILED_REPORT)
+      else if (hasConfirmation) liveReport(spoken ? `${spoken} ${LIVE_CONFIRM_REPORT}` : LIVE_CONFIRM_REPORT)
+      else if (spoken) liveReport(spoken)
+      else if (hasSuggestions) liveReport(LIVE_FORM_REPORT)
+      return
+    }
     if (busy) {
       if (!waitCuePlayed.current) void voiceAudio.cue('wait')
       waitCuePlayed.current = true
@@ -164,11 +215,17 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, imageUp
     } else {
       voiceAudio.stop()
     }
-  }, [busy])
+  }, [busy, liveReport])
 
   function talk() {
+    if (live.status === 'connecting') return
     setSheetHidden(false)
     startedAt.current ??= Date.now()
+    if (live.active) {
+      setEditing(false)
+      setMicOpen(!micOpen || editing)
+      return
+    }
     if (dictation.status === 'recording') {
       // Заглушка звучит сразу по нажатию: распознавание и агент займут ещё секунды.
       waitCuePlayed.current = true
@@ -189,11 +246,22 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, imageUp
     return () => removeEventListener('keydown', handleKey)
   }, [onClose])
 
+  // Открыть микрофон для правки или обсуждения пункта: в разговоре с GPT-Live запись уже идёт, поэтому не переключаем его.
+  function speakUp() {
+    if (!live.active) return talk()
+    setSheetHidden(false)
+    startedAt.current ??= Date.now()
+    setEditing(true)
+    setMicOpen(true)
+  }
+
+  const connecting = live.status === 'connecting'
   const waiting = busy || transcribing
-  const mode: OrbMode = recording ? 'listen' : waiting ? 'think' : speaking ? 'speak' : 'idle'
+  const liveListening = live.active && micOpen && !busy
+  const mode: OrbMode = recording || liveListening ? 'listen' : waiting ? 'think' : speaking ? 'speak' : 'idle'
   const settled = !recording && !waiting && !speaking
   const onModeration = settled && campaignState === 'ON_MODERATION' && startState !== 'ON_MODERATION'
-  const sheet = !settled || onModeration ? null : confirmation ? 'confirm' : questionnaire && discussing === null ? 'form' : null
+  const sheet = !settled || onModeration || editing ? null : confirmation ? 'confirm' : questionnaire && discussing === null ? 'form' : null
   const showPreview = settled && !onModeration && preview !== undefined
   const collapsed = sheet !== null || showPreview
 
@@ -210,7 +278,9 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, imageUp
     ? dictation.error
     : error
       ? error.message
-      : recording
+      : connecting
+        ? 'Подключаю голос'
+      : recording || (liveListening && !discussing)
         ? discussing
           ? `Слушаю: ${discussing}`
           : 'Слушаю'
@@ -226,10 +296,15 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, imageUp
                   ? 'Звук недоступен, отвечаю текстом'
                   : discussing
                     ? `Обсуждаем: ${discussing}`
-                    : 'Можно говорить'
+                    : live.active
+                      ? 'Микрофон выключен'
+                      : 'Можно говорить'
   const failed = Boolean(dictation.error || error)
   const pillText = sheet === 'confirm' ? 'Проверьте и подтвердите' : sheet === 'form' ? 'Жду ответы' : 'Можно говорить правки'
-  const talkLabel = dictation.status === 'starting' ? 'Включаю микрофон' : recording ? 'Закончить' : waiting ? 'Думаю…' : speaking ? 'Перебить' : 'Говорить'
+  const talkLabel = live.active
+    ? micOpen ? 'Выключить микрофон' : 'Включить микрофон'
+    : connecting ? 'Подключаю' : dictation.status === 'starting' ? 'Включаю микрофон' : recording ? 'Закончить' : waiting ? 'Думаю…' : speaking ? 'Перебить' : 'Говорить'
+  const talkBlocked = connecting || (!live.active && (waiting || dictation.status === 'starting'))
 
   const reply = lastAnswer?.text.trim()
   // Остальные шаги в разговоре ведёт агент, а кнопка рядом с его вопросом только сбивает.
@@ -252,8 +327,8 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, imageUp
           <div className="sticky bottom-0 mt-auto flex w-full max-w-110 shrink-0 flex-col gap-2 bg-background py-3 data-[sheet=true]:min-[900px]:hidden" data-sheet={sheet !== null}>
             {askNext && <NextStepBar step={nextStep} onSend={handleText} />}
             <Button variant="secondary" className="w-full" onClick={talk}>
-              <Mic aria-hidden="true" />
-              Сказать правку
+              {live.active && micOpen ? <MicOff aria-hidden="true" /> : <Mic aria-hidden="true" />}
+              {live.active && micOpen ? 'Выключить микрофон' : 'Сказать правку'}
             </Button>
           </div>
         </div>
@@ -302,10 +377,10 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, imageUp
                 autoFocus
                 variant={recording ? 'destructive' : 'default'}
                 className={cn('h-16 min-w-44 rounded-full px-7 font-semibold', recording && 'bg-destructive text-destructive-foreground hover:bg-destructive-hover')}
-                disabled={waiting || dictation.status === 'starting'}
+                disabled={talkBlocked}
                 onClick={talk}
               >
-                {waiting || dictation.status === 'starting' ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : recording ? <Square className="fill-current" aria-hidden="true" /> : <Mic aria-hidden="true" />}
+                {talkBlocked ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : live.active && micOpen ? <MicOff aria-hidden="true" /> : recording ? <Square className="fill-current" aria-hidden="true" /> : <Mic aria-hidden="true" />}
                 {talkLabel}
               </Button>
             )}
@@ -323,7 +398,7 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, imageUp
           )}
           {sheet === null && (
             <button type="button" onClick={talk} className={PILL_BUTTON}>
-              Говорить
+              {live.active ? (micOpen ? 'Выкл. микрофон' : 'Вкл. микрофон') : 'Говорить'}
             </button>
           )}
         </div>
@@ -359,7 +434,7 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, imageUp
               onDiscuss={(group) => {
                 setQuestionnaire((current) => current && { ...current, introPage: current.page })
                 startDiscussion(group)
-                talk()
+                speakUp()
               }}
               onSubmit={() => {
                 const text = formatAnswers(questionnaire.pages, questionnaire.answers)
@@ -383,7 +458,7 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, imageUp
                 onReject={() => void answer(confirmation.id, { approved: false, voice: true })}
                 hideEditHint
               />
-              <Button variant="secondary" onClick={talk}>
+              <Button variant="secondary" onClick={speakUp}>
                 <Mic aria-hidden="true" />
                 Сказать правку
               </Button>

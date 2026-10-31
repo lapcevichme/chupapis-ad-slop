@@ -32,3 +32,17 @@ export async function synthesizeSpeech(text: string, signal?: AbortSignal): Prom
   if (!response.ok) throw new Error(`POST /speech/synthesis: ${response.status}`)
   return response.arrayBuffer()
 }
+
+export async function createLiveVoiceSession(offerSdp: string): Promise<string> {
+  const response = await fetch('/api/speech/live/sessions', {
+    method: 'POST',
+    headers: { ...userHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sdp: offerSdp }),
+  })
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { errors?: ApiError[] } | null
+    throw new ApiRequestError(response.status, payload?.errors ?? [])
+  }
+  const { sdp } = (await response.json()) as { sdp: string }
+  return sdp
+}
