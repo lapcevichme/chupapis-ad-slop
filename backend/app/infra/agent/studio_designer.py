@@ -9,9 +9,7 @@ from app.infra.agent.prompts import load_prompt
 
 class StudioDesigner:
     def __init__(self, model: BaseChatModel) -> None:
-        self.model = model.bind_tools(
-            [StudioGenerationResult], tool_choice="StudioGenerationResult"
-        )
+        self.model = model.bind_tools([StudioGenerationResult], tool_choice="auto")
 
     async def generate(self, body: StudioGenerationBody) -> StudioGenerationResult:
         try:
