@@ -663,10 +663,15 @@ async def _run_ui_tool(
     if name == "suggest_options":
         suggestions = SuggestArgs.model_validate(raw)
         if suggestions.questions and not ctx.voice:
-            return "Ошибка: questions работают только в голосовом режиме, спроси текстом с вариантами."
+            return (
+                "Ошибка: questions работают только в голосовом режиме, спроси текстом с вариантами."
+            )
         ctx.emit(
             "suggestions",
-            {"items": [i.model_dump() for i in suggestions.items], "questions": suggestions.questions},
+            {
+                "items": [i.model_dump() for i in suggestions.items],
+                "questions": suggestions.questions,
+            },
         )
         return "Кнопки показаны. Дождись ответа пользователя."
     if name == "discard_pending":
