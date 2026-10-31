@@ -12,15 +12,16 @@ import { MicButton } from './MicButton'
 import { ModerationBar } from './ModerationBar'
 import { ModerationQueue } from './ModerationQueue'
 import { NextStepBar } from './NextStepBar'
-import { SuggestionButton, Suggestions } from './Suggestions'
+import { Suggestions } from './Suggestions'
+import { WelcomeTitle } from './WelcomeTitle'
 import type { ChatMessage, useChat } from './useChat'
 import { useDictation } from './useDictation'
 
 // Первый бриф из §9 задания: с него начинается демо.
 const EXAMPLE_BRIEFS = [
-  'Кампания по вкладу для клиентов 26–45 в Москве и СПб, промо на главном, ставка 16%, с 5 ноября до конца года',
-  'Смарт-баннер про кэшбэк по карте для всех пользователей на главном экране, с 10 ноября по 10 декабря',
-  'Сторис про страхование путешествий для клиентов из Москвы, с 1 по 31 декабря',
+  { label: 'Вклад под 16%', prompt: 'Кампания по вкладу для клиентов 26–45 в Москве и СПб, промо на главном, ставка 16%, с 5 ноября до конца года' },
+  { label: 'Кэшбэк по карте', prompt: 'Смарт-баннер про кэшбэк по карте для всех пользователей на главном экране, с 10 ноября по 10 декабря' },
+  { label: 'Страхование путешествий', prompt: 'Сторис про страхование путешествий для клиентов из Москвы, с 1 по 31 декабря' },
 ]
 
 const STICK_THRESHOLD_PX = 48
@@ -189,16 +190,12 @@ export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role
         {showQueue && <ModerationQueue campaigns={moderationQueue} onOpen={onOpenCampaign} />}
         {empty && !moderator && campaignId === null && (
           <div className="chat-welcome my-auto flex animate-rise flex-col gap-4">
-            <div className="flex flex-col gap-1">
-              <h1 className="m-0 text-xl leading-7 font-semibold">Давайте создадим яркую кампанию.</h1>
-              <p className="m-0 text-sm leading-5 text-muted-foreground">Расскажите о продукте. Соберём аудиторию, креативы и параметры — вы проверите результат перед сохранением.</p>
-            </div>
-            <div className="flex flex-col gap-2">
-              <span className="text-xs leading-4 text-muted-foreground">Например</span>
-              {EXAMPLE_BRIEFS.map((brief) => (
-                <SuggestionButton key={brief} onClick={() => submit(brief)}>
-                  {brief}
-                </SuggestionButton>
+            <WelcomeTitle text="Давайте создадим яркую кампанию." />
+            <div className="welcome-prompts" aria-label="Быстрые промпты">
+              {EXAMPLE_BRIEFS.map(({ label, prompt }) => (
+                <Button key={label} variant="outline" title={prompt} onClick={() => submit(prompt)}>
+                  {label}
+                </Button>
               ))}
             </div>
           </div>
