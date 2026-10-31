@@ -57,7 +57,7 @@ export function CreativePreview({ banner, bannerType, content }: CreativePreview
       </div>
 
       <div className="h-150 w-75 shrink-0 rounded-[2.5rem] bg-[#0B0D10] p-2.5">
-        <div className="h-full overflow-y-auto rounded-[2rem] bg-white">
+        <div className="h-full overflow-y-auto rounded-[2rem] bg-white [color-scheme:light]">
           {view === 'content' && content ? (
             <PromoPreview content={content.content} />
           ) : (

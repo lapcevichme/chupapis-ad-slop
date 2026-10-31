@@ -9,6 +9,7 @@ import type { EntityId } from '@/types/api'
 import { CampaignPassport } from './CampaignPassport'
 import { STATE_LABELS } from './format'
 import { StatusBadge } from './StatusBadge'
+import { ThemeToggle } from './ThemeToggle'
 
 const NEW_CAMPAIGN = ''
 const SELECT_CLASS =
@@ -105,6 +106,7 @@ export function CampaignWorkspace() {
               ))}
             </select>
           </div>
+          <ThemeToggle />
         </div>
       </header>
 
