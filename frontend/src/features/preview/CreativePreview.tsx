@@ -1,4 +1,5 @@
-import { LoaderCircle } from 'lucide-react'
+import { Dialog } from '@base-ui/react/dialog'
+import { ChevronDown, LoaderCircle, Maximize2, X } from 'lucide-react'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
@@ -6,6 +7,7 @@ import { Flash } from '@/features/campaign/Flash'
 import { cn } from '@/lib/utils'
 import type { Banner, BannerType, Content } from '@/types/api'
 import { BannerPreview } from './BannerPreview'
+import { FitPhone } from './FitPhone'
 import { PromoPreview } from './PromoPreview'
 import { SMART_BANNER_SIZES, type SmartBannerSize } from './smartBannerSizes'
 
@@ -30,7 +32,7 @@ function PhoneFrame({ children }: { children: ReactNode }) {
 // idle: креатива пока нет и никто его не собирает, поэтому заглушка стоит на месте.
 export function DesignPlaceholder({ label, idle = false }: { label: string; idle?: boolean }) {
   return (
-    <PhoneFrame>
+    <FitPhone><PhoneFrame>
       <div role={idle ? undefined : 'status'} className="flex h-full flex-col justify-end gap-3 p-4 text-sm leading-5 text-black/60">
         <div aria-hidden="true" className={cn('flex flex-col gap-2', !idle && 'animate-pulse')}>
           <div className="h-7 w-4/5 rounded-md bg-black/10" />
@@ -43,7 +45,7 @@ export function DesignPlaceholder({ label, idle = false }: { label: string; idle
           {label}
         </p>
       </div>
-    </PhoneFrame>
+    </PhoneFrame></FitPhone>
   )
 }
 
@@ -82,16 +84,33 @@ export function CreativePreview({ banner, bannerType, content, status }: Creativ
   const view = content ? requestedView : 'banner'
   const { title, text, actionType, link } = banner.content
   const linkText = link?.iOS ?? link?.android ?? link?.web
+  const phone = (
+    <Flash value={JSON.stringify([banner.content, content?.content])} className="shrink-0 rounded-[2.5rem]" overlayClassName="inset-0 rounded-[inherit] animate-flash-ring">
+      <PhoneFrame>
+        {view === 'content' && content ? (
+          <PromoPreview content={content.content} />
+        ) : (
+          <BannerPreview content={banner.content} type={bannerType.code} size={size} onOpen={content ? () => setRequestedView('content') : undefined} />
+        )}
+      </PhoneFrame>
+    </Flash>
+  )
 
   return (
-    <div className="flex w-full max-w-80 flex-col items-center gap-4">
-      <div className="flex w-full gap-1" role="group" aria-label="Что показать в телефоне">
+    <Dialog.Root>
+    <div className="creative-preview">
+      <div className="preview-toolbar">
+      <div className="flex min-w-0 flex-1 gap-1" role="group" aria-label="Что показать в телефоне">
         <ViewTab selected={view === 'banner'} onClick={() => setRequestedView('banner')}>
           Баннер
         </ViewTab>
         <ViewTab selected={view === 'content'} disabled={!content} onClick={() => setRequestedView('content')}>
           Промо-экран
         </ViewTab>
+      </div>
+      <Dialog.Trigger render={<Button size="icon" variant="ghost" />} aria-label="Увеличить превью" title="Увеличить превью">
+        <Maximize2 aria-hidden="true" />
+      </Dialog.Trigger>
       </div>
 
       {bannerType.code === 'SMART_BANNER' && view === 'banner' && (
@@ -118,21 +137,10 @@ export function CreativePreview({ banner, bannerType, content, status }: Creativ
         </p>
       )}
 
-      <Flash value={JSON.stringify([banner.content, content?.content])} className="shrink-0 rounded-[2.5rem]" overlayClassName="inset-0 rounded-[inherit] animate-flash-ring">
-        <PhoneFrame>
-          {view === 'content' && content ? (
-            <PromoPreview content={content.content} />
-          ) : (
-            <BannerPreview
-              content={banner.content}
-              type={bannerType.code}
-              size={size}
-              onOpen={content ? () => setRequestedView('content') : undefined}
-            />
-          )}
-        </PhoneFrame>
-      </Flash>
+      <FitPhone>{phone}</FitPhone>
 
+      <details className="preview-inspector">
+      <summary>О креативе<span>{bannerType.description}</span><ChevronDown size={14} aria-hidden="true" /></summary>
       <dl className="m-0 flex w-full flex-col gap-1 text-[13px] leading-[18px]">
         <div className="flex justify-between gap-4">
           <dt className="text-muted-foreground">Формат</dt>
@@ -151,6 +159,18 @@ export function CreativePreview({ banner, bannerType, content, status }: Creativ
           </div>
         )}
       </dl>
+      </details>
     </div>
+    <Dialog.Portal>
+      <Dialog.Backdrop className="preview-dialog-backdrop" />
+      <Dialog.Popup className="preview-dialog">
+        <div className="preview-dialog-heading">
+          <Dialog.Title className="text-sm font-medium">{view === 'content' ? 'Промо-экран' : 'Баннер'} · 100%</Dialog.Title>
+          <Dialog.Close render={<Button size="icon" variant="ghost" />} aria-label="Закрыть увеличенное превью"><X aria-hidden="true" /></Dialog.Close>
+        </div>
+        <div className="preview-full-size">{phone}</div>
+      </Dialog.Popup>
+    </Dialog.Portal>
+    </Dialog.Root>
   )
 }

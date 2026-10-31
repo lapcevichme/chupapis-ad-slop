@@ -149,15 +149,15 @@ export function CampaignWorkspace() {
           </div>
         </header>
         <div className="pilot-stage">
-          {hasResult && <main className="campaign-canvas" aria-label="Рабочая область кампании">
-            <div className="canvas-heading"><div><p className="canvas-state">{saved ? 'Кампания' : 'Ваш новый черновик'}{saved?.published ? ' · Показ идёт' : ''}</p><h1>{details?.name ?? 'Собираем кампанию'}</h1><p className="canvas-description">{chat.confirmation ? 'Проверьте результат и состав изменений перед подтверждением.' : 'Ваш оффер, аудитория и креативы — в одном месте.'}</p></div><ArrowUpRight className="canvas-heading-mark" aria-hidden="true" /></div>
+          {hasResult && <main className="campaign-canvas" data-pane={pane} aria-label="Рабочая область кампании">
+            <div className="canvas-heading"><div><p className="canvas-state">{saved ? 'Кампания' : 'Ваш новый черновик'}{saved?.published ? ' · Показ идёт' : ''}</p><h1>{details?.name ?? 'Собираем кампанию'}</h1>{(pane !== 'creative' || chat.confirmation) && <p className="canvas-description">{chat.confirmation ? 'Проверьте результат и состав изменений перед подтверждением.' : 'Ваш оффер, аудитория и креативы — в одном месте.'}</p>}</div><ArrowUpRight className="canvas-heading-mark" aria-hidden="true" /></div>
             <nav className="canvas-tabs" aria-label="Разделы кампании">{([['creative','Креативы'],['details','Параметры'],['history','Проверка и история']] as const).map(([id,label]) => <button key={id} aria-pressed={pane === id} onClick={() => setPane(id)}>{label}{id === 'creative' && banners.length > 0 && <span>{banners.length}</span>}</button>)}</nav>
             <div className="canvas-content">
               {failed && <div role="alert" className="workspace-error"><p>Не удалось загрузить часть данных.</p><Button variant="outline" onClick={() => {void campaign.refetch(); void warnings.refetch(); void dictionaries.refetch()}}>Повторить загрузку</Button></div>}
               {pane === 'creative' && <><div className="creative-gallery">
                 {creativeSelector}
                 <section className="creative-stage" aria-label="Превью">{banner && bannerType ? <CreativePreview key={banner.id} banner={banner} bannerType={bannerType} content={content} status={designStep?.label} /> : <DesignPlaceholder idle={!designStep} label={designStep?.label ?? 'Креатив появится здесь. Попросите ассистента собрать баннер.'} />}</section>
-              </div><div className="canvas-footer"><LayoutGrid size={16} aria-hidden="true" /><span>Превью для клиента</span><button onClick={() => setPane('details')}>Посмотреть параметры <ArrowUpRight size={15} /></button></div>{validation && <div className="canvas-validation"><ValidationSummary validation={validation} /></div>}</>}
+              </div>{validation && <div className="canvas-validation"><ValidationSummary validation={validation} /></div>}</>}
               {pane === 'details' && details && dictionaries.data && <div className="passport-sheet"><CampaignPassport key={campaignId ?? NEW_CAMPAIGN} campaign={details} dictionaries={dictionaries.data} selectedBannerId={banner?.id} onSelectBanner={(id) => {setRequestedBannerId(id); setPane('creative')}} edit={edit} /></div>}
               {pane === 'history' && details && <CampaignLifecycle key={`lifecycle-${saved?.id ?? NEW_CAMPAIGN}`} state={saved?.state ?? 'DRAFT'} audit={saved && audit.data} validation={validation} />}
             </div>
