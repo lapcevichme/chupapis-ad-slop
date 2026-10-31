@@ -1,84 +1,163 @@
-// Примеры акций на сфере. Тексты и цвета без изменений взяты из выданных моков:
-// case/Кейс1/mocks/campaign_banners.json, id в поле source. Картинки не берём: их адреса синтетические и не открываются.
-export interface SphereExample {
+import type { SmartBannerSize } from '@/features/preview/smartBannerSizes'
+import type { BannerContent, PromoContent } from '@/types/api'
+
+// Примеры акций на сфере: все типы креативов сервиса. Тексты, размеры и цвета без изменений взяты из выданных моков
+// (case/Кейс1/mocks/campaign_banners.json и campaign_contents.json, id в поле source). Адреса картинок в моках не открываются,
+// поэтому картинки сгенерированы моделью IMAGE_MODEL по правилам prompts/design.md и лежат в frontend/public/entry.
+interface ExampleBase {
   source: number
+  label: string
   title: string
-  text: string
-  buttonName?: string
   background: string
   titleColor: string
-  textColor: string
+  image: string
   // Долгота и широта точки крепления на сфере, в градусах.
   longitude: number
   latitude: number
 }
 
+export type SphereExample = ExampleBase &
+  (
+    | { kind: 'story'; banner: BannerContent }
+    | { kind: SmartBannerSize; banner: BannerContent }
+    | { kind: 'promo'; promo: PromoContent }
+  )
+
 // Три уровня широты: соседние по долготе карточки не наезжают друг на друга, даже когда сфера маленькая.
 const LATITUDES = { upper: 48, middle: 8, lower: -32 }
+const SMART_BANNER = 'Смарт-баннер'
 
 export const SPHERE_EXAMPLES: SphereExample[] = [
   {
     source: 205,
+    kind: 'story',
+    label: 'История',
     title: 'Кэшбэк 5% на отели',
-    text: 'Бронируйте путешествия в приложении до 15 ноября',
-    buttonName: 'Выбрать отель',
     background: '#7A00E6FF',
     titleColor: '#FFFFFFFF',
-    textColor: '#FFFFFFFF',
-    longitude: 50,
-    latitude: LATITUDES.upper,
-  },
-  {
-    source: 207,
-    title: 'Страховка в поездку',
-    text: 'Оформите полис за 2 минуты перед отпуском',
-    buttonName: 'Оформить',
-    background: '#E6F7EEFF',
-    titleColor: '#000014FF',
-    textColor: '#00001499',
-    longitude: 110,
+    image: '/entry/hotels.webp',
+    longitude: 58,
     latitude: LATITUDES.middle,
-  },
-  {
-    source: 210,
-    title: 'Автокредит от 7,9%',
-    text: 'Одобрение за 2 минуты, первый взнос от 10%',
-    background: '#003BF8FF',
-    titleColor: '#FFFFFFFF',
-    textColor: '#FFFFFFFF',
-    longitude: 170,
-    latitude: LATITUDES.lower,
+    banner: {
+      title: 'Кэшбэк 5% на отели',
+      titleStyle: { fontSize: 22, fontWeight: 'bold', textColor: '#FFFFFFFF' },
+      text: 'Бронируйте путешествия в приложении до 15 ноября',
+      textStyle: { fontSize: 14, fontWeight: 'regular', textColor: '#FFFFFFFF' },
+      background: { color: '#7A00E6FF' },
+      image: { url: '/entry/hotels.webp' },
+      buttonName: 'Выбрать отель',
+      actionType: 'externalLink',
+      voiceOver: 'История: кэшбэк пять процентов на отели',
+    },
   },
   {
     source: 214,
+    kind: 'strip',
+    label: `${SMART_BANNER}, платежи`,
     title: 'Переводы без комиссии',
-    text: 'До 100 000 ₽ в месяц на любые карты',
-    buttonName: 'Перевести',
     background: '#E8FAFFFF',
     titleColor: '#000014FF',
-    textColor: '#00001499',
-    longitude: 230,
+    image: '/entry/transfers.webp',
+    longitude: 118,
     latitude: LATITUDES.upper,
+    banner: {
+      title: 'Переводы без комиссии',
+      titleStyle: { fontSize: 15, fontWeight: 'medium', textColor: '#000014FF' },
+      text: 'До 100 000 ₽ в месяц на любые карты',
+      textStyle: { fontSize: 13, fontWeight: 'regular', textColor: '#00001499' },
+      background: { color: '#E8FAFFFF' },
+      image: { url: '/entry/transfers.webp' },
+      buttonName: 'Перевести',
+      actionType: 'externalLink',
+    },
   },
   {
-    source: 211,
-    title: 'Зимний марафон скидок',
-    text: '12 дней, новые категории каждый день',
-    buttonName: 'Участвовать',
-    background: '#24009EFF',
-    titleColor: '#FFFFFFFF',
-    textColor: '#FFFFFFFF',
-    longitude: 290,
-    latitude: LATITUDES.middle,
+    source: 307,
+    kind: 'promo',
+    label: 'Промо-экран',
+    title: 'Автокредит: ставка от 7,9%',
+    background: '#F0F4FFFF',
+    titleColor: '#000014FF',
+    image: '/entry/car.webp',
+    longitude: 178,
+    latitude: LATITUDES.lower,
+    promo: {
+      role: 'promo',
+      component: {
+        role: 'linearContainer',
+        axis: 'v',
+        aligns: 'lt',
+        style: { backgroundColor: '#F0F4FFFF' },
+        components: [
+          { role: 'text', format: 'none', text: 'Автокредит: ставка от 7,9%', textStyle: { fontSize: 22, fontWeight: 'bold', textColor: '#000014FF' } },
+          { role: 'text', format: 'none', text: 'Одобрение за 2 минуты, первый взнос от 10%, срок до 7 лет', textStyle: { fontSize: 14, fontWeight: 'regular', textColor: '#00001499' } },
+          { role: 'image', url: '/entry/car.webp', aspectRatio: 1.8 },
+          { role: 'button', text: 'Рассчитать кредит', actionType: 'externalLink', textStyle: { fontSize: 15, fontWeight: 'medium', textColor: '#FFFFFFFF' }, style: { backgroundColor: '#003BF8FF' } },
+        ],
+      },
+    },
   },
   {
     source: 215,
+    kind: 'tile',
+    label: `${SMART_BANNER}, каталог`,
     title: 'Подписка на фильмы',
-    text: 'Первый месяц за 1 ₽ — тысячи фильмов и сериалов',
     background: '#F3E8FFFF',
     titleColor: '#000014FF',
-    textColor: '#00001499',
-    longitude: 350,
+    image: '/entry/movies.webp',
+    longitude: 238,
+    latitude: LATITUDES.middle,
+    banner: {
+      title: 'Подписка на фильмы',
+      titleStyle: { fontSize: 15, fontWeight: 'medium', textColor: '#000014FF' },
+      text: 'Первый месяц за 1 ₽ — тысячи фильмов и сериалов',
+      textStyle: { fontSize: 13, fontWeight: 'regular', textColor: '#00001499' },
+      background: { color: '#F3E8FFFF' },
+      image: { url: '/entry/movies.webp' },
+      actionType: 'default',
+    },
+  },
+  {
+    source: 211,
+    kind: 'story',
+    label: 'История',
+    title: 'Зимний марафон скидок',
+    background: '#24009EFF',
+    titleColor: '#FFFFFFFF',
+    image: '/entry/marathon.webp',
+    longitude: 298,
+    latitude: LATITUDES.upper,
+    banner: {
+      title: 'Зимний марафон скидок',
+      titleStyle: { fontSize: 26, fontWeight: 'bold', textColor: '#FFFFFFFF' },
+      text: '12 дней, новые категории каждый день',
+      textStyle: { fontSize: 14, fontWeight: 'medium', textColor: '#FFFFFFFF' },
+      background: { color: '#24009EFF' },
+      image: { url: '/entry/marathon.webp' },
+      buttonName: 'Участвовать',
+      actionType: 'externalLink',
+      voiceOver: 'История: зимний марафон скидок, двенадцать дней',
+    },
+  },
+  {
+    source: 207,
+    kind: 'card',
+    label: `${SMART_BANNER}, главная`,
+    title: 'Страховка в поездку',
+    background: '#E6F7EEFF',
+    titleColor: '#000014FF',
+    image: '/entry/insurance.webp',
+    longitude: 358,
     latitude: LATITUDES.lower,
+    banner: {
+      title: 'Страховка в поездку',
+      titleStyle: { fontSize: 16, fontWeight: 'medium', textColor: '#000014FF' },
+      text: 'Оформите полис за 2 минуты перед отпуском',
+      textStyle: { fontSize: 13, fontWeight: 'regular', textColor: '#00001499' },
+      background: { color: '#E6F7EEFF' },
+      image: { url: '/entry/insurance.webp' },
+      buttonName: 'Оформить',
+      actionType: 'externalLink',
+    },
   },
 ]

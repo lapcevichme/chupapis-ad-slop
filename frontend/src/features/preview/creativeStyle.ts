@@ -23,10 +23,12 @@ export function textStyleToCss(style?: AnyTextStyle): CSSProperties {
 
 // Сгенерированные картинки бэкенд раздаёт сам: они идут через тот же прокси /api (docs/contracts/chat.md, раздел 8).
 const MEDIA_PREFIX = '/api/media/'
+// Картинки примеров на странице входа лежат в frontend/public.
+const ENTRY_EXAMPLES_PREFIX = '/entry/'
 
 export function isImageUrl(url?: string | null): url is string {
   if (!url) return false
-  if (url.startsWith(MEDIA_PREFIX)) return true
+  if (url.startsWith(MEDIA_PREFIX) || url.startsWith(ENTRY_EXAMPLES_PREFIX)) return true
   try {
     return new URL(url).protocol === 'https:'
   } catch {

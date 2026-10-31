@@ -176,7 +176,8 @@ function AppScreen({ size, children }: { size: SmartBannerSize; children: ReactN
   )
 }
 
-export function BannerPreview({ content, type, size = 'card', onOpen }: BannerPreviewProps) {
+// Сам креатив, без условного экрана приложения вокруг смарт-баннера.
+export function BannerCreative({ content, type, size = 'card', onOpen }: BannerPreviewProps) {
   const isStory = type === 'STORY'
   const body = isStory ? <StoryBody content={content} /> : <SmartBannerBody content={content} size={size} />
   const style = { background: content.background?.color ?? DEFAULT_BACKGROUND, color: DEFAULT_TEXT }
@@ -184,7 +185,7 @@ export function BannerPreview({ content, type, size = 'card', onOpen }: BannerPr
     ? 'flex min-h-full w-full flex-col'
     : `block w-full shrink-0 overflow-hidden shadow-sm ${size === 'strip' ? 'rounded-xl' : 'rounded-2xl'}`
 
-  const banner = onOpen ? (
+  return onOpen ? (
     <button type="button" onClick={onOpen} aria-label={content.voiceOver ?? undefined} className={`${className} cursor-pointer`} style={style}>
       {body}
     </button>
@@ -194,6 +195,10 @@ export function BannerPreview({ content, type, size = 'card', onOpen }: BannerPr
     </div>
   )
 
-  if (isStory) return banner
-  return <AppScreen size={size}>{banner}</AppScreen>
+}
+
+export function BannerPreview(props: BannerPreviewProps) {
+  const banner = <BannerCreative {...props} />
+  if (props.type === 'STORY') return banner
+  return <AppScreen size={props.size ?? 'card'}>{banner}</AppScreen>
 }
