@@ -68,7 +68,8 @@ class Suggestion(BaseModel):
 
 
 class SuggestArgs(BaseModel):
-    items: list[Suggestion] = Field(min_length=1, max_length=8)
+    # Несколько групп по 2–4 варианта: время, место, тема, исключения.
+    items: list[Suggestion] = Field(min_length=1, max_length=16)
 
 
 class DesignArgs(BaseModel):
@@ -325,6 +326,14 @@ async def run_tool(ctx: ToolContext, name: str, raw: dict[str, Any], progress: C
     if name in WRITE_OPS_BY_TOOL:
         return await _propose(ctx, WRITE_OPS_BY_TOOL[name], raw)
 
+    try:
+        return await _run_ui_tool(ctx, name, raw, progress)
+    except ValidationError as exc:
+        # Битые аргументы служебного инструмента возвращаем модели, а не роняем ход.
+        return _errors_text(map_pydantic_errors(exc.errors()))
+
+
+async def _run_ui_tool(ctx: ToolContext, name: str, raw: dict[str, Any], progress: Callable[[str], None]) -> str:
     if name == "warn_user":
         args = WarnArgs.model_validate(raw)
         ctx.emit("warning", args.model_dump())
@@ -340,9 +349,5 @@ async def run_tool(ctx: ToolContext, name: str, raw: dict[str, Any], progress: C
         ctx.draft_changed = True
         return f"Убрано операций: {before - len(ctx.pending)}. В пакете осталось: {len(ctx.pending)}."
     if name == "design_creative":
-        try:
-            args = DesignArgs.model_validate(raw)
-        except ValidationError as exc:
-            return _errors_text(map_pydantic_errors(exc.errors()))
-        return await _design(ctx, args, progress)
+        return await _design(ctx, DesignArgs.model_validate(raw), progress)
     return f"Ошибка: инструмента {name} нет"

@@ -333,3 +333,13 @@ def test_request_prefix_is_stable_for_prompt_cache(client, chat):
     # Точка кеша на последнем сообщении истории, а не на изменчивой заметке.
     assert second[-2].content[-1]["cache_control"] == CACHE_CONTROL and isinstance(second[-1].content, str)
     assert _text_of(second[1]) == _text_of(first[1]) and _text_of(second[2]) == "Кампания на модерации."
+
+
+def test_bad_tool_arguments_go_back_to_model(client, chat):
+    # Раньше лишняя кнопка роняла весь ход с AGENT_FAILED.
+    items = [{"label": str(i), "value": str(i)} for i in range(20)]
+    model = chat([tool_message(call("suggest_options", {"items": items}, 1)), AIMessage(content="Сократил варианты.")])
+    sid = client.post("/chat", json={}, headers=MANAGER).json()["sessionId"]
+    reply = events(client.post(f"/chat/{sid}/messages", json={"text": "Вклад"}, headers=MANAGER))
+    assert "error" not in [kind for kind, _ in reply]
+    assert "Ошибка проверки" in _text_of(next(m for m in reversed(model.seen[-1]) if isinstance(m, ToolMessage)))

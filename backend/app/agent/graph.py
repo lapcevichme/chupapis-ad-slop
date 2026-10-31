@@ -131,8 +131,8 @@ def _context_note(state: AgentState, config: RunnableConfig, reminder: str | Non
     draft = apply_operations(base, pending)
     if draft:
         lines.append(
-            "Черновик (то, что видит пользователь в превью). Неподтверждённые операции пакета в нём уже применены, "
-            "поэтому совпадение черновика с твоей правкой не значит, что правка сохранена:"
+            "Черновик (то, что видит пользователь в превью): настоящие данные кампании из API плюс неподтверждённые операции пакета. "
+            "Совпадение черновика с твоей правкой не значит, что правка сохранена. Поля, которые ты не менял, — реальные данные кампании, а не твои предположения:"
         )
         lines.append(json.dumps(draft, ensure_ascii=False, default=str))
     if reminder:
@@ -184,8 +184,6 @@ def build_graph(deps: AgentDeps, checkpointer):
                     ctx.counter += 1
                     awaiting = _awaiting(ctx.counter, call["args"].get("title"), ctx.base, ctx.pending, call["id"])
                     continue
-                if call["name"] == "suggest_options":
-                    asked = True
 
                 label = step_label(call["name"])
                 step_id = call["id"]
@@ -203,6 +201,8 @@ def build_graph(deps: AgentDeps, checkpointer):
                 if label:
                     writer({"event": "step", "data": {"id": step_id, "label": label, "status": status}})
                 replies.append(ToolMessage(content, tool_call_id=call["id"], name=call["name"]))
+                if call["name"] == "suggest_options" and status == "done":
+                    asked = True
 
             if ctx.draft_changed:
                 draft, validation = await draft_report(client, {**state, "pending": ctx.pending})

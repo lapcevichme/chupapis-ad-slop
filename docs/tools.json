@@ -2800,7 +2800,7 @@
               "items": {
                 "$ref": "#/$defs/Suggestion"
               },
-              "maxItems": 8,
+              "maxItems": 16,
               "minItems": 1,
               "title": "Items",
               "type": "array"
