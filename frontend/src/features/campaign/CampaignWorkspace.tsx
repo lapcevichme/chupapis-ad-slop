@@ -1,16 +1,17 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { getCampaign, getCampaignAudit, getCampaignWarnings, getDictionaries, listCampaigns } from '@/api/campaigns'
 import { getCurrentUser, setCurrentUser, USERS } from '@/api/currentUser'
+import { Button } from '@/components/ui/button'
 import { ChatPanel } from '@/features/chat/ChatPanel'
 import { useChat } from '@/features/chat/useChat'
 import { CreativePreview, DesignPlaceholder } from '@/features/preview/CreativePreview'
 import type { EntityId } from '@/types/api'
 import { CampaignLifecycle } from './CampaignLifecycle'
 import { CampaignPassport } from './CampaignPassport'
-import { STATE_LABELS } from './format'
+import { CampaignPicker } from './CampaignPicker'
 import { managerNextStep } from './nextStep'
-import { StatusBadge } from './StatusBadge'
 import { ThemeToggle } from './ThemeToggle'
 
 const NEW_CAMPAIGN = ''
@@ -62,40 +63,32 @@ export function CampaignWorkspace() {
   const nextStep = role === 'campaignManager' && saved && warnings.data ? managerNextStep(saved.state, warnings.data.errors.length > 0) : null
   const designStep = chat.messages.at(-1)?.steps.find((step) => step.status === 'running' && DESIGN_STEP.test(step.label))
 
+  function openCampaign(id: number | null) {
+    setRequestedBannerId(undefined)
+    void chat.open(id)
+  }
+
   return (
     <div className="flex min-h-screen flex-col xl:h-dvh">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b bg-card px-6 py-3">
         <div className="flex min-w-0 flex-wrap items-center gap-4">
           <strong className="text-base font-bold text-accent-foreground">AdPilot AI</strong>
-          {details?.name && <span className="text-sm leading-5 wrap-anywhere">{details.name}</span>}
-          {saved && <StatusBadge state={saved.state} />}
-          {!saved && chat.draft && <span className="text-[13px] leading-[18px] text-muted-foreground">Не сохранена</span>}
+          <CampaignPicker
+            campaigns={campaigns.data ?? []}
+            currentId={campaignId}
+            name={details?.name}
+            state={saved?.state}
+            role={role}
+            disabled={chat.busy}
+            onSelect={openCampaign}
+          />
+          <Button variant="outline" disabled={chat.busy || (campaignId === null && !chat.draft && chat.messages.length === 0)} onClick={() => openCampaign(null)}>
+            <Plus aria-hidden="true" />
+            Новая
+          </Button>
           {saved?.published && <span className="text-[13px] leading-[18px] text-muted-foreground">Показ идёт</span>}
         </div>
         <div className="flex flex-wrap items-center gap-4">
-          {/* Временный выбор кампании из моков, пока их не открывает ассистент */}
-          <div className="flex items-center gap-2">
-            <label htmlFor="campaign-select" className="text-[13px] leading-[18px] text-muted-foreground">
-              Кампания
-            </label>
-            <select
-              id="campaign-select"
-              value={campaignId ?? NEW_CAMPAIGN}
-              disabled={chat.busy}
-              onChange={(event) => {
-                setRequestedBannerId(undefined)
-                void chat.open(event.target.value === NEW_CAMPAIGN ? null : Number(event.target.value))
-              }}
-              className={SELECT_CLASS}
-            >
-              <option value={NEW_CAMPAIGN}>Новая кампания</option>
-              {campaigns.data?.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.id} · {STATE_LABELS[item.state]} · {item.name}
-                </option>
-              ))}
-            </select>
-          </div>
           <div className="flex items-center gap-2">
             <label htmlFor="user-select" className="text-[13px] leading-[18px] text-muted-foreground">
               Пользователь
