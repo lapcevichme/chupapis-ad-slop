@@ -6,13 +6,15 @@ import type { NextStep } from '@/features/campaign/nextStep'
 import { ChatMarkdown } from '@/features/chat/ChatMarkdown'
 import { ConfirmationCard } from '@/features/chat/ConfirmationCard'
 import { NextStepBar } from '@/features/chat/NextStepBar'
-import { Suggestions } from '@/features/chat/Suggestions'
 import type { useChat } from '@/features/chat/useChat'
 import { useDictation } from '@/features/chat/useDictation'
 import { cn } from '@/lib/utils'
 import type { CampaignState, Dictionaries } from '@/types/api'
 import { Orb } from './Orb'
 import type { OrbMode } from './Orb'
+import { Questionnaire } from './Questionnaire'
+import { buildPages, discussionMessage, formatAnswers, mergeItems } from './questionnaire'
+import type { Answers, QuestionPage } from './questionnaire'
 import { spokenText } from './spokenText'
 import { voiceAudio } from './voiceAudio'
 
@@ -32,6 +34,14 @@ function useViewport() {
     return () => removeEventListener('resize', update)
   }, [])
   return viewport
+}
+
+interface QuestionnaireState {
+  pages: QuestionPage[]
+  answers: Answers
+  page: number
+  // На какой странице показать последний ответ агента: после обсуждения он относится к этому пункту.
+  introPage: number
 }
 
 interface VoiceModeProps {
@@ -54,7 +64,16 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview
   const dark = document.documentElement.classList.contains('dark')
   const { width, height } = useViewport()
 
-  const handleText = useCallback((text: string) => void send(text), [send])
+  const [questionnaire, setQuestionnaire] = useState<QuestionnaireState | null>(null)
+  // Какой пункт анкеты сейчас обсуждают. Анкета живёт здесь, а не в чате: новый ход агента очищает его варианты.
+  const [discussing, setDiscussing] = useState<string | null>(null)
+  const discussingRef = useRef<string | null>(null)
+  const startDiscussion = useCallback((group: string | null) => {
+    discussingRef.current = group
+    setDiscussing(group)
+  }, [])
+
+  const handleText = useCallback((text: string) => void send(discussionMessage(discussingRef.current ?? '', text)), [send])
   const dictation = useDictation(handleText, (stream) => voiceAudio.attachMicrophone(stream))
   const recording = dictation.status === 'starting' || dictation.status === 'recording'
   const transcribing = dictation.status === 'transcribing'
@@ -72,6 +91,23 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview
   useEffect(() => {
     latest.current = { text: lastAnswer?.text ?? '', hasConfirmation: confirmation !== null, hasSuggestions: suggestions.length > 0 }
   })
+
+  useEffect(() => {
+    if (suggestions.length === 0 || busy) return
+    const group = discussingRef.current
+    setQuestionnaire((current) => {
+      if (group === null || !current) return { pages: buildPages(suggestions), answers: {}, page: 0, introPage: 0 }
+      const pages = mergeItems(current.pages, suggestions, group)
+      // Единственный вариант агента — это и есть итог обсуждения, его сразу отмечаем.
+      const decided = suggestions.length === 1 && (suggestions[0].group ?? group) === group
+      return {
+        ...current,
+        pages,
+        answers: decided ? { ...current.answers, [group]: { value: suggestions[0].value, custom: false } } : current.answers,
+      }
+    })
+    if (group !== null) startDiscussion(null)
+  }, [suggestions, busy, startDiscussion])
 
   useEffect(() => {
     // В уже начатом диалоге приветствие не к месту.
@@ -135,7 +171,7 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview
   const mode: OrbMode = recording ? 'listen' : waiting ? 'think' : speaking ? 'speak' : 'idle'
   const settled = !recording && !waiting && !speaking
   const onModeration = settled && campaignState === 'ON_MODERATION' && startState !== 'ON_MODERATION'
-  const sheet = !settled || onModeration ? null : confirmation ? 'confirm' : suggestions.length > 0 ? 'form' : null
+  const sheet = !settled || onModeration ? null : confirmation ? 'confirm' : questionnaire && discussing === null ? 'form' : null
   const showPreview = settled && !onModeration && preview !== undefined
   const collapsed = sheet !== null || showPreview
 
@@ -153,7 +189,9 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview
     : error
       ? error.message
       : recording
-        ? 'Слушаю'
+        ? discussing
+          ? `Слушаю: ${discussing}`
+          : 'Слушаю'
         : transcribing
           ? 'Распознаю'
           : busy
@@ -164,20 +202,22 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview
                 ? 'Говорю'
                 : textOnly
                   ? 'Звук недоступен, отвечаю текстом'
-                  : 'Можно говорить'
+                  : discussing
+                    ? `Обсуждаем: ${discussing}`
+                    : 'Можно говорить'
   const failed = Boolean(dictation.error || error)
   const pillText = sheet === 'confirm' ? 'Проверьте и подтвердите' : sheet === 'form' ? 'Жду ответы' : 'Можно говорить правки'
   const talkLabel = dictation.status === 'starting' ? 'Включаю микрофон' : recording ? 'Закончить' : waiting ? 'Думаю…' : speaking ? 'Перебить' : 'Говорить'
 
   const reply = lastAnswer?.text.trim()
-  const askNext = nextStep && !confirmation && suggestions.length === 0
+  const askNext = nextStep && !confirmation && !questionnaire
 
   return (
     <div role="dialog" aria-modal="true" aria-label="Голосовой режим" className="fixed inset-0 z-50 overflow-hidden bg-background text-foreground">
       {showPreview && (
-        <div className="absolute inset-0 flex flex-col items-center gap-3 overflow-y-auto px-4 pt-20 min-[900px]:data-[sheet=true]:pr-[488px]" data-sheet={sheet !== null}>
+        <div className="absolute inset-0 flex flex-col items-center gap-3 overflow-y-auto px-4 pt-20 data-[sheet=true]:min-[900px]:right-1/2 data-[sheet=true]:min-[900px]:items-end data-[sheet=true]:min-[900px]:pr-6" data-sheet={sheet !== null}>
           <div className="flex flex-none justify-center">{preview}</div>
-          <div className="sticky bottom-0 mt-auto flex w-full max-w-110 shrink-0 flex-col gap-2 bg-background py-3">
+          <div className="sticky bottom-0 mt-auto flex w-full max-w-110 shrink-0 flex-col gap-2 bg-background py-3 data-[sheet=true]:min-[900px]:hidden" data-sheet={sheet !== null}>
             {askNext && <NextStepBar step={nextStep} onSend={handleText} />}
             <Button variant="secondary" className="w-full" onClick={talk}>
               <Mic aria-hidden="true" />
@@ -214,6 +254,11 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview
                 Повторить
               </Button>
             )}
+            {settled && discussing !== null && !confirmation && (
+              <Button variant="secondary" onClick={() => startDiscussion(null)}>
+                Вернуться к анкете
+              </Button>
+            )}
             {settled && !onModeration && askNext && <div className="w-full text-left"><NextStepBar step={nextStep} onSend={handleText} /></div>}
             {onModeration ? (
               <Button className="h-16 min-w-44 rounded-full px-7 font-semibold" onClick={onClose}>
@@ -243,7 +288,7 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview
               {sheetHidden ? (sheet === 'confirm' ? 'К карточке' : 'К вопросам') : 'Макет'}
             </button>
           )}
-          {sheet !== 'confirm' && (
+          {sheet === null && (
             <button type="button" onClick={talk} className={PILL_BUTTON}>
               Говорить
             </button>
@@ -252,16 +297,44 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview
       )}
 
       {sheet && !(sheetHidden && width < 900) && (
-        <section aria-label={sheet === 'confirm' ? 'Подтверждение' : 'Уточнения'} className="absolute inset-x-0 bottom-0 z-[5] flex max-h-[calc(100%-76px)] animate-rise flex-col gap-4 overflow-y-auto rounded-t-3xl bg-card p-5 shadow-[0_-14px_40px_rgb(10_25_18/.12)] min-[900px]:inset-x-auto min-[900px]:top-6 min-[900px]:right-6 min-[900px]:bottom-auto min-[900px]:max-h-[calc(100%-48px)] min-[900px]:w-110 min-[900px]:rounded-3xl">
-          {reply && <div className="text-sm leading-5"><ChatMarkdown text={reply} /></div>}
-          {sheet === 'form' && (
-            <>
-              <Suggestions key={suggestions.map((item) => item.value).join()} items={suggestions} onSend={handleText} />
-              <Button variant="secondary" onClick={talk}>
-                <Mic aria-hidden="true" />
-                Обсудить голосом
-              </Button>
-            </>
+        <section aria-label={sheet === 'confirm' ? 'Подтверждение' : 'Уточнения'} className="absolute inset-x-0 bottom-0 z-[5] flex max-h-[calc(100%-76px)] animate-rise flex-col gap-4 overflow-y-auto rounded-t-3xl bg-card p-5 shadow-[0_-14px_40px_rgb(10_25_18/.12)] min-[900px]:inset-x-auto min-[900px]:top-[calc(50%+32px)] min-[900px]:bottom-auto min-[900px]:max-h-[calc(100%-104px)] min-[900px]:w-120 min-[900px]:-translate-y-1/2 min-[900px]:rounded-3xl data-[beside=true]:min-[900px]:left-[calc(50%+24px)] data-[beside=false]:min-[900px]:left-1/2 data-[beside=false]:min-[900px]:-translate-x-1/2" data-beside={preview !== undefined}>
+          {sheet === 'confirm' && reply && <div className="text-sm leading-5"><ChatMarkdown text={reply} /></div>}
+          {sheet === 'confirm' &&
+            lastAnswer?.warnings.map((warning) => (
+              <p key={warning.message} className="m-0 rounded-md bg-warning px-3 py-2 text-[13px] leading-[18px] text-warning-foreground">
+                {warning.message}
+              </p>
+            ))}
+          {sheet === 'form' && questionnaire && (
+            <Questionnaire
+              pages={questionnaire.pages}
+              answers={questionnaire.answers}
+              page={questionnaire.page}
+              intro={reply}
+              introPage={questionnaire.introPage}
+              notes={lastAnswer?.warnings.map((warning) => warning.message) ?? []}
+              onAnswer={(group, answer) =>
+                setQuestionnaire((current) => {
+                  if (!current) return current
+                  const answers = { ...current.answers }
+                  if (answer) answers[group] = answer
+                  else delete answers[group]
+                  return { ...current, answers }
+                })
+              }
+              onPage={(page) => setQuestionnaire((current) => current && { ...current, page })}
+              onDiscuss={(group) => {
+                setQuestionnaire((current) => current && { ...current, introPage: current.page })
+                startDiscussion(group)
+                talk()
+              }}
+              onSubmit={() => {
+                const text = formatAnswers(questionnaire.pages, questionnaire.answers)
+                setQuestionnaire(null)
+                startDiscussion(null)
+                handleText(text)
+              }}
+            />
           )}
           {sheet === 'confirm' && confirmation && (
             <>
