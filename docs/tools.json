@@ -3662,8 +3662,22 @@
                 }
               ],
               "default": null,
-              "description": "Промпт широкой картинки промо-экрана (3:2): тот же предмет по центру, без пустых зон под текст",
+              "description": "Промпт картинки промо-экрана: тот же предмет по центру, без пустых зон под текст; только для раскладок classic, color, split",
               "title": "Contentimageprompt"
+            },
+            "promoLayout": {
+              "default": "classic",
+              "description": "Раскладка промо-экрана: number, color, benefits, split, premium или classic",
+              "enum": [
+                "classic",
+                "number",
+                "color",
+                "benefits",
+                "split",
+                "premium"
+              ],
+              "title": "Promolayout",
+              "type": "string"
             }
           },
           "required": [

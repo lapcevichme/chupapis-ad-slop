@@ -23,6 +23,23 @@ PATTERN_KINDS = {"STORY": "STORY", "SMART_BANNER": "CARD"}
 # не влезал без прокрутки, поэтому у промо-экрана всегда своя широкая картинка 3:2 (такой кадр умеет gpt-image).
 CONTENT_IMAGE_SIZE = "1536x1024"
 CONTENT_IMAGE_ASPECT = 1.5
+PromoLayout = Literal["classic", "number", "color", "benefits", "split", "premium"]
+
+
+@dataclass(frozen=True)
+class PromoImageSpec:
+    size: str
+    aspect: float
+    # top — над текстом, before_buttons — между описанием и кнопками.
+    place: Literal["top", "before_buttons"]
+
+
+# Картинка есть не во всех раскладках: в остальных её не генерируем, это и дешевле.
+PROMO_IMAGES: dict[str, PromoImageSpec] = {
+    "classic": PromoImageSpec(CONTENT_IMAGE_SIZE, CONTENT_IMAGE_ASPECT, "top"),
+    "color": PromoImageSpec("1024x1024", 1.0, "top"),
+    "split": PromoImageSpec(CONTENT_IMAGE_SIZE, CONTENT_IMAGE_ASPECT, "before_buttons"),
+}
 # Своя картинка пользователя: пропорции неизвестны, на промо-экране показываем её той же полосой.
 USER_IMAGE_ASPECT = 1.5
 # Сторис в превью: экран 280x580, отступы 16. Текст лежит на картинке без подложки и не должен дойти до предмета,
@@ -53,7 +70,12 @@ class DesignResult(BaseModel):
     )
     contentImagePrompt: str | None = Field(
         None,
-        description="Промпт широкой картинки промо-экрана (3:2): тот же предмет по центру, без пустых зон под текст",
+        description="Промпт картинки промо-экрана: тот же предмет по центру, без пустых зон под текст; "
+        "только для раскладок classic, color, split",
+    )
+    promoLayout: PromoLayout = Field(
+        "classic",
+        description="Раскладка промо-экрана: number, color, benefits, split, premium или classic",
     )
 
 
@@ -544,11 +566,13 @@ class Designer:
                 mode="json", exclude_none=True
             )
         notes: list[str] = []
+        promo_image = PROMO_IMAGES.get(args.get("promoLayout") or "classic")
         banner_url, content_image = (request.image_url, None)
         if banner_url:
-            content_image = {"url": banner_url, "aspectRatio": USER_IMAGE_ASPECT}
+            if promo_image is not None:
+                content_image = {"url": banner_url, "aspectRatio": USER_IMAGE_ASPECT}
         elif request.generate_image:
-            own = request.wants_content_image
+            own = request.wants_content_image and promo_image is not None
             progress("Генерирую картинки" if own else "Генерирую картинку")
             if request.generates_banner_image(code):
                 banner_url = await self._picture(
@@ -566,23 +590,23 @@ class Designer:
                     request,
                     banner,
                     args.get("contentImagePrompt"),
-                    CONTENT_IMAGE_SIZE,
+                    promo_image.size,
                     "WIDE",
                     request.style_for("content"),
                     "Картинка промо-экрана",
                     notes,
                 )
-                if own
+                if own and promo_image is not None
                 else None
             )
-            if own_url:
-                content_image = {"url": own_url, "aspectRatio": CONTENT_IMAGE_ASPECT}
+            if own_url and promo_image is not None:
+                content_image = {"url": own_url, "aspectRatio": promo_image.aspect}
         if not banner_url:
             banner_url = request.previous_image
         if banner_url:
             banner["image"] = {"url": banner_url}
-        if content is not None and content_image:
-            insert_content_image(content, content_image)
+        if content is not None and content_image and promo_image is not None:
+            insert_content_image(content, content_image, promo_image.place)
         content_name = (args.get("contentName") or "Промо-экран")[:100] if content else None
         return DesignOutcome(
             args["bannerName"][:100], banner, content_name, content, notes, content_image
@@ -604,8 +628,18 @@ def set_content_image(content: dict[str, Any], image: dict[str, Any]) -> None:
         insert_content_image(content, image)
 
 
-def insert_content_image(content: dict[str, Any], image: dict[str, Any]) -> None:
-    """Ставит картинку первым компонентом промо-экрана, если места хватает и картинки там ещё нет."""
+def insert_content_image(
+    content: dict[str, Any],
+    image: dict[str, Any],
+    place: Literal["top", "before_buttons"] = "top",
+) -> None:
+    """Ставит картинку в промо-экран, если места хватает и картинки там ещё нет."""
     components = content["component"]["components"]
-    if len(components) < 6 and (not any((c["role"] == "image" for c in components))):
-        components.insert(0, {"role": "image", **image})
+    if len(components) >= 6 or any(c["role"] == "image" for c in components):
+        return
+    index = 0
+    if place == "before_buttons":
+        index = next(
+            (i for i, c in enumerate(components) if c["role"] == "button"), len(components)
+        )
+    components.insert(index, {"role": "image", **image})
