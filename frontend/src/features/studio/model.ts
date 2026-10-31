@@ -10,6 +10,10 @@ export function newLayer(kind: StudioLayer['kind'], values: Partial<StudioLayer>
 }
 
 const color = (value?: string | null, fallback = '#3155ff') => /^#[\da-f]{6}([\da-f]{2})?$/i.test(value ?? '') ? value! : fallback
+export function contrastingText(background: string): string {
+  const rgb = [1, 3, 5].map(index => parseInt(background.slice(index, index + 2), 16) / 255).map(value => value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4)
+  return rgb[0] * .2126 + rgb[1] * .7152 + rgb[2] * .0722 > .179 ? '#17223d' : '#ffffff'
+}
 function plain(text: string) { return text.replace(/<[^>]*>/g, '') }
 
 export function importSource(source: StudioSource): StudioDocument {
@@ -23,7 +27,7 @@ export function importSource(source: StudioSource): StudioDocument {
     if (data.text) document.layers.push(newLayer('text', { name: 'Описание', text: data.text, x: 24, y: story ? 176 : 68, width: 252, height: story ? 130 : 48, fontSize: data.textStyle?.fontSize ?? (story ? 18 : 14), fill: color(data.textStyle?.textColor, '#ffffff') }))
     if (data.buttonName) {
       const y = document.height - (story ? 62 : 36)
-      document.layers.push(newLayer('shape', { name: 'Подложка кнопки', x: 24, y, width: 252, height: story ? 42 : 28, fill: '#ffffff', radius: 14 }))
+      document.layers.push(newLayer('shape', { name: 'Подложка кнопки', x: 24, y, width: 252, height: story ? 42 : 28, fill: color(data.titleStyle?.textColor, contrastingText(document.background)), radius: 14 }))
       document.layers.push(newLayer('text', { name: 'Текст кнопки', role: 'button', text: data.buttonName, x: 32, y: y + (story ? 12 : 6), width: 236, height: 24, fontSize: story ? 15 : 12, textAlign: 'center', fill: document.background }))
     }
   } else {
@@ -50,6 +54,7 @@ export function importSource(source: StudioSource): StudioDocument {
 
 export function validateDocument(document: StudioDocument): string[] {
   const errors: string[] = []
+  if (![document.background, ...document.layers.map(x => x.fill)].every(value => /^#[\da-f]{6}([\da-f]{2})?$/i.test(value))) errors.push('Цвет должен содержать # и 6 или 8 шестнадцатеричных символов.')
   if (document.layers.length > 40) errors.push('В макете может быть не больше 40 слоёв.')
   if (document.format !== 'PROMO') {
     const title = document.layers.filter(x => x.kind === 'text' && x.role === 'title').map(x => x.text).join(' ')
@@ -62,28 +67,4 @@ export function validateDocument(document: StudioDocument): string[] {
   return errors
 }
 
-export function makeLayoutVariants(base: StudioDocument): StudioDocument[] {
-  return ['Плакат', 'Редакционный', 'Контраст'].map((name, index) => {
-    const document = structuredClone(base)
-    document.name = name
-    const tall = document.height > 300
-    const palettes = [['#3155ff', '#ffffff', '#d6f45b'], ['#f4eadb', '#23283c', '#ff714e'], ['#d6f45b', '#222b59', '#8060dd']]
-    const [background, ink, accent] = palettes[index]
-    document.background = background
-    document.layers = document.layers.filter(x => x.kind !== 'shape')
-    document.layers.unshift(newLayer('shape', { name: 'Цветная плоскость', x: index === 1 ? 180 : -60, y: tall ? document.height * .48 : 75, width: 380, height: tall ? 270 : 120, rotation: index === 1 ? 12 : -12, fill: accent, radius: index === 2 ? 120 : 0 }))
-    let textY = 24
-    document.layers = document.layers.map(layer => {
-      if (layer.kind === 'image') return { ...layer, x: 24, y: tall ? document.height * .54 : 70, width: 252, height: tall ? document.height * .29 : 72, rotation: index === 1 ? -4 : 0, opacity: .9 }
-      if (layer.kind !== 'text') return layer
-      if (layer.role === 'button') return { ...layer, x: 24, y: document.height - 40, width: 252, height: 24, fill: ink, fontSize: 15, textAlign: 'left' as const }
-      const title = layer.role === 'title'
-      const size = title ? (tall ? 36 : 22) : (tall ? 18 : 13)
-      const height = Math.ceil(layer.text.length * size * .56 / 252) * size * 1.15 + 8
-      const next = { ...layer, x: 24, y: textY, width: 252, height, fontSize: size, fill: ink, fontWeight: (title ? 800 : 500) as 800 | 500 }
-      textY += height + 14
-      return next
-    })
-    return document
-  })
-}
+export { makeLayoutVariants } from './layouts.ts'
