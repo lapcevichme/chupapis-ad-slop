@@ -55,7 +55,7 @@ interface VoiceModeProps {
 }
 
 export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview, onClose }: VoiceModeProps) {
-  const { busy, messages, suggestions, confirmation, error, send, answer, retry } = chat
+  const { busy, messages, suggestions, questions, confirmation, error, send, answer, retry } = chat
   const [speaking, setSpeaking] = useState(false)
   const [muted, setMuted] = useState(voiceAudio.muted)
   const [textOnly, setTextOnly] = useState(false)
@@ -74,7 +74,7 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview
     setDiscussing(group)
   }, [])
 
-  const handleText = useCallback((text: string) => void send(discussionMessage(discussingRef.current ?? '', text)), [send])
+  const handleText = useCallback((text: string) => void send(discussionMessage(discussingRef.current ?? '', text), true), [send])
   const dictation = useDictation(handleText, (stream) => voiceAudio.attachMicrophone(stream))
   const recording = dictation.status === 'starting' || dictation.status === 'recording'
   const transcribing = dictation.status === 'transcribing'
@@ -88,19 +88,20 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview
   const startedEmpty = useRef(messages.length === 0)
   const waitCuePlayed = useRef(false)
   const wasBusy = useRef(busy)
-  const latest = useRef({ text: lastAnswer?.text ?? '', hasConfirmation: confirmation !== null, hasSuggestions: suggestions.length > 0 })
+  const latest = useRef({ text: lastAnswer?.text ?? '', hasConfirmation: confirmation !== null, hasSuggestions: suggestions.length > 0 || questions.length > 0 })
   useEffect(() => {
-    latest.current = { text: lastAnswer?.text ?? '', hasConfirmation: confirmation !== null, hasSuggestions: suggestions.length > 0 }
+    latest.current = { text: lastAnswer?.text ?? '', hasConfirmation: confirmation !== null, hasSuggestions: suggestions.length > 0 || questions.length > 0 }
   })
 
   useEffect(() => {
-    if (suggestions.length === 0 || busy) return
+    if ((suggestions.length === 0 && questions.length === 0) || busy) return
     const group = discussingRef.current
     setQuestionnaire((current) => {
-      if (group === null || !current) return { pages: buildPages(suggestions), answers: {}, page: 0, introPage: 0 }
-      const pages = mergeItems(current.pages, suggestions, group)
+      if (group === null || !current) return { pages: buildPages(suggestions, questions), answers: {}, page: 0, introPage: 0 }
+      // Ход обсуждения касается одного пункта, как бы модель ни назвала тему.
+      const pages = mergeItems(current.pages, suggestions.map((item) => ({ ...item, group })), group)
       // Единственный вариант агента — это и есть итог обсуждения, его сразу отмечаем.
-      const decided = suggestions.length === 1 && (suggestions[0].group ?? group) === group
+      const decided = suggestions.length === 1
       return {
         ...current,
         pages,
@@ -108,7 +109,7 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview
       }
     })
     if (group !== null) startDiscussion(null)
-  }, [suggestions, busy, startDiscussion])
+  }, [suggestions, questions, busy, startDiscussion])
 
   useEffect(() => {
     // В уже начатом диалоге приветствие не к месту.
@@ -343,8 +344,8 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview
               <ConfirmationCard
                 confirmation={confirmation}
                 dictionaries={dictionaries}
-                onApprove={() => void answer(confirmation.id, { approved: true })}
-                onReject={() => void answer(confirmation.id, { approved: false })}
+                onApprove={() => void answer(confirmation.id, { approved: true, voice: true })}
+                onReject={() => void answer(confirmation.id, { approved: false, voice: true })}
                 hideEditHint
               />
               <Button variant="secondary" onClick={talk}>

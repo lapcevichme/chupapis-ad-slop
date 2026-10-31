@@ -281,6 +281,49 @@ def test_suggestions_keep_groups(client, chat):
     assert suggestions["items"] == items
 
 
+def test_voice_rules_only_in_voice_mode_and_keep_cached_prefix(client, chat):
+    model = chat([AIMessage(content="Обычный ответ."), AIMessage(content="Короткий ответ.")])
+    sid = client.post("/chat", json={}, headers=MANAGER).json()["sessionId"]
+
+    client.post(f"/chat/{sid}/messages", json={"text": "Привет"}, headers=MANAGER)
+    client.post(f"/chat/{sid}/messages", json={"text": "Ещё", "voice": True}, headers=MANAGER)
+
+    text_mode, voice_mode = model.seen
+    assert "голосовой режим" not in _text_of(text_mode[-1])
+    assert "голосовой режим" in _text_of(voice_mode[-1])
+    assert text_mode[0].content == voice_mode[0].content
+
+
+def test_voice_questions_without_options_reach_client(client, chat):
+    questions = ["Какая скидка?", "До какого числа акция?"]
+    chat([tool_message(call("suggest_options", {"questions": questions}, 1))])
+    sid = client.post("/chat", json={}, headers=MANAGER).json()["sessionId"]
+
+    reply = events(
+        client.post(
+            f"/chat/{sid}/messages", json={"text": "Сделай креатив", "voice": True}, headers=MANAGER
+        )
+    )
+
+    suggestions = next(data for kind, data in reply if kind == "suggestions")
+    assert suggestions == {"items": [], "questions": questions}
+
+
+def test_questions_without_options_are_voice_only(client, chat):
+    model = chat(
+        [
+            tool_message(call("suggest_options", {"questions": ["Какая скидка?"]}, 1)),
+            AIMessage(content="Какая скидка?"),
+        ]
+    )
+    sid = client.post("/chat", json={}, headers=MANAGER).json()["sessionId"]
+
+    reply = events(client.post(f"/chat/{sid}/messages", json={"text": "Креатив"}, headers=MANAGER))
+
+    assert not [data for kind, data in reply if kind == "suggestions"]
+    assert "только в голосовом режиме" in _text_of(model.seen[1][-2])
+
+
 def test_model_failure_is_human_readable(client, chat):
     import httpx as _httpx
     import openai

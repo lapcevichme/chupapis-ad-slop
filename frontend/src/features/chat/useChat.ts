@@ -23,6 +23,7 @@ interface ChatState {
   campaignId: number | null
   messages: ChatMessage[]
   suggestions: Suggestion[]
+  questions: string[]
   confirmation: Confirmation | null
   draft: CampaignDraft | null
   validation: DraftValidation | null
@@ -41,6 +42,7 @@ const EMPTY: Omit<ChatState, 'busy'> = {
   campaignId: null,
   messages: [],
   suggestions: [],
+  questions: [],
   confirmation: null,
   draft: null,
   validation: null,
@@ -82,6 +84,7 @@ function applyEvent(state: ChatState, event: ChatEvent): ChatState {
       return {
         ...state,
         suggestions: [...state.suggestions, ...event.data.items.filter((item) => !state.suggestions.some((known) => known.value === item.value))],
+        questions: [...new Set([...state.questions, ...event.data.questions])],
       }
     case 'confirmation_required':
       return { ...state, confirmation: event.data }
@@ -131,6 +134,7 @@ function reducer(state: ChatState, action: ChatAction): ChatState {
         busy: true,
         error: null,
         suggestions: [],
+        questions: [],
         confirmation: null,
         messages: [...messages, { role: 'assistant', text: '', steps: [], warnings: [] }],
       }
@@ -195,7 +199,7 @@ export function useChat() {
   }, [])
 
   const send = useCallback(
-    (text: string) => {
+    (text: string, voice = false) => {
       streamOpened.current = false
       dispatch({ type: 'start', userText: text })
       return run(async function* () {
@@ -203,7 +207,7 @@ export function useChat() {
           sessionId.current = await createChatSession()
           localStorage.setItem(SESSION_KEY, sessionId.current)
         }
-        yield* sendChatMessage(sessionId.current, text, markOpened)
+        yield* sendChatMessage(sessionId.current, text, voice, markOpened)
       })
     },
     [run, markOpened],

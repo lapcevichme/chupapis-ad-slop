@@ -2801,14 +2801,19 @@
                 "$ref": "#/$defs/Suggestion"
               },
               "maxItems": 16,
-              "minItems": 1,
               "title": "Items",
+              "type": "array"
+            },
+            "questions": {
+              "description": "Только в голосовом режиме: вопросы без готовых вариантов, человек ответит своими словами",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 5,
+              "title": "Questions",
               "type": "array"
             }
           },
-          "required": [
-            "items"
-          ],
           "title": "SuggestArgs",
           "type": "object"
         }

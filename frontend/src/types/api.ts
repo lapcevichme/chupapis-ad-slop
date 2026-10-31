@@ -77,7 +77,8 @@ export type ConfirmationChange = Schemas['ConfirmationChange']
 export type ChatStep = Schemas['ChatEventStep']
 export type ChatWarning = Schemas['ChatEventWarning']
 export type Suggestion = Schemas['SuggestionItem']
-export type ConfirmationAnswer = Schemas['ConfirmationBody']
+// voice есть только у голосового режима, обычный чат его не передаёт.
+export type ConfirmationAnswer = Omit<Schemas['ConfirmationBody'], 'voice'> & { voice?: boolean }
 export type DraftValidation = Schemas['DraftValidation']
 
 type DraftUpdated = { draft: CampaignDraft; validation: DraftValidation }

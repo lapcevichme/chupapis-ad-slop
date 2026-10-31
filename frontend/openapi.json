@@ -4290,6 +4290,11 @@
               }
             ],
             "title": "Comment"
+          },
+          "voice": {
+            "type": "boolean",
+            "title": "Voice",
+            "default": false
           }
         },
         "type": "object",
@@ -4699,6 +4704,11 @@
           "text": {
             "type": "string",
             "title": "Text"
+          },
+          "voice": {
+            "type": "boolean",
+            "title": "Voice",
+            "default": false
           }
         },
         "type": "object",
@@ -5364,6 +5374,14 @@
               "$ref": "#/components/schemas/SuggestionItem"
             },
             "title": "Items",
+            "type": "array"
+          },
+          "questions": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Questions",
             "type": "array"
           }
         },

@@ -12,8 +12,14 @@ export interface Answer {
 
 export type Answers = Record<string, Answer>
 
-export function buildPages(items: Suggestion[]): QuestionPage[] {
-  return mergeItems([], items, '')
+export function buildPages(items: Suggestion[], questions: string[] = []): QuestionPage[] {
+  return addQuestions(mergeItems([], items, ''), questions)
+}
+
+// Вопрос без вариантов становится страницей только со свободным ответом.
+export function addQuestions(pages: QuestionPage[], questions: string[]): QuestionPage[] {
+  const missing = questions.filter((question) => !pages.some((page) => page.group === question))
+  return [...pages, ...missing.map((group) => ({ group, options: [] }))]
 }
 
 // Варианты без темы относятся к тому пункту, который сейчас обсуждают.
@@ -45,7 +51,7 @@ export function formatAnswers(pages: QuestionPage[], answers: Answers): string {
     .join('\n')
 }
 
-// Этот префикс разбирает правило в prompts/chat.md: агент отвечает коротко и предлагает варианты для этого пункта.
+// Этот префикс разбирает правило в prompts/voice.md: агент отвечает коротко и предлагает варианты для этого пункта.
 export function discussionMessage(group: string, text: string): string {
   return group ? `По пункту анкеты «${group}»: ${text}` : text
 }

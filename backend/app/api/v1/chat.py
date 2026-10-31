@@ -53,7 +53,11 @@ async def get_chat_session(session_id: str, chat: ChatDep, actor: ActorDep) -> d
 async def send_chat_message(
     session_id: str, body: events.MessageBody, chat: ChatDep, actor: ActorDep
 ) -> StreamingResponse:
-    return _stream(await chat.send_message(session_id, body.text, actor.login, actor.role or ""))
+    return _stream(
+        await chat.send_message(
+            session_id, body.text, actor.login, actor.role or "", voice=body.voice
+        )
+    )
 
 
 @router.post(
@@ -70,7 +74,13 @@ async def answer_chat_confirmation(
 ) -> StreamingResponse:
     return _stream(
         await chat.answer_confirmation(
-            session_id, confirmation_id, body.approved, body.comment, actor.login, actor.role or ""
+            session_id,
+            confirmation_id,
+            body.approved,
+            body.comment,
+            actor.login,
+            actor.role or "",
+            voice=body.voice,
         )
     )
 

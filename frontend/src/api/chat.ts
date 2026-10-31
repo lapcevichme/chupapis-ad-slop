@@ -75,8 +75,8 @@ async function* readStream(path: string, body: unknown, onOpen: () => void): Asy
   }
 }
 
-export function sendChatMessage(sessionId: string, text: string, onOpen: () => void): AsyncIterable<ChatEvent> {
-  return readStream(`/chat/${sessionId}/messages`, { text }, onOpen)
+export function sendChatMessage(sessionId: string, text: string, voice: boolean, onOpen: () => void): AsyncIterable<ChatEvent> {
+  return readStream(`/chat/${sessionId}/messages`, { text, voice }, onOpen)
 }
 
 export function answerChatConfirmation(sessionId: string, confirmationId: string, answer: ConfirmationAnswer, onOpen: () => void): AsyncIterable<ChatEvent> {

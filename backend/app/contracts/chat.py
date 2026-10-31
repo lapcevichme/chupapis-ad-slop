@@ -23,6 +23,7 @@ class SuggestionItem(BaseModel):
 
 class ChatEventSuggestions(BaseModel):
     items: list[SuggestionItem]
+    questions: list[str] = []
 
 
 class ConfirmationOperation(BaseModel):
@@ -102,11 +103,13 @@ class SessionCreated(BaseModel):
 
 class MessageBody(BaseModel):
     text: str
+    voice: bool = False
 
 
 class ConfirmationBody(BaseModel):
     approved: bool
     comment: str | None = None
+    voice: bool = False
 
 
 class ChatMessage(BaseModel):

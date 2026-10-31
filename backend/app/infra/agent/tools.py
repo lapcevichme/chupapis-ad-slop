@@ -1,9 +1,9 @@
 import json
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Any, Callable, Literal
+from typing import Any, Callable, Literal, Self
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, model_validator
 
 from app.core.errors import ApiError
 from app.infra.agent.designer import (
@@ -121,7 +121,18 @@ class Suggestion(BaseModel):
 
 class SuggestArgs(BaseModel):
     # Несколько групп по 2–4 варианта: время, место, тема, исключения.
-    items: list[Suggestion] = Field(min_length=1, max_length=16)
+    items: list[Suggestion] = Field(default_factory=list, max_length=16)
+    questions: list[str] = Field(
+        default_factory=list,
+        max_length=5,
+        description="Только в голосовом режиме: вопросы без готовых вариантов, человек ответит своими словами",
+    )
+
+    @model_validator(mode="after")
+    def has_something_to_ask(self) -> Self:
+        if not self.items and not self.questions:
+            raise ValueError("Нужен хотя бы один вариант или вопрос")
+        return self
 
 
 class DesignArgs(BaseModel):
@@ -243,6 +254,7 @@ class ToolContext:
     counter: int
     emit: Callable[[str, dict[str, Any]], None]
     image_mode: Literal["mixed", "ask", "pattern", "illustration"] = "mixed"
+    voice: bool = False
     draft_changed: bool = False
     _cache: dict[str, Any] = field(default_factory=dict)
 
@@ -650,7 +662,12 @@ async def _run_ui_tool(
         return "Предупреждение показано. Продолжай, если пользователь не передумал."
     if name == "suggest_options":
         suggestions = SuggestArgs.model_validate(raw)
-        ctx.emit("suggestions", {"items": [i.model_dump() for i in suggestions.items]})
+        if suggestions.questions and not ctx.voice:
+            return "Ошибка: questions работают только в голосовом режиме, спроси текстом с вариантами."
+        ctx.emit(
+            "suggestions",
+            {"items": [i.model_dump() for i in suggestions.items], "questions": suggestions.questions},
+        )
         return "Кнопки показаны. Дождись ответа пользователя."
     if name == "discard_pending":
         discard = DiscardArgs.model_validate(raw)

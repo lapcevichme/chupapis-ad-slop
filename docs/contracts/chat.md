@@ -18,12 +18,12 @@
 
 ## 1. Сообщение и поток ответа
 
-`POST /chat/{sessionId}/messages`, тело `{"text": "..."}`. Ответ — поток SSE, фронт читает его через `fetch`, а не через `EventSource`.
+`POST /chat/{sessionId}/messages`, тело `{"text": "...", "voice": false}`. `voice: true` включает правила голосового режима из `prompts/voice.md` (то же поле есть в ответе на карточку, повтор хода сохраняет прежний режим). Ответ — поток SSE, фронт читает его через `fetch`, а не через `EventSource`.
 
 ```text
 message_delta          {text}                                  текст ассистента по кускам
 step                   {id, label, status}                     шаг агента: "Ищу сегменты…"; status: running | done | failed
-suggestions            {items: [{label, value, group?}]}       кнопки-варианты, например сегменты
+suggestions            {items: [{label, value, group?}], questions}  кнопки-варианты; questions — вопросы без вариантов, только в голосовом режиме
 confirmation_required  {id, title, operations, changes}        просим подтвердить запись (§2)
 draft_updated          {draft, validation}                     текущий черновик для паспорта и превью (§3)
 campaign_updated       {campaignId}                            запись прошла, фронт перечитывает кампанию

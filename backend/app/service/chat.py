@@ -148,14 +148,17 @@ class ChatService:
     # --- Поток
 
     async def send_message(
-        self, session_id: str, text: str, user: str, role: str
+        self, session_id: str, text: str, user: str, role: str, *, voice: bool = False
     ) -> AsyncIterator[StreamEvent]:
         await self._state(session_id)
         if await self.pending_confirmation(session_id):
             # Сообщение без ответа на подтверждение = отказ, текст уходит агенту как правка (chat-api.md §2).
-            payload: Any = Command(resume={"approved": False, "comment": text, "viaMessage": True})
+            payload: Any = Command(
+                resume={"approved": False, "comment": text, "viaMessage": True},
+                update={"voice": voice},
+            )
         else:
-            payload = {"messages": [HumanMessage(text)], "asked": False}
+            payload = {"messages": [HumanMessage(text)], "asked": False, "voice": voice}
         return self._stream(session_id, payload, user, role)
 
     async def answer_confirmation(
@@ -166,11 +169,16 @@ class ChatService:
         comment: str | None,
         user: str,
         role: str,
+        *,
+        voice: bool = False,
     ) -> AsyncIterator[StreamEvent]:
         pending = await self.pending_confirmation(session_id)
         if pending and pending["id"] == confirmation_id:
             return self._stream(
-                session_id, Command(resume={"approved": approved, "comment": comment}), user, role
+                session_id,
+                Command(resume={"approved": approved, "comment": comment}, update={"voice": voice}),
+                user,
+                role,
             )
         # Подтверждение уже выполнено: второй раз не пишем, а продолжаем ход как retry.
         return self._stream(session_id, None, user, role)

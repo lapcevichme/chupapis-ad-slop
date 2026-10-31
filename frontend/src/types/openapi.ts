@@ -894,6 +894,11 @@ export interface components {
             approved: boolean;
             /** Comment */
             comment?: string | null;
+            /**
+             * Voice
+             * @default false
+             */
+            voice: boolean;
         };
         /** ConfirmationChange */
         ConfirmationChange: {
@@ -1044,6 +1049,11 @@ export interface components {
         MessageBody: {
             /** Text */
             text: string;
+            /**
+             * Voice
+             * @default false
+             */
+            voice: boolean;
         };
         /** PlaceCreate */
         PlaceCreate: {
@@ -1270,6 +1280,11 @@ export interface components {
         ChatEventSuggestions: {
             /** Items */
             items: components["schemas"]["SuggestionItem"][];
+            /**
+             * Questions
+             * @default []
+             */
+            questions: string[];
         };
         /** ChatEventDraftUpdated */
         ChatEventDraftUpdated: {

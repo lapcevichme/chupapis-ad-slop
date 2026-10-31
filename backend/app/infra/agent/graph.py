@@ -49,6 +49,8 @@ class AgentState(TypedDict, total=False):
     awaiting: Annotated[dict[str, Any] | None, _replace]
     # В этом ходе пользователю уже задан вопрос (кнопки или отказ от карточки): авто-подтверждение не показываем.
     asked: Annotated[bool, _replace]
+    # Клиент сообщает режим в каждом сообщении и ответе на карточку; повтор хода сохраняет прежний.
+    voice: Annotated[bool, _replace]
 
 
 @dataclass
@@ -176,6 +178,8 @@ def _context_note(
         lines.append(json.dumps(draft, ensure_ascii=False, default=str))
     if reminder:
         lines.append(reminder)
+    if state.get("voice"):
+        lines.append(load_prompt("voice"))
     lines.append("</context>")
     return "\n".join(lines)
 
@@ -211,6 +215,7 @@ def build_graph(deps: AgentDeps, checkpointer: BaseCheckpointSaver[Any]) -> Agen
                 client=client,
                 designer=deps.designer,
                 image_mode=deps.image_mode,
+                voice=bool(state.get("voice")),
                 campaign_id=state.get("campaign_id"),
                 base=state.get("base"),
                 pending=list(state.get("pending") or []),
