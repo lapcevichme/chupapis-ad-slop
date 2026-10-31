@@ -1,0 +1,163 @@
+# Дизайн: тема «Изумруд»
+
+Макеты: https://claude.ai/artifact/UHREidogsAXV5D8aS2FXUM
+
+Светлая тема по умолчанию, на ней показываем демо. Все цвета берём из токенов ниже, хардкод в компонентах запрещён.
+
+## Токены
+
+Вставить в `src/index.css` вместо значений, которые сгенерирует shadcn.
+
+```css
+:root {
+  --background: #F2F5F1;
+  --foreground: #14231C;
+  --card: #FFFFFF;
+  --card-foreground: #14231C;
+  --popover: #FFFFFF;
+  --popover-foreground: #14231C;
+  --primary: #0E7A55;
+  --primary-hover: #0A6545;
+  --primary-foreground: #FFFFFF;
+  --secondary: #E8EDE6;
+  --secondary-hover: #DCE3D9;
+  --secondary-foreground: #14231C;
+  --muted: #E8EDE6;
+  --muted-foreground: #526358;
+  --accent: #DFF1E8;
+  --accent-foreground: #0A5C40;
+  --destructive: #B42318;
+  --destructive-hover: #912018;
+  --destructive-foreground: #FFFFFF;
+  --border: #D8E0D6;
+  --input: #7F8F85;
+  --ring: #0E7A55;
+  --success: #DFF1E8;
+  --success-foreground: #0A5C40;
+  --warning: #FBF0D3;
+  --warning-foreground: #6F4E00;
+  --error: #FCE8E6;
+  --error-foreground: #912018;
+  --info: #E3EEF9;
+  --info-foreground: #1F4E79;
+  --radius: 1rem;
+}
+
+.dark {
+  --background: #0F1613;
+  --foreground: #E6EDE9;
+  --card: #17201C;
+  --card-foreground: #E6EDE9;
+  --popover: #1C2621;
+  --popover-foreground: #E6EDE9;
+  --primary: #2FBF8A;
+  --primary-hover: #4BCB9B;
+  --primary-foreground: #06170F;
+  --secondary: #212C27;
+  --secondary-hover: #2C3833;
+  --secondary-foreground: #E6EDE9;
+  --muted: #212C27;
+  --muted-foreground: #A0AFA7;
+  --accent: #15352A;
+  --accent-foreground: #6EDDB3;
+  --destructive: #F97066;
+  --destructive-hover: #FA8A82;
+  --destructive-foreground: #2A0A06;
+  --border: #2C3833;
+  --input: #6B7B72;
+  --ring: #2FBF8A;
+  --success: #15352A;
+  --success-foreground: #7FE0BC;
+  --warning: #3A2F12;
+  --warning-foreground: #EFCB73;
+  --error: #3D1A17;
+  --error-foreground: #F9A8A0;
+  --info: #16293D;
+  --info-foreground: #8FC1F0;
+}
+
+/* Токены, которых нет в стандартном shadcn: без этого не появятся классы Tailwind */
+@theme inline {
+  --color-primary-hover: var(--primary-hover);
+  --color-secondary-hover: var(--secondary-hover);
+  --color-destructive-hover: var(--destructive-hover);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-error: var(--error);
+  --color-error-foreground: var(--error-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+}
+```
+
+## Какой токен где
+
+- **Зелёный только на акцентах:** основная кнопка на экране, ссылки, логотип, активное состояние. Фирменные элементы Сбера не используем (брендбук не проверяется, §10.9 задания).
+- **`--border`** только для разделителей и контура карточек. Его контраст около 1.35:1, поэтому контур поля ввода, чекбокса и селекта рисуем через **`--input`**.
+- **Карточки всегда с контуром:** карточка и фон отличаются всего на 1.1:1, без контура карточка теряется.
+- **`--accent`** для подсветки и карточки подтверждения, не для кнопок.
+- **`--error`** для плашек ошибок, **`--destructive`** для кнопок и текста опасных действий.
+
+## Статусы кампаний
+
+| Состояние | Токены | Подпись |
+|---|---|---|
+| `DRAFT` | `muted` | Черновик |
+| `ON_MODERATION` | `info` | На модерации |
+| `NEEDS_WORK` | `warning` | Нужны правки |
+| `APPROVED` | `success` | Одобрена |
+| `ACTIVE` | `primary` | Активна |
+| `ACTIVE_EDITING` | `warning` | Активна, есть правки |
+| `STOPPED` | `error` | Остановлена |
+
+## Доступность
+
+Посчитано по WCAG 2.1 для обеих тем, все 30 проверенных пар проходят порог: 4.5:1 для текста, 3:1 для контуров полей и фокуса.
+
+| Пара | Светлая | Тёмная |
+|---|---|---|
+| Основной текст на фоне | 14.85 | 15.43 |
+| Приглушённый текст на `card` | 6.39 | 7.29 |
+| Приглушённый текст на `muted` | 5.39 | 6.32 |
+| Текст на основной кнопке | 5.34 | 7.86 |
+| `primary` как текст на фоне | 4.86 | 7.81 |
+| Текст на статусах, минимум | 6.69 | 7.79 |
+| Контур поля на `card` | 3.40 | 3.73 |
+
+Правила, которые из этого следуют:
+
+- **Статус никогда не передаём только цветом.** При дальтонизме (симуляция дейтеранопии) зелёный, жёлтый и красный статусы почти совпадают по яркости: 1.07–1.16:1. У статуса всегда есть текстовая подпись, у ошибок и предупреждений ещё и иконка.
+- **Опасная кнопка отличается не только цветом.** При том же дальтонизме `primary` и `destructive` совпадают по яркости (1.01–1.02:1). Опасные действия делаем контурной кнопкой с понятным глаголом («Остановить показ») и всегда с подтверждением.
+- **Текст мельче 12px не используем.** `--primary` на фоне проходит с запасом всего 0.36, поэтому поверх него не накладываем прозрачность.
+- **Фокус виден всегда:** контур `--ring` 2px со смещением 2px.
+- **Кликабельные элементы от 44px** по высоте, включая кнопки-подсказки в чате.
+- **Анимации** отключаем при `prefers-reduced-motion`.
+
+## Типографика
+
+Шрифт Onest, веса 400, 500, 600, 700, запасной `system-ui, sans-serif`. Коды сегментов и мест показа — `ui-monospace`.
+
+| Роль | Размер / строка | Вес |
+|---|---|---|
+| Заголовок экрана | 20 / 28 | 600 |
+| Заголовок карточки | 14 / 20 | 600 |
+| Основной текст, чат | 14 / 20 | 400 |
+| Значение поля | 14 / 20 | 500 |
+| Вторичный текст | 13 / 18 | 400 |
+| Подпись поля, код | 12 / 16 | 400 |
+
+Числа в колонках (размер сегмента, счётчик символов) выводим с `tabular-nums`.
+
+## Сетка и форма
+
+- Отступы кратны 4px: 4, 8, 12, 16, 24. Внутри карточки 16, между карточками 12–16.
+- Радиусы считает shadcn от `--radius: 1rem`, отдельно их не задаём.
+- Тени не используем, кроме всплывающих элементов: глубину задают контур и разница фона.
+- Раскладка на ширине от 1280px: чат, паспорт, превью. На меньшей колонки переносятся вниз.
+
+## Превью креатива
+
+Телефон рисуется цветами из JSON баннера и не зависит от темы интерфейса. Токены внутрь экрана телефона не применяем.
