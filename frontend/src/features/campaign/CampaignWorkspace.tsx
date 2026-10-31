@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { AudioLines, Plus } from 'lucide-react'
+import { AudioLines, ArrowUpRight, LayoutGrid, Menu, MessageSquare, Plus, X } from 'lucide-react'
 import { useState } from 'react'
 import { getCampaign, getCampaignAudit, getCampaignWarnings, getDictionaries, listCampaigns, saveCampaignChange } from '@/api/campaigns'
 import type { CampaignChange } from '@/api/campaigns'
@@ -14,10 +14,10 @@ import { VoiceMode } from '@/features/voice/VoiceMode'
 import type { CampaignState, EntityId } from '@/types/api'
 import { CampaignLifecycle } from './CampaignLifecycle'
 import { CampaignPassport } from './CampaignPassport'
-import { CampaignPicker } from './CampaignPicker'
 import { managerNextStep } from './nextStep'
 import type { PassportEdit } from './PassportForms'
-import { StartGuide } from './StartGuide'
+import { StatusBadge } from './StatusBadge'
+import { ValidationSummary } from './ValidationSummary'
 import { ThemeToggle } from './ThemeToggle'
 import { UserMenu } from './UserMenu'
 
@@ -31,16 +31,15 @@ const EDIT_NOTICES: Partial<Record<CampaignState, string>> = {
   ACTIVE: 'Показ продолжится по одобренной версии, а правки вступят в силу после новой модерации.',
 }
 
-function Message({ children }: { children: string }) {
-  return <p className="m-0 p-4 text-[13px] leading-[18px] text-muted-foreground">{children}</p>
-}
-
 export function CampaignWorkspace() {
   const chat = useChat()
   const queryClient = useQueryClient()
   const [login, setLogin] = useState(() => getCurrentUser().login)
   const [requestedBannerId, setRequestedBannerId] = useState<EntityId>()
   const [voiceOpen, setVoiceOpen] = useState(false)
+  const [pane, setPane] = useState<'creative' | 'details' | 'history'>('creative')
+  const [mobilePane, setMobilePane] = useState<'dialog' | 'work'>('dialog')
+  const [navOpen, setNavOpen] = useState(false)
   const campaignId = chat.campaignId
 
   const campaigns = useQuery({ queryKey: ['campaigns'], queryFn: listCampaigns })
@@ -74,7 +73,6 @@ export function CampaignWorkspace() {
   const role = USERS.find((user) => user.login === login)?.role
   const nextStep = role === 'campaignManager' && saved && warnings.data ? managerNextStep(saved.state, warnings.data.errors.length, (saved.creatives?.length ?? 0) > 0) : null
   const designStep = chat.messages.at(-1)?.steps.find((step) => step.status === 'running' && DESIGN_STEP.test(step.label))
-  const blank = campaignId === null && !chat.draft && chat.messages.length === 0
   const moderator = role === 'campaignModerator'
 
   async function applyChange(change: CampaignChange) {
@@ -108,104 +106,65 @@ export function CampaignWorkspace() {
 
   function openCampaign(id: number | null) {
     setRequestedBannerId(undefined)
+    setNavOpen(false)
+    setPane('creative')
+    if (id !== null) setMobilePane('work')
+    else setMobilePane('dialog')
     void chat.open(id)
   }
 
+  const hasResult = Boolean(details)
+  const chatProps = {
+    chat, dictionaries: dictionaries.data,
+    awaitsModeration: saved?.state === 'ON_MODERATION' && moderator,
+    nextStep, role,
+    moderationQueue: campaigns.data?.filter((item) => item.state === 'ON_MODERATION') ?? [],
+    onOpenCampaign: openCampaign,
+  }
+
   return (
-    <div className="flex min-h-screen flex-col xl:h-dvh">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b bg-card px-6 py-3">
-        <div className="flex min-w-0 flex-wrap items-center gap-4">
-          <strong className="text-base font-bold text-accent-foreground">AdPilot AI</strong>
-          <CampaignPicker
-            campaigns={campaigns.data ?? []}
-            currentId={campaignId}
-            name={details?.name}
-            state={saved?.state}
-            role={role}
-            disabled={chat.busy}
-            onSelect={openCampaign}
-          />
-          {!moderator && !blank && (
-            <Button variant="outline" disabled={chat.busy} onClick={() => openCampaign(null)}>
-              <Plus aria-hidden="true" />
-              Новая
-            </Button>
-          )}
-          {saved?.published && <span className="text-[13px] leading-[18px] text-muted-foreground">Показ идёт</span>}
+    <div className={`pilot-shell ${hasResult ? 'has-result' : 'is-start'} ${navOpen ? 'nav-open' : ''}`} data-mobile-pane={mobilePane}>
+      <aside className="pilot-nav" aria-label="Кампании">
+        <div className="pilot-brand">adpilot<span>.</span><button className="mobile-close" aria-label="Закрыть меню" onClick={() => setNavOpen(false)}><X size={20} /></button></div>
+        {!moderator && <Button variant="outline" className="new-campaign" disabled={chat.busy} onClick={() => openCampaign(null)}><Plus />Новая кампания</Button>}
+        <div className="nav-section-title">Рабочее пространство</div>
+        <div className="campaign-list">
+          {campaigns.isPending && <p className="nav-message">Загружаем кампании…</p>}
+          {campaigns.isError && <button className="nav-retry" onClick={() => void campaigns.refetch()}>Не удалось загрузить. Повторить</button>}
+          {campaigns.data?.map((item) => <button key={item.id} disabled={chat.busy} className={`campaign-link ${item.id === campaignId ? 'selected' : ''}`} onClick={() => openCampaign(item.id)}><span>{item.name}</span><small>{item.state === 'ON_MODERATION' ? 'На модерации' : item.published ? 'Показ идёт' : item.state === 'NEEDS_WORK' ? 'Нужны правки' : ''}</small></button>)}
+          {campaigns.data?.length === 0 && <p className="nav-message">Здесь будут ваши кампании.</p>}
         </div>
-        <div className="flex flex-wrap items-center gap-4">
-          {VOICE_ENABLED && role === 'campaignManager' && dictationSupported() && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                voiceAudio.unlock()
-                setVoiceOpen(true)
-              }}
-            >
-              <AudioLines aria-hidden="true" />
-              Голосом
-            </Button>
-          )}
-          <UserMenu
-            login={login}
-            disabled={chat.busy}
-            onSelect={(next) => {
-              setCurrentUser(next)
-              setLogin(next)
-              void queryClient.invalidateQueries()
-              // У каждого пользователя свой диалог по кампании: docs/contracts/chat.md §10.
-              openCampaign(campaignId)
-            }}
-          />
-          <ThemeToggle />
+        <div className="nav-bottom"><UserMenu login={login} disabled={chat.busy} onSelect={(next) => {setCurrentUser(next); setLogin(next); void queryClient.invalidateQueries(); openCampaign(campaignId)}} /><ThemeToggle /></div>
+      </aside>
+      {navOpen && <button className="nav-scrim" aria-label="Закрыть меню кампаний" onClick={() => setNavOpen(false)} />}
+      <div className="pilot-workspace">
+        <header className="pilot-topbar">
+          <button className="mobile-menu" aria-label="Открыть меню кампаний" onClick={() => setNavOpen(true)}><Menu size={21} /></button>
+          <div className="workspace-location"><span>Кампании</span><span className="location-divider">/</span><strong>{details?.name ?? (moderator ? 'На проверке' : 'Новая кампания')}</strong></div>
+          <div className="topbar-actions">{saved && <StatusBadge state={saved.state} />}{chat.draft && <span className="unsaved-label">Предложенные изменения</span>}
+          {VOICE_ENABLED && role === 'campaignManager' && dictationSupported() && <Button variant="ghost" aria-label="Открыть голосовой режим" onClick={() => {voiceAudio.unlock(); setVoiceOpen(true)}}><AudioLines /><span className="voice-label">Голосом</span></Button>}</div>
+        </header>
+        <div className="pilot-stage">
+          {hasResult && <main className="campaign-canvas" aria-label="Рабочая область кампании">
+            <div className="canvas-heading"><div><p className="canvas-state">{saved ? 'Кампания' : 'Ваш новый черновик'}{saved?.published ? ' · Показ идёт' : ''}</p><h1>{details?.name ?? 'Собираем кампанию'}</h1><p className="canvas-description">{chat.confirmation ? 'Проверьте результат и состав изменений перед подтверждением.' : 'Ваш оффер, аудитория и креативы — в одном месте.'}</p></div><ArrowUpRight className="canvas-heading-mark" aria-hidden="true" /></div>
+            <nav className="canvas-tabs" aria-label="Разделы кампании">{([['creative','Креативы'],['details','Параметры'],['history','Проверка и история']] as const).map(([id,label]) => <button key={id} aria-pressed={pane === id} onClick={() => setPane(id)}>{label}{id === 'creative' && banners.length > 0 && <span>{banners.length}</span>}</button>)}</nav>
+            <div className="canvas-content">
+              {failed && <div role="alert" className="workspace-error"><p>Не удалось загрузить часть данных.</p><Button variant="outline" onClick={() => {void campaign.refetch(); void warnings.refetch(); void dictionaries.refetch()}}>Повторить загрузку</Button></div>}
+              {pane === 'creative' && <><div className="creative-gallery">
+                {banners.length > 1 && <div className="creative-selector" aria-label="Выбор креатива">{banners.map((item,index) => <button key={item.id} aria-pressed={banner?.id === item.id} onClick={() => setRequestedBannerId(item.id)}><span>{String(index+1).padStart(2,'0')}</span>{item.name}</button>)}</div>}
+                <section className="creative-stage" aria-label="Превью">{banner && bannerType ? <CreativePreview key={banner.id} banner={banner} bannerType={bannerType} content={content} status={designStep?.label} /> : <DesignPlaceholder idle={!designStep} label={designStep?.label ?? 'Креатив появится здесь. Попросите ассистента собрать баннер.'} />}</section>
+              </div><div className="canvas-footer"><LayoutGrid size={16} aria-hidden="true" /><span>Превью для клиента</span><button onClick={() => setPane('details')}>Посмотреть параметры <ArrowUpRight size={15} /></button></div>{validation && <div className="canvas-validation"><ValidationSummary validation={validation} /></div>}</>}
+              {pane === 'details' && details && dictionaries.data && <div className="passport-sheet"><CampaignPassport key={campaignId ?? NEW_CAMPAIGN} campaign={details} dictionaries={dictionaries.data} selectedBannerId={banner?.id} onSelectBanner={(id) => {setRequestedBannerId(id); setPane('creative')}} edit={edit} /></div>}
+              {pane === 'history' && details && <CampaignLifecycle key={`lifecycle-${saved?.id ?? NEW_CAMPAIGN}`} state={saved?.state ?? 'DRAFT'} audit={saved && audit.data} validation={validation} />}
+            </div>
+          </main>}
+          <section className="pilot-assistant" aria-label="Диалог с ассистентом">
+            {hasResult && <div className="assistant-heading"><span className="assistant-monogram">a</span><strong>Ассистент</strong><span>{chat.busy ? 'Собираю кампанию' : 'Давайте создадим точнее'}</span></div>}
+            <ChatPanel {...chatProps} />
+          </section>
         </div>
-      </header>
-
-      <main className="flex flex-1 flex-wrap items-start gap-4 p-4 xl:min-h-0 xl:flex-nowrap xl:items-stretch">
-        <section
-          aria-label="Диалог с ассистентом"
-          className="h-[70dvh] min-h-96 min-w-0 flex-[1_1_340px] overflow-hidden rounded-lg border bg-card xl:h-auto xl:min-h-0"
-        >
-          <ChatPanel
-            chat={chat}
-            dictionaries={dictionaries.data}
-            awaitsModeration={saved?.state === 'ON_MODERATION' && role === 'campaignModerator'}
-            nextStep={nextStep}
-            role={role}
-            moderationQueue={campaigns.data?.filter((item) => item.state === 'ON_MODERATION') ?? []}
-            onOpenCampaign={openCampaign}
-          />
-        </section>
-
-        <div className="flex min-w-0 flex-[1_1_400px] flex-col gap-3 xl:overflow-y-auto">
-          {failed && <Message>Не удалось загрузить данные с сервера. Обновите страницу.</Message>}
-          {/* У несохранённого черновика статуса ещё нет, но готовность уже важна. */}
-          {details && <CampaignLifecycle key={`lifecycle-${saved?.id ?? NEW_CAMPAIGN}`} state={saved?.state ?? 'DRAFT'} audit={saved && audit.data} validation={validation} />}
-          {details && dictionaries.data ? (
-            <CampaignPassport
-              key={campaignId ?? NEW_CAMPAIGN}
-              campaign={details}
-              dictionaries={dictionaries.data}
-              selectedBannerId={banner?.id}
-              onSelectBanner={setRequestedBannerId}
-              edit={edit}
-            />
-          ) : (
-            !failed && !chat.busy && (moderator ? <Message>Паспорт появится здесь, когда вы откроете кампанию.</Message> : blank ? <StartGuide /> : <Message>Паспорт кампании появится здесь, когда ассистент начнёт её собирать.</Message>)
-          )}
-        </div>
-
-        <section aria-label="Превью" className="flex min-w-0 flex-[0_1_368px] items-start justify-center rounded-lg bg-muted p-6 xl:overflow-y-auto">
-          {banner && bannerType ? (
-            <CreativePreview key={banner.id} banner={banner} bannerType={bannerType} content={content} status={designStep?.label} />
-          ) : designStep ? (
-            <DesignPlaceholder label={designStep.label} />
-          ) : (
-            <DesignPlaceholder idle label={campaignId === null ? (moderator ? 'Превью появится, когда вы откроете кампанию' : 'Здесь появится превью креатива') : 'Креативов пока нет'} />
-          )}
-        </section>
-      </main>
-
+        {hasResult && <nav className="mobile-work-tabs" aria-label="Рабочие области"><button aria-pressed={mobilePane === 'dialog'} onClick={() => setMobilePane('dialog')}><MessageSquare size={18} />Диалог{chat.confirmation && <span className="attention-dot" />}</button><button aria-pressed={mobilePane === 'work' && pane !== 'creative'} onClick={() => {setMobilePane('work');setPane('details')}}><LayoutGrid size={18} />Кампания</button><button aria-pressed={mobilePane === 'work' && pane === 'creative'} onClick={() => {setMobilePane('work');setPane('creative')}}><ArrowUpRight size={18} />Превью</button></nav>}
+      </div>
       {voiceOpen && (
         <VoiceMode
           chat={chat}

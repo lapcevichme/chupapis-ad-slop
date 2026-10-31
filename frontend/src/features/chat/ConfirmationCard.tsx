@@ -90,7 +90,7 @@ export function ConfirmationCard({ confirmation, dictionaries, onApprove, onReje
       {toModeration && (
         <p className="m-0 flex items-start gap-2 text-[13px] leading-[18px]">
           <CircleAlert className="mt-px size-4 shrink-0" aria-hidden="true" />
-          Перед отправкой проверьте превью справа.
+          Перед отправкой проверьте креатив и параметры в рабочей области.
         </p>
       )}
       <div className="flex flex-wrap gap-2">

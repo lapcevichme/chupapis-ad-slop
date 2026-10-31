@@ -2,6 +2,8 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/onest";
+@import "@fontsource-variable/lora";
+@import "./workspace.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -47,73 +49,76 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Значения и правила: docs/ours/design.md */
+/* Visual system: docs/DESIGN.md */
 :root {
-    --background: #F2F5F1;
-    --foreground: #14231C;
-    --card: #FFFFFF;
-    --card-foreground: #14231C;
-    --popover: #FFFFFF;
-    --popover-foreground: #14231C;
-    --primary: #0E7A55;
-    --primary-hover: #0A6545;
-    --primary-foreground: #FFFFFF;
-    --secondary: #E8EDE6;
-    --secondary-hover: #DCE3D9;
-    --secondary-foreground: #14231C;
-    --muted: #E8EDE6;
-    --muted-foreground: #526358;
-    --accent: #DFF1E8;
-    --accent-foreground: #0A5C40;
-    --destructive: #B42318;
-    --destructive-hover: #912018;
-    --destructive-foreground: #FFFFFF;
-    --border: #D8E0D6;
-    --input: #7F8F85;
-    --ring: #0E7A55;
-    --success: #DFF1E8;
-    --success-foreground: #0A5C40;
-    --warning: #FBF0D3;
-    --warning-foreground: #6F4E00;
-    --error: #FCE8E6;
-    --error-foreground: #912018;
-    --info: #E3EEF9;
-    --info-foreground: #1F4E79;
-    --radius: 1rem;
+    --background: #f6f5f1;
+    --foreground: #282725;
+    --card: #ffffff;
+    --card-foreground: #282725;
+    --popover: #ffffff;
+    --popover-foreground: #282725;
+    --primary: #7b4d53;
+    --primary-hover: #653d43;
+    --primary-foreground: #ffffff;
+    --secondary: #eae7e0;
+    --secondary-hover: #e0dbd3;
+    --secondary-foreground: #393631;
+    --muted: #efede7;
+    --muted-foreground: #6b655e;
+    --accent: #eee3e4;
+    --accent-foreground: #673e46;
+    --destructive: #a8312c;
+    --destructive-hover: #852722;
+    --destructive-foreground: #ffffff;
+    --border: #dedad2;
+    --input: #b5aea3;
+    --ring: #7b4d53;
+    --success: #e6ede7;
+    --success-foreground: #355d42;
+    --warning: #f5ecdc;
+    --warning-foreground: #755321;
+    --error: #f7e6e2;
+    --error-foreground: #92372e;
+    --info: #e8ecf0;
+    --info-foreground: #40576d;
+    --radius: 0.75rem;
+    --font-editorial: "Lora Variable", Georgia, serif;
 }
 
 .dark {
     color-scheme: dark;
-    --background: #0F1613;
-    --foreground: #E6EDE9;
-    --card: #17201C;
-    --card-foreground: #E6EDE9;
-    --popover: #1C2621;
-    --popover-foreground: #E6EDE9;
-    --primary: #2FBF8A;
-    --primary-hover: #4BCB9B;
-    --primary-foreground: #06170F;
-    --secondary: #212C27;
-    --secondary-hover: #2C3833;
-    --secondary-foreground: #E6EDE9;
-    --muted: #212C27;
-    --muted-foreground: #A0AFA7;
-    --accent: #15352A;
-    --accent-foreground: #6EDDB3;
-    --destructive: #F97066;
-    --destructive-hover: #FA8A82;
-    --destructive-foreground: #2A0A06;
-    --border: #2C3833;
-    --input: #6B7B72;
-    --ring: #2FBF8A;
-    --success: #15352A;
-    --success-foreground: #7FE0BC;
-    --warning: #3A2F12;
-    --warning-foreground: #EFCB73;
-    --error: #3D1A17;
-    --error-foreground: #F9A8A0;
-    --info: #16293D;
-    --info-foreground: #8FC1F0;
+    --background: #242321;
+    --foreground: #f0ede6;
+    --card: #2c2a27;
+    --card-foreground: #f0ede6;
+    --popover: #33302d;
+    --popover-foreground: #f0ede6;
+    --primary: #c7949c;
+    --primary-hover: #dcadb4;
+    --primary-foreground: #292123;
+    --secondary: #38342f;
+    --secondary-hover: #454039;
+    --secondary-foreground: #eee9df;
+    --muted: #302e2a;
+    --muted-foreground: #bdb4a7;
+    --accent: #483338;
+    --accent-foreground: #edbcc4;
+    --destructive: #a8312c;
+    --destructive-hover: #852722;
+    --destructive-foreground: #ffffff;
+    --border: #49443d;
+    --input: #82766a;
+    --ring: #d1a0a8;
+    --success: #293c31;
+    --success-foreground: #aed0b6;
+    --warning: #43351f;
+    --warning-foreground: #e4c88f;
+    --error: #492c28;
+    --error-foreground: #efb3a7;
+    --info: #2b3742;
+    --info-foreground: #b6ccdf;
+    --radius: 0.75rem;
+    --font-editorial: "Lora Variable", Georgia, serif;
 }
 
 @layer base {
