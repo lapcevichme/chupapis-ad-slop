@@ -25,6 +25,7 @@ suggestions            {items: [{label, value}]}               кнопки-ва
 confirmation_required  {id, title, operations, changes}        просим подтвердить запись (§2)
 draft_updated          {draft, validation}                     текущий черновик для паспорта и превью (§3)
 campaign_updated       {campaignId}                            запись прошла, фронт перечитывает кампанию
+warning                {message, severity}                     предупреждение о спорном решении; severity: info | warning. Агент при этом не отказывается
 error                  {code, message}                         сбой LLM или сети, не бизнес-ошибка (§7)
 done                   {}                                      ответ закончен
 ```
