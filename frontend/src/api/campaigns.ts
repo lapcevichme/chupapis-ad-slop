@@ -9,16 +9,20 @@ import campaigns from '@/fixtures/campaigns.json'
 import places from '@/fixtures/places.json'
 import segments from '@/fixtures/segments.json'
 import tags from '@/fixtures/tags.json'
+import { getMockCampaign, listMockCampaigns } from './mockStore'
 import type { Banner, BannerType, Campaign, CampaignDetails, CampaignValidation, Content, Creative, Dictionaries, Place, Segment } from '@/types/api'
 
 // Пока бэкенда нет, функции собирают ответы §3 task.md из моков. Когда он появится, тела заменяем
 // на fetch('/api/...'), а сигнатуры оставляем: компоненты и запросы менять не придётся.
 
 export async function listCampaigns(): Promise<Campaign[]> {
-  return campaigns as Campaign[]
+  return [...(campaigns as Campaign[]), ...listMockCampaigns()]
 }
 
 export async function getCampaign(id: number): Promise<CampaignDetails> {
+  const saved = getMockCampaign(id)
+  if (saved) return saved
+
   const campaign = (campaigns as Campaign[]).find((item) => item.id === id)
   if (!campaign) throw new Error(`Кампания ${id} не найдена`)
 
@@ -34,6 +38,7 @@ export async function getCampaign(id: number): Promise<CampaignDetails> {
 }
 
 export async function getCampaignWarnings(id: number): Promise<CampaignValidation> {
+  if (getMockCampaign(id)) return { errors: [], warnings: [] }
   return { errors: [], warnings: campaignWarnings.find((item) => item.campaignId === id)?.warnings ?? [] }
 }
 

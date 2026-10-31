@@ -29,9 +29,12 @@ export interface BannerContent {
   voiceOver?: string
 }
 
+// До сохранения в API id баннеров, контента и креативов временные: "tmp-1".
+export type EntityId = number | string
+
 export interface Banner {
-  id: number
-  campaignId: number
+  id: EntityId
+  campaignId?: number
   name: string
   bannerTypeId: number
   content: BannerContent
@@ -82,19 +85,19 @@ export interface PromoContent {
 }
 
 export interface Content {
-  id: number
-  campaignId: number
+  id: EntityId
+  campaignId?: number
   name: string
   contentType: 'PROMO'
   content: PromoContent
 }
 
 export interface Creative {
-  id: number
-  campaignId: number
+  id: EntityId
+  campaignId?: number
   name: string
-  bannerId: number
-  contentId?: number | null
+  bannerId: EntityId
+  contentId?: EntityId | null
   channelCode: string
 }
 
@@ -181,3 +184,87 @@ export interface Dictionaries {
   tags: Tag[]
   bannerTypes: BannerType[]
 }
+
+// Контракт чата: docs/ours/chat-api.md.
+
+export type UserRole = 'campaignManager' | 'campaignModerator'
+
+export interface User {
+  login: string
+  role: UserRole
+}
+
+// Пока собирается бриф, части полей ещё нет, поэтому всё необязательно.
+export type CampaignDraft = Partial<Omit<CampaignDetails, 'id' | 'state' | 'published' | 'author' | 'lastEditAuthor'>>
+
+export type OperationKind =
+  | 'create_campaign'
+  | 'update_campaign'
+  | 'set_segments'
+  | 'create_banner'
+  | 'update_banner'
+  | 'delete_banner'
+  | 'create_content'
+  | 'update_content'
+  | 'delete_content'
+  | 'create_creative'
+  | 'update_creative'
+  | 'delete_creative'
+  | 'create_place'
+  | 'create_tag'
+  | 'to_moderation'
+  | 'approve'
+  | 'decline'
+  | 'activate'
+  | 'stop'
+  | 'delete_campaign'
+
+export interface ConfirmationChange {
+  field: string
+  label: string
+  from: unknown
+  to: unknown
+}
+
+export interface Confirmation {
+  id: string
+  title: string
+  operations: { kind: OperationKind; label: string }[]
+  changes: ConfirmationChange[]
+}
+
+export interface ChatStep {
+  id: string
+  label: string
+  status: 'running' | 'done' | 'failed'
+}
+
+export interface Suggestion {
+  label: string
+  value: string
+}
+
+export type ChatEvent =
+  | { event: 'message_delta'; data: { text: string } }
+  | { event: 'step'; data: ChatStep }
+  | { event: 'suggestions'; data: { items: Suggestion[] } }
+  | { event: 'confirmation_required'; data: Confirmation }
+  | { event: 'draft_updated'; data: { draft: CampaignDraft; validation: CampaignValidation } }
+  | { event: 'campaign_updated'; data: { campaignId: number } }
+  | { event: 'error'; data: { code: string; message: string } }
+  | { event: 'done'; data: Record<string, never> }
+
+export interface StoredChatMessage {
+  role: 'user' | 'assistant'
+  text: string
+}
+
+export interface ChatSession {
+  campaignId: number | null
+  messages: StoredChatMessage[]
+  draft: CampaignDraft | null
+  validation: CampaignValidation | null
+  pendingConfirmation: Confirmation | null
+}
+
+export type ConfirmationAnswer = { approved: true } | { approved: false; comment?: string }
