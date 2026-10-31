@@ -2,11 +2,13 @@ import { Check, CircleAlert, Info, LoaderCircle, SendHorizontal, TriangleAlert, 
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, SyntheticEvent } from 'react'
 import { Button } from '@/components/ui/button'
+import type { NextStep } from '@/features/campaign/nextStep'
 import { cn } from '@/lib/utils'
 import type { ChatStep, ChatWarning, Dictionaries } from '@/types/api'
 import { ChatMarkdown } from './ChatMarkdown'
 import { ConfirmationCard } from './ConfirmationCard'
 import { ModerationBar } from './ModerationBar'
+import { NextStepBar } from './NextStepBar'
 import { SuggestionButton, Suggestions } from './Suggestions'
 import type { ChatMessage, useChat } from './useChat'
 
@@ -70,9 +72,10 @@ interface ChatPanelProps {
   chat: ReturnType<typeof useChat>
   dictionaries?: Dictionaries
   awaitsModeration: boolean
+  nextStep: NextStep | null
 }
 
-export function ChatPanel({ chat, dictionaries, awaitsModeration }: ChatPanelProps) {
+export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep }: ChatPanelProps) {
   const { busy, messages, suggestions, confirmation, error, send, answer, retry } = chat
   const [text, setText] = useState('')
   const log = useRef<HTMLDivElement>(null)
@@ -150,6 +153,12 @@ export function ChatPanel({ chat, dictionaries, awaitsModeration }: ChatPanelPro
       {awaitsModeration && !confirmation && !busy && (
         <div className="max-h-[60%] shrink-0 overflow-y-auto border-t p-3">
           <ModerationBar onSend={submit} />
+        </div>
+      )}
+      {/* Пока агент ждёт ответа на свой вопрос, не предлагаем другое действие. */}
+      {nextStep && !confirmation && !busy && suggestions.length === 0 && (
+        <div className="shrink-0 border-t p-3">
+          <NextStepBar step={nextStep} onSend={submit} />
         </div>
       )}
       <form

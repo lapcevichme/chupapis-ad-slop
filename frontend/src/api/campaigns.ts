@@ -1,4 +1,4 @@
-import type { BannerType, CampaignDetails, CampaignListItem, CampaignValidation, Dictionaries, Place, Segment, Tag, Topic } from '@/types/api'
+import type { AuditRecord, BannerType, CampaignDetails, CampaignListItem, CampaignValidation, Dictionaries, Place, Segment, Tag, Topic } from '@/types/api'
 import { apiRequest } from './http'
 
 export function listCampaigns() {
@@ -11,6 +11,10 @@ export function getCampaign(id: number) {
 
 export function getCampaignWarnings(id: number) {
   return apiRequest<CampaignValidation>(`/campaigns/${id}/warnings`)
+}
+
+export function getCampaignAudit(id: number) {
+  return apiRequest<AuditRecord[]>(`/campaigns/${id}/audit`)
 }
 
 export async function getDictionaries(): Promise<Dictionaries> {

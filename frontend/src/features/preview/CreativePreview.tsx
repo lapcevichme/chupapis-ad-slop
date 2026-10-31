@@ -1,5 +1,8 @@
+import { LoaderCircle } from 'lucide-react'
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
+import { Flash } from '@/features/campaign/Flash'
 import { cn } from '@/lib/utils'
 import type { Banner, BannerType, Content } from '@/types/api'
 import { BannerPreview } from './BannerPreview'
@@ -11,6 +14,27 @@ interface CreativePreviewProps {
   banner: Banner
   bannerType: BannerType
   content?: Content
+  // Что сейчас делает дизайнер, если он пересобирает этот креатив.
+  status?: string
+}
+
+function PhoneFrame({ children }: { children: ReactNode }) {
+  return (
+    <div className="h-150 w-75 shrink-0 rounded-[2.5rem] bg-[#0B0D10] p-2.5">
+      <div className="h-full overflow-y-auto rounded-[2rem] bg-white [color-scheme:light]">{children}</div>
+    </div>
+  )
+}
+
+export function DesignPlaceholder({ label }: { label: string }) {
+  return (
+    <PhoneFrame>
+      <div role="status" className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-sm leading-5 text-black/60">
+        <LoaderCircle className="size-6 animate-spin" aria-hidden="true" />
+        {label}
+      </div>
+    </PhoneFrame>
+  )
 }
 
 function LengthCounter({ label, value, max }: { label: string; value?: string | null; max: number }) {
@@ -28,7 +52,7 @@ function LengthCounter({ label, value, max }: { label: string; value?: string | 
   )
 }
 
-export function CreativePreview({ banner, bannerType, content }: CreativePreviewProps) {
+export function CreativePreview({ banner, bannerType, content, status }: CreativePreviewProps) {
   const [requestedView, setRequestedView] = useState<View>('banner')
   const view = content ? requestedView : 'banner'
   const { title, text, actionType, link } = banner.content
@@ -56,8 +80,15 @@ export function CreativePreview({ banner, bannerType, content }: CreativePreview
         </Button>
       </div>
 
-      <div className="h-150 w-75 shrink-0 rounded-[2.5rem] bg-[#0B0D10] p-2.5">
-        <div className="h-full overflow-y-auto rounded-[2rem] bg-white [color-scheme:light]">
+      {status && (
+        <p role="status" className="m-0 flex items-center gap-2 text-[13px] leading-[18px] text-muted-foreground">
+          <LoaderCircle className="size-4 shrink-0 animate-spin" aria-hidden="true" />
+          {status}
+        </p>
+      )}
+
+      <Flash value={JSON.stringify([banner.content, content?.content])} className="shrink-0 rounded-[2.5rem]" overlayClassName="inset-0 rounded-[inherit] animate-flash-ring">
+        <PhoneFrame>
           {view === 'content' && content ? (
             <PromoPreview content={content.content} />
           ) : (
@@ -67,8 +98,8 @@ export function CreativePreview({ banner, bannerType, content }: CreativePreview
               onOpen={content ? () => setRequestedView('content') : undefined}
             />
           )}
-        </div>
-      </div>
+        </PhoneFrame>
+      </Flash>
 
       <dl className="m-0 flex w-full flex-col gap-1 text-[13px] leading-[18px]">
         <div className="flex justify-between gap-4">

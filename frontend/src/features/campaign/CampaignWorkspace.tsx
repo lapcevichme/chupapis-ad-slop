@@ -1,17 +1,21 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { getCampaign, getCampaignWarnings, getDictionaries, listCampaigns } from '@/api/campaigns'
+import { getCampaign, getCampaignAudit, getCampaignWarnings, getDictionaries, listCampaigns } from '@/api/campaigns'
 import { getCurrentUser, setCurrentUser, USERS } from '@/api/currentUser'
 import { ChatPanel } from '@/features/chat/ChatPanel'
 import { useChat } from '@/features/chat/useChat'
-import { CreativePreview } from '@/features/preview/CreativePreview'
+import { CreativePreview, DesignPlaceholder } from '@/features/preview/CreativePreview'
 import type { EntityId } from '@/types/api'
+import { CampaignLifecycle } from './CampaignLifecycle'
 import { CampaignPassport } from './CampaignPassport'
 import { STATE_LABELS } from './format'
+import { managerNextStep } from './nextStep'
 import { StatusBadge } from './StatusBadge'
 import { ThemeToggle } from './ThemeToggle'
 
 const NEW_CAMPAIGN = ''
+// В контракте чата у шага нет типа, поэтому работу дизайнера узнаём по подписи. Если она изменится, пропадёт только индикатор в превью.
+const DESIGN_STEP = /^(Дизайнер|Генерирую)/
 const SELECT_CLASS =
   'h-11 max-w-72 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50'
 
@@ -37,6 +41,11 @@ export function CampaignWorkspace() {
     queryFn: () => getCampaignWarnings(campaignId as number),
     enabled: campaignId !== null,
   })
+  const audit = useQuery({
+    queryKey: ['campaign', campaignId, 'audit'],
+    queryFn: () => getCampaignAudit(campaignId as number),
+    enabled: campaignId !== null,
+  })
   const dictionaries = useQuery({ queryKey: ['dictionaries'], queryFn: getDictionaries })
 
   const saved = campaign.data?.id === campaignId ? campaign.data : undefined
@@ -49,6 +58,9 @@ export function CampaignWorkspace() {
   const contentId = details?.creatives?.find((creative) => creative.bannerId === banner?.id && creative.contentId)?.contentId
   const content = details?.contents?.find((item) => item.id === contentId)
   const failed = campaign.isError || warnings.isError || dictionaries.isError
+  const role = USERS.find((user) => user.login === login)?.role
+  const nextStep = role === 'campaignManager' && saved && warnings.data ? managerNextStep(saved.state, warnings.data.errors.length > 0) : null
+  const designStep = chat.messages.at(-1)?.steps.find((step) => step.status === 'running' && DESIGN_STEP.test(step.label))
 
   return (
     <div className="flex min-h-screen flex-col xl:h-dvh">
@@ -118,14 +130,17 @@ export function CampaignWorkspace() {
           <ChatPanel
             chat={chat}
             dictionaries={dictionaries.data}
-            awaitsModeration={saved?.state === 'ON_MODERATION' && USERS.find((user) => user.login === login)?.role === 'campaignModerator'}
+            awaitsModeration={saved?.state === 'ON_MODERATION' && role === 'campaignModerator'}
+            nextStep={nextStep}
           />
         </section>
 
-        <div className="min-w-0 flex-[1_1_400px] xl:overflow-y-auto">
+        <div className="flex min-w-0 flex-[1_1_400px] flex-col gap-3 xl:overflow-y-auto">
           {failed && <Message>Не удалось загрузить данные с сервера. Обновите страницу.</Message>}
+          {saved && <CampaignLifecycle state={saved.state} audit={audit.data} />}
           {details && validation && dictionaries.data ? (
             <CampaignPassport
+              key={campaignId ?? NEW_CAMPAIGN}
               campaign={details}
               validation={validation}
               dictionaries={dictionaries.data}
@@ -139,7 +154,9 @@ export function CampaignWorkspace() {
 
         <section aria-label="Превью" className="flex min-w-0 flex-[0_1_368px] items-start justify-center rounded-lg bg-muted p-6 xl:overflow-y-auto">
           {banner && bannerType ? (
-            <CreativePreview key={banner.id} banner={banner} bannerType={bannerType} content={content} />
+            <CreativePreview key={banner.id} banner={banner} bannerType={bannerType} content={content} status={designStep?.label} />
+          ) : designStep ? (
+            <DesignPlaceholder label={designStep.label} />
           ) : (
             <Message>Креативов пока нет, показывать нечего.</Message>
           )}

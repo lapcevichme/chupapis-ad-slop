@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import type { CampaignDraft, CampaignValidation, Dictionaries, EntityId } from '@/types/api'
+import { Flash } from './Flash'
 import { ValidationSummary } from './ValidationSummary'
 import { formatCount, formatDateTime } from './format'
 
@@ -15,11 +16,13 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
-function Field({ label, value, code }: { label: string; value: ReactNode; code?: string }) {
+function Field({ label, value, code, flash }: { label: string; value: ReactNode; code?: string; flash?: string }) {
   return (
     <div className="flex min-w-0 flex-col gap-0.5">
       <span className="text-xs leading-4 text-muted-foreground">{label}</span>
-      <span className="text-sm leading-5 font-medium wrap-anywhere">{value}</span>
+      <Flash value={flash ?? String(value)}>
+        <span className="text-sm leading-5 font-medium wrap-anywhere">{value}</span>
+      </Flash>
       {code && <span className="font-mono text-xs leading-4 text-muted-foreground">{code}</span>}
     </div>
   )
@@ -91,70 +94,76 @@ export function CampaignPassport({ campaign, validation, dictionaries, selectedB
       </Section>
 
       <Section title="Аудитория">
-        {campaign.audienceType === 'ALL_USERS' && <Field label="Кому показываем" value="Все пользователи" code="ALL_USERS" />}
-        {campaign.audienceType === 'SEGMENTED' && (
-          <>
-            <SegmentList title="Включить, любой из сегментов" codes={campaign.segments?.included ?? []} dictionaries={dictionaries} />
-            <SegmentList title="Исключить" codes={campaign.segments?.excluded ?? []} dictionaries={dictionaries} />
-          </>
-        )}
-        {!campaign.audienceType && <p className="m-0 text-[13px] leading-[18px] text-muted-foreground">Аудитория не выбрана</p>}
+        <Flash value={JSON.stringify([campaign.audienceType, campaign.segments])} className="flex flex-col gap-3">
+          {campaign.audienceType === 'ALL_USERS' && <Field label="Кому показываем" value="Все пользователи" code="ALL_USERS" />}
+          {campaign.audienceType === 'SEGMENTED' && (
+            <>
+              <SegmentList title="Включить, любой из сегментов" codes={campaign.segments?.included ?? []} dictionaries={dictionaries} />
+              <SegmentList title="Исключить" codes={campaign.segments?.excluded ?? []} dictionaries={dictionaries} />
+            </>
+          )}
+          {!campaign.audienceType && <p className="m-0 text-[13px] leading-[18px] text-muted-foreground">Аудитория не выбрана</p>}
+        </Flash>
       </Section>
 
       <Section title="Места показа">
-        {places.length > 0 ? (
-          <ul className="m-0 flex list-none flex-col p-0">
-            {places.map((id) => {
-              const place = dictionaries.places.find((item) => item.id === id)
-              return (
-                <Row
-                  key={id}
-                  name={place?.description ?? 'Нет в справочнике'}
-                  code={place?.code ?? String(id)}
-                  notice={place?.state === 'INACTIVE' ? 'Деактивировано' : undefined}
-                />
-              )
-            })}
-          </ul>
-        ) : (
-          <p className="m-0 text-[13px] leading-[18px] text-muted-foreground">Места показа не выбраны</p>
-        )}
+        <Flash value={places.join()}>
+          {places.length > 0 ? (
+            <ul className="m-0 flex list-none flex-col p-0">
+              {places.map((id) => {
+                const place = dictionaries.places.find((item) => item.id === id)
+                return (
+                  <Row
+                    key={id}
+                    name={place?.description ?? 'Нет в справочнике'}
+                    code={place?.code ?? String(id)}
+                    notice={place?.state === 'INACTIVE' ? 'Деактивировано' : undefined}
+                  />
+                )
+              })}
+            </ul>
+          ) : (
+            <p className="m-0 text-[13px] leading-[18px] text-muted-foreground">Места показа не выбраны</p>
+          )}
+        </Flash>
       </Section>
 
       <Section title="Правила показа">
         <div className="grid grid-cols-2 gap-3.5">
-          <Field label="Вес" value={<span className="tabular-nums">{campaign.weight ?? NOT_SET}</span>} />
-          <Field label="Начальный CTR" value={<span className="tabular-nums">{campaign.initialCtr ?? NOT_SET}</span>} />
+          <Field label="Вес" value={<span className="tabular-nums">{campaign.weight ?? NOT_SET}</span>} flash={String(campaign.weight)} />
+          <Field label="Начальный CTR" value={<span className="tabular-nums">{campaign.initialCtr ?? NOT_SET}</span>} flash={String(campaign.initialCtr)} />
         </div>
       </Section>
 
       <Section title="Креативы">
-        {banners.length > 0 ? (
-          <ul className="m-0 flex list-none flex-col gap-1 p-0">
-            {banners.map((banner) => {
-              const channels = creatives.filter((creative) => creative.bannerId === banner.id).map((creative) => creative.channelCode)
-              const selected = banner.id === selectedBannerId
-              return (
-                <li key={banner.id}>
-                  <button
-                    type="button"
-                    aria-current={selected}
-                    onClick={() => onSelectBanner(banner.id)}
-                    className={cn(
-                      'flex min-h-11 w-full cursor-pointer flex-col justify-center rounded-md px-3 py-2 text-left outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring',
-                      selected && 'bg-accent text-accent-foreground hover:bg-accent',
-                    )}
-                  >
-                    <span className="text-sm leading-5 font-medium">{banner.name}</span>
-                    <span className="text-xs leading-4 opacity-80">{channels.length > 0 ? channels.join(', ') : 'Канал не назначен'}</span>
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
-        ) : (
-          <p className="m-0 text-[13px] leading-[18px] text-muted-foreground">Креативов пока нет</p>
-        )}
+        <Flash value={JSON.stringify([banners.map((banner) => banner.name), creatives.map((creative) => creative.channelCode)])}>
+          {banners.length > 0 ? (
+            <ul className="m-0 flex list-none flex-col gap-1 p-0">
+              {banners.map((banner) => {
+                const channels = creatives.filter((creative) => creative.bannerId === banner.id).map((creative) => creative.channelCode)
+                const selected = banner.id === selectedBannerId
+                return (
+                  <li key={banner.id}>
+                    <button
+                      type="button"
+                      aria-current={selected}
+                      onClick={() => onSelectBanner(banner.id)}
+                      className={cn(
+                        'flex min-h-11 w-full cursor-pointer flex-col justify-center rounded-md px-3 py-2 text-left outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring',
+                        selected && 'bg-accent text-accent-foreground hover:bg-accent',
+                      )}
+                    >
+                      <span className="text-sm leading-5 font-medium">{banner.name}</span>
+                      <span className="text-xs leading-4 opacity-80">{channels.length > 0 ? channels.join(', ') : 'Канал не назначен'}</span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          ) : (
+            <p className="m-0 text-[13px] leading-[18px] text-muted-foreground">Креативов пока нет</p>
+          )}
+        </Flash>
       </Section>
 
       <Section title="Проверка">

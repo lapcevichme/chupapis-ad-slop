@@ -128,6 +128,35 @@
     }
 }
 
+/* Поле или телефон, которые только что изменил агент. */
+@keyframes flash {
+  from {
+    background-color: color-mix(in srgb, var(--primary) 20%, transparent);
+    box-shadow: 0 0 0 2px var(--ring);
+  }
+  to {
+    background-color: transparent;
+    box-shadow: 0 0 0 2px transparent;
+  }
+}
+
+@keyframes flash-ring {
+  from {
+    box-shadow: 0 0 0 3px var(--ring);
+  }
+  to {
+    box-shadow: 0 0 0 3px transparent;
+  }
+}
+
+.animate-flash {
+  animation: flash 1.6s ease-out forwards;
+}
+
+.animate-flash-ring {
+  animation: flash-ring 1.6s ease-out forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
