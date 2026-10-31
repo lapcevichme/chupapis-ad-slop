@@ -123,7 +123,7 @@ class ChatService:
             # Сообщение без ответа на подтверждение = отказ, текст уходит агенту как правка (chat-api.md §2).
             payload: Any = Command(resume={"approved": False, "comment": text, "viaMessage": True})
         else:
-            payload = {"messages": [HumanMessage(text)]}
+            payload = {"messages": [HumanMessage(text)], "asked": False}
         return self._stream(session_id, payload, user, role)
 
     async def answer_confirmation(self, session_id: str, confirmation_id: str, approved: bool, comment: str | None, user: str, role: str) -> AsyncIterator[str]:

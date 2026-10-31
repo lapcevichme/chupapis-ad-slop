@@ -1,6 +1,7 @@
 """Инструменты чат-агента. JSON-схемы аргументов генерируются из Pydantic-моделей."""
 
 import json
+from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any, Callable, Literal
 
@@ -79,6 +80,7 @@ class DesignArgs(BaseModel):
     generateImage: bool = Field(False, description="Сгенерировать картинку; только если пользователь согласился")
     imageUrl: str | None = Field(None, description="Картинка пользователя (https), если он её прислал")
     replaceBannerId: Ref | None = Field(None, description="Правка: id баннера, который нужно переделать, вместо создания нового")
+    promoImageOnly: bool = Field(False, description="Правка: нужна только картинка промо-экрана, баннер не менять. Вместе с replaceBannerId и generateImage")
 
 
 class ConfirmArgs(BaseModel):
@@ -196,10 +198,26 @@ async def _propose(ctx: ToolContext, spec: WriteOp, raw: dict[str, Any]) -> str:
     return f"В пакете: {op['label']}.{ref} Когда шаг собран, вызови request_confirmation."
 
 
+def _set_content_image(content: dict[str, Any], image: dict[str, Any]) -> None:
+    existing = next((c for c in content["component"]["components"] if c["role"] == "image"), None)
+    if existing is not None:
+        existing.update(image)
+    else:
+        insert_content_image(content, image)
+
+
 async def _design(ctx: ToolContext, args: DesignArgs, progress: Callable[[str], None]) -> str:
     banner_types = await ctx.banner_types()
     by_code = {t["code"]: t for t in banner_types.values()}
+    draft = ctx.draft() or {}
+    previous = next((b for b in draft.get("banners", []) if b["id"] == args.replaceBannerId), None) if args.replaceBannerId else None
+    if args.replaceBannerId and previous is None:
+        return f"Ошибка: баннера {args.replaceBannerId} нет в кампании"
+
     code = args.bannerType
+    if code is None and previous is not None:
+        # Правка: тип у баннера уже есть.
+        code = banner_types.get(previous.get("bannerTypeId"), {}).get("code")
     if code is None and args.placeId is not None:
         place = (await ctx.places()).get(args.placeId) if isinstance(args.placeId, int) else None
         code = place and place.get("defaultBanner")
@@ -211,17 +229,16 @@ async def _design(ctx: ToolContext, args: DesignArgs, progress: Callable[[str], 
     if bad:
         return f"Ошибка: {code} не поддерживает каналы {', '.join(bad)}; допустимы {', '.join(banner_type['channels'])}"
 
-    draft = ctx.draft() or {}
-    previous = next((b for b in draft.get("banners", []) if b["id"] == args.replaceBannerId), None) if args.replaceBannerId else None
-    if args.replaceBannerId and previous is None:
-        return f"Ошибка: баннера {args.replaceBannerId} нет в кампании"
-
     pending_banner = next((op for op in ctx.pending if previous and op["ref"] == args.replaceBannerId), None)
-    # Промо-экраны, которые ещё в пакете и привязаны к переделываемому баннеру: им тоже нужна новая картинка.
-    linked_contents = []
+    # Промо-экраны, привязанные к переделываемому баннеру через креативы: им тоже нужна новая картинка.
+    # Ещё не сохранённые правим прямо в пакете, сохранённым предлагаем update_content.
+    linked_contents, saved_contents = [], []
     if pending_banner is not None:
         linked = {op["body"].get("contentId") for op in ctx.pending if op["kind"] == "create_creative" and op["body"].get("bannerId") == pending_banner["ref"]}
         linked_contents = [op for op in ctx.pending if op["kind"] == "create_content" and op["ref"] in linked]
+    elif previous:
+        linked = {c.get("contentId") for c in draft.get("creatives", []) if c.get("bannerId") == previous["id"]}
+        saved_contents = [c for c in draft.get("contents", []) if c["id"] in linked and c.get("contentType") == "PROMO"]
 
     try:
         outcome = await ctx.designer.design(
@@ -232,7 +249,8 @@ async def _design(ctx: ToolContext, args: DesignArgs, progress: Callable[[str], 
                 generate_image=args.generateImage,
                 image_url=args.imageUrl,
                 previous=previous,
-                content_image=bool(linked_contents) if previous else None,
+                content_image=bool(linked_contents or saved_contents) if previous else None,
+                promo_only=args.promoImageOnly and previous is not None,
             ),
             progress,
         )
@@ -246,17 +264,18 @@ async def _design(ctx: ToolContext, args: DesignArgs, progress: Callable[[str], 
         pending_banner["body"]["content"] = outcome.banner
         if outcome.content_image:
             for op in linked_contents:
-                content = op["body"]["content"]
-                existing = next((c for c in content["component"]["components"] if c["role"] == "image"), None)
-                if existing is not None:
-                    existing.update(outcome.content_image)
-                else:
-                    insert_content_image(content, outcome.content_image)
+                _set_content_image(op["body"]["content"], outcome.content_image)
         ctx.draft_changed = True
         lines.append(f"Операция {pending_banner['ref']} в пакете обновлена, дублей нет.")
     elif previous:
-        result = await _propose(ctx, WRITE_OPS_BY_KIND["update_banner"], {"bannerId": args.replaceBannerId, "banner": banner_body})
-        lines.append(result)
+        if not args.promoImageOnly:
+            lines.append(await _propose(ctx, WRITE_OPS_BY_KIND["update_banner"], {"bannerId": args.replaceBannerId, "banner": banner_body}))
+        if outcome.content_image:
+            for saved in saved_contents:
+                content = deepcopy(saved["content"])
+                _set_content_image(content, outcome.content_image)
+                body = {"name": saved["name"], "contentType": saved["contentType"], "content": content}
+                lines.append(await _propose(ctx, WRITE_OPS_BY_KIND["update_content"], {"contentId": saved["id"], "content": body}))
     else:
         lines.append(await _propose(ctx, WRITE_OPS_BY_KIND["create_banner"], {"banner": banner_body}))
         banner_ref = ctx.pending[-1]["ref"] if ctx.pending and ctx.pending[-1]["kind"] == "create_banner" else None
@@ -274,10 +293,19 @@ async def _design(ctx: ToolContext, args: DesignArgs, progress: Callable[[str], 
             for channel in channels:
                 creative = {"name": f"{outcome.banner_name} · {channel}"[:100], "bannerId": banner_ref, "contentId": content_ref, "channelCode": channel}
                 lines.append(await _propose(ctx, WRITE_OPS_BY_KIND["create_creative"], {"creative": creative}))
-    if outcome.banner.get("image"):
-        lines.append(f"Картинка баннера: {outcome.banner['image']['url']}")
+    # Адреса картинок модели не нужны: сравнивая их с черновиком, она решала, что ничего не изменилось.
+    image = (outcome.banner.get("image") or {}).get("url")
+    previous_image = (((previous or {}).get("content") or {}).get("image") or {}).get("url")
+    if image and image != previous_image:
+        lines.append("Картинка баннера новая, она уже в превью.")
+    elif image:
+        lines.append("Картинка баннера прежняя.")
     if outcome.content_image:
-        lines.append(f"Картинка промо-экрана: {outcome.content_image['url']}")
+        lines.append("Картинка промо-экрана новая, она уже в превью.")
+    if args.promoImageOnly and previous and not saved_contents and pending_banner is None:
+        lines.append("У этого баннера нет сохранённого промо-экрана: картинку ставить некуда.")
+    if ctx.pending:
+        lines.append("Правки в пакете и в базу ещё не попали: вызови request_confirmation.")
     lines += outcome.notes
     return "\n".join(lines)
 

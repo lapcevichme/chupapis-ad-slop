@@ -84,13 +84,13 @@ def chat(client):
     def api_factory(user, role):
         return CampaignsApi(user, role, base_url="http://api", transport=httpx.ASGITransport(app=app))
 
-    def install(chat_script: list[AIMessage], design_script: list[AIMessage] | None = None):
+    def install(chat_script: list[AIMessage], design_script: list[AIMessage] | None = None, images=None):
         model = ScriptedModel(script=chat_script)
         app.state.chat = build_chat_service(
             InMemorySaver(),
             chat=model,
             design=ScriptedModel(script=design_script or []),
-            images=NoImageGenerator(),
+            images=images or NoImageGenerator(),
             api_factory=api_factory,
         )
         return model
@@ -256,3 +256,65 @@ def test_manager_sees_moderator_decision_from_other_chat(client, chat):
     # Напоминание стоит последним: системный промпт модель перебивает прошлыми сообщениями диалога.
     reminder = model.seen[-1][-1].content
     assert "сейчас в состоянии NEEDS_WORK, с прошлого хода было ON_MODERATION" in reminder
+
+
+def test_unconfirmed_changes_get_confirmation_card(client, chat):
+    # Модель положила правку в пакет и закончила ход без request_confirmation: карточку показывает граф.
+    model = chat(
+        [
+            tool_message(call("propose_create_tag", {"tag": {"name": "Осень"}}, 1)),
+            AIMessage(content="Добавил тег."),
+            AIMessage(content="Тег создан."),
+        ]
+    )
+    sid = client.post("/chat", json={}, headers=MANAGER).json()["sessionId"]
+    reply = events(client.post(f"/chat/{sid}/messages", json={"text": "Создай тег Осень"}, headers=MANAGER))
+    conf = next(data for kind, data in reply if kind == "confirmation_required")
+    assert [op["kind"] for op in conf["operations"]] == ["create_tag"]
+    assert [data["text"] for kind, data in reply if kind == "message_delta"] == ["Добавил тег."]
+    assert "Осень" not in [t["name"] for t in client.get("/tags").json()]
+
+    client.post(f"/chat/{sid}/confirmations/{conf['id']}", json={"approved": True}, headers=MANAGER)
+    assert "Осень" in [t["name"] for t in client.get("/tags").json()]
+    assert "Пользователь подтвердил" in next(m for m in reversed(model.seen[-1]) if isinstance(m, ToolMessage)).content
+
+
+def test_question_with_ready_changes_is_not_interrupted(client, chat):
+    chat([tool_message(call("propose_create_tag", {"tag": {"name": "Осень"}}, 1)), AIMessage(content="Добавить ещё тег «Вклад»?")])
+    sid = client.post("/chat", json={}, headers=MANAGER).json()["sessionId"]
+    reply = events(client.post(f"/chat/{sid}/messages", json={"text": "Создай тег Осень"}, headers=MANAGER))
+    assert "confirmation_required" not in [kind for kind, _ in reply]
+
+
+def test_suggestions_end_the_turn(client, chat):
+    # После кнопок модель больше не вызывается: иначе она повторяла вопросы вторым сообщением.
+    question = AIMessage(content="Когда начать показ?", tool_calls=[call("suggest_options", {"items": [{"label": "00:00 UTC", "value": "00:00"}, {"label": "09:00 UTC", "value": "09:00"}]}, 1)])
+    model = chat([question, AIMessage(content="Начнём в 09:00.")])
+    sid = client.post("/chat", json={}, headers=MANAGER).json()["sessionId"]
+    reply = events(client.post(f"/chat/{sid}/messages", json={"text": "Вклад с 5 ноября"}, headers=MANAGER))
+    assert [kind for kind, _ in reply if kind in {"suggestions", "done"}] == ["suggestions", "done"]
+    assert len(model.seen) == 1
+    events(client.post(f"/chat/{sid}/messages", json={"text": "09:00"}, headers=MANAGER))
+    assert len(model.seen) == 2
+
+
+def test_promo_image_for_saved_campaign_updates_content(client, chat):
+    # У сохранённой кампании 101 смарт-баннер с иконкой: промо-экран получает её, баннер не меняется.
+    chat(
+        [
+            tool_message(call("design_creative", {"brief": "Картинку на промо", "replaceBannerId": 201, "generateImage": True, "promoImageOnly": True}, 1)),
+            AIMessage(content="Подготовил картинку для промо-экрана."),
+            AIMessage(content="Сохранил."),
+        ],
+        [design_reply(BANNER_OK, 1)],
+    )
+    banner_image = client.get("/campaigns/101").json()["banners"][0]["content"]["image"]["url"]
+    sid = client.post("/chat", json={"campaignId": 101}, headers=MANAGER).json()["sessionId"]
+    reply = events(client.post(f"/chat/{sid}/messages", json={"text": "Добавь картинку на промо"}, headers=MANAGER))
+    conf = next(data for kind, data in reply if kind == "confirmation_required")
+    assert [op["kind"] for op in conf["operations"]] == ["update_content"]
+
+    client.post(f"/chat/{sid}/confirmations/{conf['id']}", json={"approved": True}, headers=MANAGER)
+    content = client.get("/campaigns/101").json()["contents"][0]["content"]
+    image = next(c for c in content["component"]["components"] if c["role"] == "image")
+    assert image["url"] == banner_image and image["aspectRatio"] == 1.0

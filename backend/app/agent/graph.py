@@ -40,6 +40,8 @@ class AgentState(TypedDict, total=False):
     id_map: Annotated[dict[str, int], _replace]
     counter: Annotated[int, _replace]
     awaiting: Annotated[dict[str, Any] | None, _replace]
+    # В этом ходе пользователю уже задан вопрос (кнопки или отказ от карточки): авто-подтверждение не показываем.
+    asked: Annotated[bool, _replace]
 
 
 @dataclass
@@ -64,6 +66,22 @@ async def refresh_campaign(client: CampaignsApi, campaign_id: int | None) -> dic
         if exc.status == 404:
             return {"campaign_id": None, "base": None}
         raise
+
+
+def _text(message: AIMessage) -> str:
+    if isinstance(message.content, str):
+        return message.content
+    return "".join(block.get("text", "") for block in message.content if isinstance(block, dict))
+
+
+def _awaiting(counter: int, title: str | None, base: dict[str, Any] | None, pending: list[dict[str, Any]], call_id: str) -> dict[str, Any]:
+    return {
+        "id": f"conf-{counter}",
+        "title": title or "Подтвердите изменения",
+        "operations": [{"kind": op["kind"], "label": op["label"]} for op in pending],
+        "changes": confirmation_changes(base, pending),
+        "toolCallId": call_id,
+    }
 
 
 def _state_reminder(old: dict[str, Any] | None, new: dict[str, Any] | None) -> str | None:
@@ -106,11 +124,14 @@ def _context_note(state: AgentState, config: RunnableConfig) -> str:
         lines.append("Кампания ещё не создана.")
     pending = state.get("pending") or []
     if pending:
-        lines.append("Пакет ждёт подтверждения:")
+        lines.append("Пакет ещё не подтверждён, в базе этих правок нет. Чтобы они сохранились, вызови request_confirmation:")
         lines += [f"- {op['ref'] or '—'}: {op['label']}" for op in pending]
     draft = apply_operations(base, pending)
     if draft:
-        lines.append("Черновик (то, что видит пользователь в превью):")
+        lines.append(
+            "Черновик (то, что видит пользователь в превью). Неподтверждённые операции пакета в нём уже применены, "
+            "поэтому совпадение черновика с твоей правкой не значит, что правка сохранена:"
+        )
         lines.append(json.dumps(draft, ensure_ascii=False, default=str))
     return "\n".join(lines)
 
@@ -145,6 +166,7 @@ def build_graph(deps: AgentDeps, checkpointer):
             )
             replies: list[ToolMessage] = []
             awaiting = None
+            asked = False
             for call in call_message.tool_calls:
                 if call["name"] == "request_confirmation":
                     if awaiting is not None or not ctx.pending:
@@ -152,14 +174,10 @@ def build_graph(deps: AgentDeps, checkpointer):
                         replies.append(ToolMessage(text, tool_call_id=call["id"], name=call["name"]))
                         continue
                     ctx.counter += 1
-                    awaiting = {
-                        "id": f"conf-{ctx.counter}",
-                        "title": call["args"].get("title") or "Подтвердите изменения",
-                        "operations": [{"kind": op["kind"], "label": op["label"]} for op in ctx.pending],
-                        "changes": confirmation_changes(ctx.base, ctx.pending),
-                        "toolCallId": call["id"],
-                    }
+                    awaiting = _awaiting(ctx.counter, call["args"].get("title"), ctx.base, ctx.pending, call["id"])
                     continue
+                if call["name"] == "suggest_options":
+                    asked = True
 
                 label = step_label(call["name"])
                 step_id = call["id"]
@@ -181,14 +199,31 @@ def build_graph(deps: AgentDeps, checkpointer):
             if ctx.draft_changed:
                 draft, validation = await draft_report(client, {**state, "pending": ctx.pending})
                 writer({"event": "draft_updated", "data": {"draft": draft, "validation": validation}})
-        return {"messages": replies, "pending": ctx.pending, "counter": ctx.counter, "awaiting": awaiting}
+        return {"messages": replies, "pending": ctx.pending, "counter": ctx.counter, "awaiting": awaiting, "asked": asked}
+
+    async def auto_confirm_node(state: AgentState):
+        """Модель закончила ход с непустым пакетом и не попросила подтверждения: карточку показываем сами.
+
+        Иначе правка видна в превью, а в базу не попадает. Вызов request_confirmation дописывается в последний
+        ответ модели, чтобы результат подтверждения было к чему привязать.
+        """
+        last: AIMessage = state["messages"][-1]
+        counter = state.get("counter", 0) + 1
+        call = {"name": "request_confirmation", "args": {}, "id": f"auto-conf-{counter}", "type": "tool_call"}
+        message = AIMessage(content=last.content, tool_calls=[call], id=last.id)
+        return {
+            "messages": [message],
+            "counter": counter,
+            "awaiting": _awaiting(counter, None, state.get("base"), state["pending"], call["id"]),
+        }
 
     async def confirm_node(state: AgentState, config: RunnableConfig):
         awaiting = state["awaiting"]
         answer = interrupt({k: v for k, v in awaiting.items() if k != "toolCallId"})
         writer = get_stream_writer()
         call_id = awaiting["toolCallId"]
-        update: dict[str, Any] = {"awaiting": None}
+        # После отказа кнопкой модель спрашивает, что изменить: карточку сразу же снова не показываем.
+        update: dict[str, Any] = {"awaiting": None, "asked": not answer.get("approved") and not answer.get("viaMessage")}
 
         if not answer.get("approved"):
             comment = (answer.get("comment") or "").strip()
@@ -224,17 +259,26 @@ def build_graph(deps: AgentDeps, checkpointer):
 
     def after_agent(state: AgentState) -> str:
         last = state["messages"][-1]
-        return "tools" if isinstance(last, AIMessage) and last.tool_calls else END
+        if isinstance(last, AIMessage) and last.tool_calls:
+            return "tools"
+        # Вопрос текстом при готовом пакете карточка не перебивает: пользователь сначала отвечает.
+        question = isinstance(last, AIMessage) and _text(last).rstrip().endswith("?")
+        return "auto_confirm" if state.get("pending") and not state.get("asked") and not question else END
 
     def after_tools(state: AgentState) -> str:
-        return "confirm" if state.get("awaiting") else "agent"
+        if state.get("awaiting"):
+            return "confirm"
+        # Вопрос с кнопками закрывает ход: иначе модель повторяет те же вопросы вторым сообщением.
+        return END if state.get("asked") else "agent"
 
     graph = StateGraph(AgentState)
     graph.add_node("agent", agent_node)
     graph.add_node("tools", tools_node)
+    graph.add_node("auto_confirm", auto_confirm_node)
     graph.add_node("confirm", confirm_node)
     graph.add_edge(START, "agent")
-    graph.add_conditional_edges("agent", after_agent, ["tools", END])
-    graph.add_conditional_edges("tools", after_tools, ["confirm", "agent"])
+    graph.add_conditional_edges("agent", after_agent, ["tools", "auto_confirm", END])
+    graph.add_conditional_edges("tools", after_tools, ["confirm", "agent", END])
+    graph.add_edge("auto_confirm", "confirm")
     graph.add_edge("confirm", "agent")
     return graph.compile(checkpointer=checkpointer)

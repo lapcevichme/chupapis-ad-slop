@@ -57,11 +57,23 @@ class DesignRequest:
     previous: dict[str, Any] | None = None
     # Нужна ли картинка для промо-экрана; по умолчанию — если промо-экран собирается в этом же запросе.
     content_image: bool | None = None
+    # Просили картинку только для промо-экрана: картинку баннера не трогаем.
+    promo_only: bool = False
 
     @property
     def wants_content_image(self) -> bool:
         wanted = self.with_content if self.content_image is None else self.content_image
         return self.generate_image and wanted
+
+    @property
+    def previous_image(self) -> str | None:
+        return (((self.previous or {}).get("content") or {}).get("image") or {}).get("url")
+
+    def generates_banner_image(self, type_code: str) -> bool:
+        if not self.generate_image:
+            return False
+        # Промо-экрану смарт-баннера хватает прежней иконки, промо-экрану сторис нужна своя картинка.
+        return not (self.promo_only and (needs_own_content_image(type_code) or self.previous_image))
 
 
 @dataclass
@@ -113,8 +125,8 @@ class Designer:
             "titleMaxLength": t["titleMaxLength"],
             "textMaxLength": t["textMaxLength"],
             "withContent": request.with_content,
-            "needImagePrompt": request.generate_image,
-            "imageSize": IMAGE_SIZES.get(t["code"]) if request.generate_image else None,
+            "needImagePrompt": request.generates_banner_image(t["code"]),
+            "imageSize": IMAGE_SIZES.get(t["code"]) if request.generates_banner_image(t["code"]) else None,
             "needContentImagePrompt": request.wants_content_image and needs_own_content_image(t["code"]),
             "previousVersion": request.previous,
         }
@@ -167,15 +179,17 @@ class Designer:
             progress("Генерирую картинки" if own else "Генерирую картинку")
             # Промо-экрану сторис нужна своя квадратная картинка. Генерируем по очереди, а не параллельно:
             # OpenRouter заранее резервирует деньги под каждый запрос, и два сразу упираются в небольшой лимит ключа.
-            banner_url = await self._generate(args.get("imagePrompt"), IMAGE_SIZES[code], "Картинка баннера", notes)
+            if request.generates_banner_image(code):
+                banner_url = await self._generate(args.get("imagePrompt"), IMAGE_SIZES[code], "Картинка баннера", notes)
             own_url = await self._generate(args.get("contentImagePrompt") if own else None, CONTENT_IMAGE_SIZE, "Картинка промо-экрана", notes)
+            icon = banner_url or request.previous_image
             if own_url:
                 content_image = {"url": own_url, "aspectRatio": CONTENT_IMAGE_ASPECT}
-            elif banner_url and not needs_own_content_image(code) and request.wants_content_image:
-                content_image = {"url": banner_url, "aspectRatio": CONTENT_IMAGE_ASPECT}
-        if not banner_url and request.previous:
-            # Модель картинку не заполняет, поэтому правка текста без новой генерации оставляет прежнюю.
-            banner_url = ((request.previous.get("content") or {}).get("image") or {}).get("url")
+            elif icon and not needs_own_content_image(code) and request.wants_content_image:
+                content_image = {"url": icon, "aspectRatio": CONTENT_IMAGE_ASPECT}
+        if not banner_url:
+            # Модель картинку не заполняет, поэтому правка без новой генерации оставляет прежнюю.
+            banner_url = request.previous_image
 
         if banner_url:
             banner["image"] = {"url": banner_url}

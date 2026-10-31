@@ -56,3 +56,15 @@ def test_edit_without_new_image_keeps_previous_one():
     outcome = asyncio.run(designer.design(request))
     assert images.calls == []
     assert outcome.banner["image"] == {"url": "/api/media/old.png"}
+
+
+def test_promo_only_story_generates_just_the_square_image():
+    previous = {"id": 217, "content": {**BANNER_OK, "image": {"url": "/api/media/old.png"}}}
+    args = {"bannerName": "Тест", "banner": BANNER_OK, "imagePrompt": "ignored", "contentImagePrompt": "promo square"}
+    images = FakeImages()
+    designer = Designer(ScriptedModel(script=[tool_message(call("DesignResult", args, 1))]), images)
+    request = DesignRequest("картинку на промо", STORY, with_content=False, generate_image=True, previous=previous, content_image=True, promo_only=True)
+    outcome = asyncio.run(designer.design(request))
+    assert images.calls == [("promo square", "1024x1024")]
+    assert outcome.banner["image"] == {"url": "/api/media/old.png"}
+    assert outcome.content_image == {"url": "/api/media/1.png", "aspectRatio": 1.0}
