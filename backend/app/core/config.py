@@ -61,6 +61,7 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     live_base_url: str = "https://api.openai.com/v1"
     live_model: str = "gpt-live-1"
+    # Имя встроенного голоса или id созданного: среди встроенных нет русских, см. app.create_live_voice.
     live_voice: str = "marin"
     # Агент ходит в API кампаний по HTTP, поэтому заглушку можно заменить реальным бэкендом.
     campaigns_api_url: str = "http://localhost:8000"

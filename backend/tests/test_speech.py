@@ -8,8 +8,15 @@ import httpx
 import pytest
 
 from app.core.config import Settings
+from app.create_live_voice import create_voice
 from app.infra import speech as infra
-from app.infra.live import LiveSessionFailed, LiveSessionStarted, OpenAILiveSessions, live_sessions
+from app.infra.live import (
+    LiveSessionFailed,
+    LiveSessionStarted,
+    OpenAILiveSessions,
+    live_sessions,
+    voice_setting,
+)
 from app.infra.speech import OpenRouterSynthesizer, OpenRouterTranscriber, SpeechFailed
 from app.service.speech import SpeechService
 from tests.conftest import MANAGER, codes
@@ -346,3 +353,25 @@ def test_live_without_openai_key_reports_unavailable(client):
     assert response.status_code == 503
     assert codes(response) == ["LIVE_VOICE_UNAVAILABLE"]
     assert live_sessions(Settings(_env_file=None, llm_api_key="openrouter-only")) is None
+
+
+def test_created_voice_is_sent_by_id_and_builtin_by_name():
+    assert voice_setting("voice_abc") == {"id": "voice_abc"}
+    assert voice_setting("marin") == "marin"
+
+
+def test_create_voice_describes_russian_voice():
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        return httpx.Response(200, json={"id": "voice_1", "object": "audio.voice"})
+
+    settings = Settings(_env_file=None, openai_api_key="openai-key")
+    voice = asyncio.run(create_voice(settings, "female", httpx.MockTransport(handler)))
+    assert voice == "voice_1"
+    assert str(calls[0].url) == "https://api.openai.com/v1/audio/voices"
+    body = json.loads(calls[0].content)
+    assert body["type"] == "prompt"
+    assert "native Russian" in body["prompt"] and len(body["prompt"]) <= 2000
+    assert "Здравствуйте" in body["script_hint"] and len(body["script_hint"]) <= 2000

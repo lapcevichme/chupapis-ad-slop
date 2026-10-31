@@ -22,6 +22,11 @@ class LiveSessions(Protocol):
         """Создаёт сессию по SDP-предложению браузера."""
 
 
+def voice_setting(voice: str) -> str | dict[str, str]:
+    # Голос, созданный через app.create_live_voice, передаётся по id, встроенный — по имени.
+    return {"id": voice} if voice.startswith("voice_") else voice
+
+
 class OpenAILiveSessions:
     """Ключ и настройка сессии остаются на сервере, браузер получает только SDP-ответ."""
 
@@ -34,7 +39,7 @@ class OpenAILiveSessions:
             "session": {
                 "model": self.settings.live_model,
                 "instructions": load_prompt("voice_live"),
-                "audio": {"output": {"voice": self.settings.live_voice}},
+                "audio": {"output": {"voice": voice_setting(self.settings.live_voice)}},
                 # Думает и пишет прежний агент: у него проверки и карточки подтверждения.
                 "delegation": {"type": "client"},
             },
