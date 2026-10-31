@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.system import router as system_router
-from app.api.v1 import campaigns, cbro, chat, children, dictionaries, media, speech
+from app.api.v1 import campaigns, cbro, chat, children, dictionaries, media, speech, studio
 
 api_router = APIRouter()
 for router in (
@@ -12,6 +12,7 @@ for router in (
     chat.router,
     speech.router,
     media.router,
+    studio.router,
 ):
     api_router.include_router(router)
 

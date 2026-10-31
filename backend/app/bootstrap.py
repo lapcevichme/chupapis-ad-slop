@@ -7,12 +7,21 @@ from app.core.config import Settings
 from app.infra.agent.designer import Designer
 from app.infra.agent.graph import AgentDeps, build_graph
 from app.infra.agent.patterns import SvgPatternGenerator
+from app.infra.agent.studio_designer import StudioDesigner
 from app.infra.campaigns_api import ApiFactory, CampaignsApi
 from app.infra.llm import ImageGenerator, chat_model, image_generator
 from app.infra.speech import speech_synthesizer, speech_transcriber
 from app.service.chat import ChatService
 from app.service.chat_sessions import SessionRegistry
 from app.service.speech import SpeechService
+
+
+def build_studio_designer(settings: Settings) -> StudioDesigner | None:
+    if not settings.llm_api_key:
+        return None
+    return StudioDesigner(
+        chat_model(settings, settings.design_model, temperature=0.9, max_tokens=12000)
+    )
 
 
 def build_speech_service(settings: Settings) -> SpeechService:

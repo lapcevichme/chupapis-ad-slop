@@ -3388,6 +3388,291 @@
         }
       }
     },
+    "/studio/documents": {
+      "post": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "Save Studio Document",
+        "operationId": "save_studio_document",
+        "parameters": [
+          {
+            "name": "X-User",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User"
+            }
+          },
+          {
+            "name": "X-Role",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_save_studio_document"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoredStudioDocument"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Ошибки валидации или жизненного цикла",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ENTITY_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/studio/documents/{key}": {
+      "get": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "Get Studio Document",
+        "operationId": "get_studio_document",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{32}$",
+              "title": "Key"
+            }
+          },
+          {
+            "name": "X-User",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User"
+            }
+          },
+          {
+            "name": "X-Role",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudioDocument"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Ошибки валидации или жизненного цикла",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ENTITY_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/studio/generate": {
+      "post": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "Generate Studio Variants",
+        "operationId": "generate_studio_variants",
+        "parameters": [
+          {
+            "name": "X-User",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User"
+            }
+          },
+          {
+            "name": "X-Role",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StudioGenerationBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudioGenerationResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Ошибки валидации или жизненного цикла",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ENTITY_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -3793,6 +4078,26 @@
           "channels"
         ],
         "title": "BannerTypeDto"
+      },
+      "Body_save_studio_document": {
+        "properties": {
+          "document": {
+            "type": "string",
+            "maxLength": 100000,
+            "title": "Document"
+          },
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "document",
+          "file"
+        ],
+        "title": "Body_save_studio_document"
       },
       "Body_transcribe_speech": {
         "properties": {
@@ -5180,6 +5485,303 @@
           "pendingConfirmation"
         ],
         "title": "SessionSnapshot"
+      },
+      "StoredStudioDocument": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "document": {
+            "$ref": "#/components/schemas/StudioDocument"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "url",
+          "document"
+        ],
+        "title": "StoredStudioDocument"
+      },
+      "StudioDocument": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Version",
+            "default": 1
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "STORY",
+              "SMART_BANNER",
+              "PROMO"
+            ],
+            "title": "Format"
+          },
+          "width": {
+            "type": "integer",
+            "maximum": 1200.0,
+            "minimum": 120.0,
+            "title": "Width",
+            "default": 300
+          },
+          "height": {
+            "type": "integer",
+            "maximum": 2400.0,
+            "minimum": 120.0,
+            "title": "Height",
+            "default": 600
+          },
+          "background": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
+            "title": "Background",
+            "default": "#3155ff"
+          },
+          "layers": {
+            "items": {
+              "$ref": "#/components/schemas/StudioLayer"
+            },
+            "type": "array",
+            "maxItems": 40,
+            "title": "Layers"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "format",
+          "layers"
+        ],
+        "title": "StudioDocument"
+      },
+      "StudioGenerationBody": {
+        "properties": {
+          "document": {
+            "$ref": "#/components/schemas/StudioDocument"
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Prompt"
+          },
+          "count": {
+            "type": "integer",
+            "maximum": 3.0,
+            "minimum": 1.0,
+            "title": "Count",
+            "default": 3
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "document",
+          "prompt"
+        ],
+        "title": "StudioGenerationBody"
+      },
+      "StudioGenerationResult": {
+        "properties": {
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/StudioDocument"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 1,
+            "title": "Variants"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "variants"
+        ],
+        "title": "StudioGenerationResult"
+      },
+      "StudioLayer": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "text",
+              "shape",
+              "image"
+            ],
+            "title": "Kind"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "title",
+              "body",
+              "button",
+              "decoration"
+            ],
+            "title": "Role",
+            "default": "decoration"
+          },
+          "x": {
+            "type": "number",
+            "maximum": 2400.0,
+            "minimum": -2400.0,
+            "title": "X"
+          },
+          "y": {
+            "type": "number",
+            "maximum": 2400.0,
+            "minimum": -2400.0,
+            "title": "Y"
+          },
+          "width": {
+            "type": "number",
+            "maximum": 2400.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Width"
+          },
+          "height": {
+            "type": "number",
+            "maximum": 2400.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Height"
+          },
+          "rotation": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Rotation",
+            "default": 0
+          },
+          "opacity": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Opacity",
+            "default": 1
+          },
+          "hidden": {
+            "type": "boolean",
+            "title": "Hidden",
+            "default": false
+          },
+          "locked": {
+            "type": "boolean",
+            "title": "Locked",
+            "default": false
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 5000,
+            "title": "Text",
+            "default": ""
+          },
+          "fontSize": {
+            "type": "number",
+            "maximum": 120.0,
+            "minimum": 8.0,
+            "title": "Fontsize",
+            "default": 24
+          },
+          "fontWeight": {
+            "type": "integer",
+            "enum": [
+              400,
+              500,
+              600,
+              700,
+              800
+            ],
+            "title": "Fontweight",
+            "default": 600
+          },
+          "textAlign": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ],
+            "title": "Textalign",
+            "default": "left"
+          },
+          "fill": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
+            "title": "Fill",
+            "default": "#ffffff"
+          },
+          "shape": {
+            "type": "string",
+            "enum": [
+              "rect",
+              "ellipse"
+            ],
+            "title": "Shape",
+            "default": "rect"
+          },
+          "radius": {
+            "type": "number",
+            "maximum": 600.0,
+            "minimum": 0.0,
+            "title": "Radius",
+            "default": 0
+          },
+          "src": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Src",
+            "default": ""
+          },
+          "fit": {
+            "type": "string",
+            "enum": [
+              "cover",
+              "contain"
+            ],
+            "title": "Fit",
+            "default": "cover"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "x",
+          "y",
+          "width",
+          "height"
+        ],
+        "title": "StudioLayer"
       },
       "SynthesisBody": {
         "properties": {

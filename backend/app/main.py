@@ -10,7 +10,7 @@ from app.api.middleware import RequestContextMiddleware
 from app.api.openapi import ApiApplication
 from app.api.problems import register_exception_handlers
 from app.api.router import api_router
-from app.bootstrap import build_chat_service, build_speech_service
+from app.bootstrap import build_chat_service, build_speech_service, build_studio_designer
 from app.core.config import Settings
 from app.core.logging import configure_logging
 from app.db.database import Database
@@ -31,6 +31,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 app.state.checkpointer = saver
                 app.state.chat = build_chat_service(saver, settings, SessionRegistry(app.state.db))
                 app.state.speech = build_speech_service(settings)
+                app.state.studio_designer = build_studio_designer(settings)
                 yield
         finally:
             await app.state.db.dispose()

@@ -556,6 +556,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/studio/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Save Studio Document */
+        post: operations["save_studio_document"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/studio/documents/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Studio Document */
+        get: operations["get_studio_document"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/studio/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Generate Studio Variants */
+        post: operations["generate_studio_variants"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -701,6 +752,13 @@ export interface components {
             textMaxLength: number;
             /** Channels */
             channels: string[];
+        };
+        /** Body_save_studio_document */
+        Body_save_studio_document: {
+            /** Document */
+            document: string;
+            /** File */
+            file: string;
         };
         /** Body_transcribe_speech */
         Body_transcribe_speech: {
@@ -1198,6 +1256,158 @@ export interface components {
             } | null;
             validation: components["schemas"]["DraftValidation"];
             pendingConfirmation: components["schemas"]["ChatEventConfirmationRequired"] | null;
+        };
+        /** StoredStudioDocument */
+        StoredStudioDocument: {
+            /** Id */
+            id: string;
+            /** Url */
+            url: string;
+            document: components["schemas"]["StudioDocument"];
+        };
+        /** StudioDocument */
+        StudioDocument: {
+            /**
+             * Version
+             * @default 1
+             * @constant
+             */
+            version: 1;
+            /** Name */
+            name: string;
+            /**
+             * Format
+             * @enum {string}
+             */
+            format: "STORY" | "SMART_BANNER" | "PROMO";
+            /**
+             * Width
+             * @default 300
+             */
+            width: number;
+            /**
+             * Height
+             * @default 600
+             */
+            height: number;
+            /**
+             * Background
+             * @default #3155ff
+             */
+            background: string;
+            /** Layers */
+            layers: components["schemas"]["StudioLayer"][];
+        };
+        /** StudioGenerationBody */
+        StudioGenerationBody: {
+            document: components["schemas"]["StudioDocument"];
+            /** Prompt */
+            prompt: string;
+            /**
+             * Count
+             * @default 3
+             */
+            count: number;
+        };
+        /** StudioGenerationResult */
+        StudioGenerationResult: {
+            /** Variants */
+            variants: components["schemas"]["StudioDocument"][];
+        };
+        /** StudioLayer */
+        StudioLayer: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "text" | "shape" | "image";
+            /**
+             * Role
+             * @default decoration
+             * @enum {string}
+             */
+            role: "title" | "body" | "button" | "decoration";
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+            /**
+             * Rotation
+             * @default 0
+             */
+            rotation: number;
+            /**
+             * Opacity
+             * @default 1
+             */
+            opacity: number;
+            /**
+             * Hidden
+             * @default false
+             */
+            hidden: boolean;
+            /**
+             * Locked
+             * @default false
+             */
+            locked: boolean;
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+            /**
+             * Fontsize
+             * @default 24
+             */
+            fontSize: number;
+            /**
+             * Fontweight
+             * @default 600
+             * @enum {integer}
+             */
+            fontWeight: 400 | 500 | 600 | 700 | 800;
+            /**
+             * Textalign
+             * @default left
+             * @enum {string}
+             */
+            textAlign: "left" | "center" | "right";
+            /**
+             * Fill
+             * @default #ffffff
+             */
+            fill: string;
+            /**
+             * Shape
+             * @default rect
+             * @enum {string}
+             */
+            shape: "rect" | "ellipse";
+            /**
+             * Radius
+             * @default 0
+             */
+            radius: number;
+            /**
+             * Src
+             * @default
+             */
+            src: string;
+            /**
+             * Fit
+             * @default cover
+             * @enum {string}
+             */
+            fit: "cover" | "contain";
         };
         /** SynthesisBody */
         SynthesisBody: {
@@ -3372,6 +3582,166 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UploadedImage"];
+                };
+            };
+            /** @description Ошибки валидации или жизненного цикла */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ENTITY_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_studio_document: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User"?: string | null;
+                "X-Role"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_save_studio_document"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoredStudioDocument"];
+                };
+            };
+            /** @description Ошибки валидации или жизненного цикла */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ENTITY_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_studio_document: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User"?: string | null;
+                "X-Role"?: string | null;
+            };
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudioDocument"];
+                };
+            };
+            /** @description Ошибки валидации или жизненного цикла */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ENTITY_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_studio_variants: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User"?: string | null;
+                "X-Role"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudioGenerationBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudioGenerationResult"];
                 };
             };
             /** @description Ошибки валидации или жизненного цикла */
