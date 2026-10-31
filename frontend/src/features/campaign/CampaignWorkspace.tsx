@@ -163,7 +163,7 @@ export function CampaignWorkspace() {
             </div>
           </main>}
           <section className="pilot-assistant" aria-label="Диалог с ассистентом">
-            {hasResult && <div className="assistant-heading"><span className="assistant-monogram">a</span><strong>Ассистент</strong><span>{chat.busy ? 'Собираю кампанию' : 'Давайте создадим точнее'}</span></div>}
+            {hasResult && <div className="assistant-heading"><span className="assistant-monogram">a</span><strong>Ассистент</strong><span>{chat.busy ? 'Работаю' : chat.confirmation ? 'Проверьте изменения' : 'Бриф и правки'}</span></div>}
             <ChatPanel {...chatProps} />
           </section>
         </div>

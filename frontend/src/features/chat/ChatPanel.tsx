@@ -1,11 +1,11 @@
-import { ArrowUp, AudioLines, Check, CircleAlert, Info, LoaderCircle, TriangleAlert, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, AudioLines, Check, ChevronDown, CircleAlert, Info, LoaderCircle, TriangleAlert, X } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, SyntheticEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import type { NextStep } from '@/features/campaign/nextStep'
 import { cn } from '@/lib/utils'
 import type { CampaignListItem, ChatStep, ChatWarning, Dictionaries, UserRole } from '@/types/api'
-import { ChatMarkdown } from './ChatMarkdown'
+import { AnimatedAnswer } from './AnimatedAnswer'
 import { ConfirmationCard } from './ConfirmationCard'
 import { MicButton } from './MicButton'
 import { ModerationBar } from './ModerationBar'
@@ -52,26 +52,33 @@ function Warning({ warning }: { warning: ChatWarning }) {
   )
 }
 
-function Message({ message, thinking }: { message: ChatMessage; thinking: boolean }) {
+function Message({ message, thinking, active }: { message: ChatMessage; thinking: boolean; active: boolean }) {
   if (message.role === 'user') {
-    return <p className="m-0 max-w-[85%] self-end rounded-lg bg-secondary px-3 py-2 text-sm leading-5 wrap-anywhere whitespace-pre-wrap text-secondary-foreground">{message.text}</p>
+    return <p className="chat-user-message">{message.text}</p>
   }
 
+  const running = message.steps.findLast((step) => step.status === 'running')
+  const failed = message.steps.some((step) => step.status === 'failed')
   return (
-    <div className="flex flex-col gap-2">
-      {message.steps.length > 0 && (
+    <article className="assistant-message" aria-label="Ответ AdPilot">
+      <div className="message-author"><span className="message-avatar" aria-hidden="true">a</span><strong>AdPilot</strong>{active && <span className="message-state">{message.text ? 'Пишет' : 'Работает'}</span>}</div>
+      {active && running && <ul className="m-0 list-none p-0"><Step step={running} /></ul>}
+      {!active && message.steps.length > 0 && (
+        <details className={cn('message-steps', failed && 'has-failed-steps')}>
+          <summary>{failed ? <CircleAlert size={14} aria-hidden="true" /> : <Check size={14} aria-hidden="true" />}Ход работы · {message.steps.length}<ChevronDown size={14} aria-hidden="true" /></summary>
         <ul className="m-0 flex list-none flex-col gap-1 p-0">
           {message.steps.map((step) => (
             <Step key={step.id} step={step} />
           ))}
         </ul>
+        </details>
       )}
-      {message.text && <ChatMarkdown text={message.text} />}
+      {message.text && <AnimatedAnswer text={message.text} active={active} />}
       {message.warnings.map((warning) => (
         <Warning key={warning.message} warning={warning} />
       ))}
-      {thinking && <p className="m-0 animate-pulse text-[13px] leading-[18px] text-muted-foreground">Ассистент думает…</p>}
-    </div>
+      {thinking && <span className="typing-indicator" role="status"><span aria-hidden="true"><i /><i /><i /></span>Готовлю ответ</span>}
+    </article>
   )
 }
 
@@ -90,14 +97,21 @@ export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role
   const { busy, campaignId, messages, suggestions, confirmation, error, send, answer, retry } = chat
   const [text, setText] = useState('')
   const log = useRef<HTMLDivElement>(null)
+  const transcript = useRef<HTMLDivElement>(null)
+  const [awayFromBottom, setAwayFromBottom] = useState(false)
   const input = useRef<HTMLTextAreaElement>(null)
   const stickToBottom = useRef(true)
   // Распознанное попадает в поле, а не уходит сразу: Whisper ошибается, и текст должен увидеть человек.
   const dictation = useDictation((spoken) => setText((current) => (current.trim() ? `${current.trimEnd()} ${spoken}` : spoken)))
 
   useEffect(() => {
-    if (log.current && stickToBottom.current) log.current.scrollTop = log.current.scrollHeight
-  }, [messages, suggestions, confirmation, error])
+    if (!transcript.current) return
+    const observer = new ResizeObserver(() => {
+      if (log.current && stickToBottom.current) log.current.scrollTop = log.current.scrollHeight
+    })
+    observer.observe(transcript.current)
+    return () => observer.disconnect()
+  }, [])
 
   function submit(value: string) {
     const trimmed = value.trim()
@@ -117,6 +131,7 @@ export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role
   function handleScroll(event: SyntheticEvent<HTMLDivElement>) {
     const { scrollTop, scrollHeight, clientHeight } = event.currentTarget
     stickToBottom.current = scrollHeight - scrollTop - clientHeight < STICK_THRESHOLD_PX
+    setAwayFromBottom(!stickToBottom.current)
   }
 
   const last = messages.at(-1)
@@ -152,7 +167,9 @@ export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role
 
   return (
     <div className="chat-panel flex h-full flex-col">
+      <div className="chat-log-shell">
       <div ref={log} role="log" aria-label="Сообщения" onScroll={handleScroll} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+        <div ref={transcript} className="chat-transcript">
         {showQueue && <ModerationQueue campaigns={moderationQueue} onOpen={onOpenCampaign} />}
         {empty && !moderator && campaignId === null && (
           <div className="chat-welcome my-auto flex animate-rise flex-col gap-4">
@@ -179,7 +196,7 @@ export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role
         {messages.map((message, index) => (
           // Анимируем только новый ход, иначе при открытии истории дёрнется вся лента.
           <div key={index} className={cn('flex flex-col', index >= messages.length - 2 && 'animate-rise')}>
-            <Message message={message} thinking={thinking && index === messages.length - 1} />
+            <Message message={message} thinking={thinking && index === messages.length - 1} active={busy && index === messages.length - 1} />
           </div>
         ))}
         {suggestions.length > 0 && !busy && (
@@ -214,6 +231,9 @@ export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role
             )}
           </div>
         )}
+        </div>
+      </div>
+      {awayFromBottom && <Button className="chat-jump" size="icon" variant="secondary" aria-label="К последним сообщениям" title="К последним сообщениям" onClick={() => {stickToBottom.current = true; setAwayFromBottom(false); if (log.current) log.current.scrollTop = log.current.scrollHeight}}><ArrowDown aria-hidden="true" /></Button>}
       </div>
 
       {awaitsModeration && !confirmation && !busy && (
