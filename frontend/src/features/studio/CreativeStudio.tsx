@@ -5,7 +5,7 @@ import { generateStudioVariants, loadStudioDocument } from '@/api/studio'
 import type { StudioDocument, StudioLayer } from '@/api/studio'
 import { getCurrentUser } from '@/api/currentUser'
 import { Button } from '@/components/ui/button'
-import { importSource, makeLayoutVariants, newLayer, validateDocument } from './model'
+import { contrastingText, importSource, makeLayoutVariants, newLayer, validateDocument } from './model'
 import type { PromoButton, StudioSource } from './model'
 import { downloadBlob, renderDocument } from './render'
 import { StudioCanvas } from './StudioCanvas'
@@ -32,19 +32,20 @@ export function CreativeStudio(props: Props) {
   const [source] = useState(() => structuredClone(props.source))
   const [initial, setInitial] = useState<StudioDocument | null>(null)
   const [error, setError] = useState('')
+  const [applying, setApplying] = useState(false)
   const image = source.kind === 'banner' ? source.item.content.image?.url : source.item.content.component.components.find(x => x.role === 'image')?.url
   useEffect(() => {
     let active = true
     loadStudioDocument(image).then(saved => { if (active) setInitial(saved ?? importSource(source)) }).catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'Не удалось открыть документ слоёв.') })
     return () => { active = false }
   }, [image, source])
-  return <Dialog.Root open onOpenChange={open => { if (!open) props.onClose() }}><Dialog.Portal><Dialog.Backdrop className="studio-backdrop" /><Dialog.Popup className="creative-studio">
+  return <Dialog.Root open onOpenChange={open => { if (!open && !applying) props.onClose() }}><Dialog.Portal><Dialog.Backdrop className="studio-backdrop" /><Dialog.Popup className="creative-studio">
     <Dialog.Title className="sr-only">Студия креативов</Dialog.Title>
-    {initial ? <StudioEditor {...props} source={source} initial={initial} /> : <div className="studio-loading">{error ? <><p role="alert">{error}</p><Button onClick={props.onClose}>Закрыть студию</Button></> : <><LoaderCircle className="animate-spin" />Открываю слои…</>}</div>}
+    {initial ? <StudioEditor {...props} source={source} initial={initial} onApplying={setApplying} /> : <div className="studio-loading">{error ? <><p role="alert">{error}</p><Button onClick={props.onClose}>Закрыть студию</Button></> : <><LoaderCircle className="animate-spin" />Открываю слои…</>}</div>}
   </Dialog.Popup></Dialog.Portal></Dialog.Root>
 }
 
-function StudioEditor({ source, initial, campaignId, editable, applyReason, notice, hasContent, onSource, onClose, onApply }: Props & { initial: StudioDocument }) {
+function StudioEditor({ source, initial, campaignId, editable, applyReason, notice, hasContent, onSource, onClose, onApply, onApplying }: Props & { initial: StudioDocument; onApplying: (value: boolean) => void }) {
   const key = `adpilot.studio.v1.${getCurrentUser().login}.${campaignId ?? 'draft'}.${source.kind}.${source.item.id}`
   const project = useStudioProject(key, initial, JSON.stringify(source.item.content))
   const document = project.active.document
@@ -60,12 +61,14 @@ function StudioEditor({ source, initial, campaignId, editable, applyReason, noti
   const [review, setReview] = useState<{ blob: Blob; url: string } | null>(null)
   const [buttons, setButtons] = useState<PromoButton[]>(() => {
     const original = source.kind === 'content' ? source.item.content.component.components.filter((x): x is PromoButton => x.role === 'button') : []
-    try { return JSON.parse(localStorage.getItem(key + '.buttons') ?? 'null') ?? original } catch { return original }
+    try { const saved = JSON.parse(localStorage.getItem(key + '.buttons') ?? 'null'); return saved?.origin === JSON.stringify(source.item.content) && Array.isArray(saved.buttons) ? saved.buttons : original } catch { return original }
   })
   const upload = useRef<HTMLInputElement>(null)
   const replacement = useRef<string | null>(null)
+  const mounted = useRef(true)
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   const mutable = editable && !busy
-  const errors = validateDocument(document)
+  const errors = [...validateDocument(document), ...(buttons.some(button => !button.text.trim()) ? ['Укажите текст банковской кнопки.'] : [])]
   useEffect(() => () => { if (review) URL.revokeObjectURL(review.url) }, [review])
 
   function patch(id: string, values: Partial<StudioLayer>) { project.change({ ...document, layers: document.layers.map(x => x.id === id ? { ...x, ...values } : x) }) }
@@ -80,15 +83,16 @@ function StudioEditor({ source, initial, campaignId, editable, applyReason, noti
   function select(id: string | null) { setSelected(id); if (id) setPanel('properties') }
   function addLayer(kind: 'text' | 'shape') {
     if (document.layers.length >= 40) { setError('В макете уже 40 слоёв. Удалите ненужные.'); return }
-    const added = newLayer(kind, { x: 24, y: Math.min(80, document.height / 3), width: document.width - 48, height: kind === 'text' ? 64 : 120, fill: kind === 'text' ? '#ffffff' : '#d6f45b' })
+    const added = newLayer(kind, { x: 24, y: Math.min(80, document.height / 3), width: document.width - 48, height: kind === 'text' ? 64 : 120, fill: kind === 'text' ? contrastingText(document.background) : '#d6f45b' })
     project.change({ ...document, layers: [...document.layers, added] }); select(added.id)
   }
-  function addVariants(documents: StudioDocument[], label?: string) { if (!project.add(documents, label)) setError('Сохранено 12 вариантов. Удалите ненужный вариант перед добавлением новых.'); else setVariantsCollapsed(false) }
+  function addVariants(documents: StudioDocument[], label?: string) { if (!mounted.current) return; if (!project.add(documents, label)) setError('Сохранено 12 вариантов. Удалите ненужный вариант перед добавлением новых.'); else setVariantsCollapsed(false) }
   function toggleCompare(id: string) { setCompared(old => old.includes(id) ? old.filter(x => x !== id) : old.length < 3 ? [...old, id] : old) }
-  async function run(label: string, task: () => Promise<void>) { setBusy(label); setError(''); try { await task() } catch (reason) { setError(reason instanceof Error ? reason.message : 'Не удалось выполнить действие.') } finally { setBusy('') } }
+  async function run(label: string, task: () => Promise<void>) { setBusy(label); setError(''); onApplying(label === 'Применяю макет'); try { await task() } catch (reason) { if (mounted.current) setError(reason instanceof Error ? reason.message : 'Не удалось выполнить действие.') } finally { if (mounted.current) { setBusy(''); onApplying(false) } } }
   async function handleUpload(file: File) {
     await run('Загружаю изображение', async () => {
       const image = await uploadStudioImage(file)
+      if (!mounted.current) return
       if (replacement.current) patch(replacement.current, { src: image.url, name: file.name.slice(0, 100) })
       else {
         const added = newLayer('image', { name: file.name.slice(0, 100), src: image.url, width: 220, height: Math.min(300, 220 / image.aspect), x: 40, y: Math.min(180, document.height / 3) })
@@ -99,7 +103,7 @@ function StudioEditor({ source, initial, campaignId, editable, applyReason, noti
   }
   useEffect(() => {
     function keyboard(event: KeyboardEvent) {
-      if (!mutable || (event.target instanceof HTMLElement && (event.target.closest('input,textarea,select') || event.target.isContentEditable))) return
+      if (!mutable || compare || (event.target instanceof HTMLElement && (event.target.closest('input,textarea,select') || event.target.isContentEditable))) return
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') { event.preventDefault(); if (event.shiftKey) project.redo(); else project.undo(); return }
       if (event.key === 'Delete' || event.key === 'Backspace') { event.preventDefault(); removeLayer() }
       if (layer && !layer.locked && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) {
@@ -116,19 +120,19 @@ function StudioEditor({ source, initial, campaignId, editable, applyReason, noti
       <div className="studio-history"><button type="button" title="Отменить" aria-label="Отменить правку" disabled={!mutable || !project.canUndo} onClick={project.undo}><Undo2 size={18} /></button><button type="button" title="Повторить" aria-label="Повторить правку" disabled={!mutable || !project.canRedo} onClick={project.redo}><Redo2 size={18} /></button></div>
       <button type="button" className={`studio-outline-button ${compare ? 'selected' : ''}`} disabled={Boolean(busy)} onClick={() => { if (!compare && compared.length < 2) setCompared(project.variants.slice(-3).map(v => v.id)); setCompare(!compare) }}><Columns2 size={17} /><span>{compare ? 'К редактору' : 'Сравнить'}</span></button>
       <button type="button" className="studio-outline-button" disabled={Boolean(busy)} onClick={() => void run('Собираю PNG', async () => downloadBlob(await renderDocument(document), `${document.name}.png`))}><Download size={17} /><span>PNG</span></button>
-      <button type="button" className="studio-primary-button" disabled={Boolean(busy) || Boolean(applyReason) || !editable || errors.length > 0} title={applyReason || errors[0]} onClick={() => void run('Готовлю просмотр', async () => { const blob = await renderDocument(document); setReview({ blob, url: URL.createObjectURL(blob) }) })}><Check size={17} /><span>Применить</span></button>
+      <button type="button" className="studio-primary-button" disabled={Boolean(busy) || Boolean(applyReason) || !editable || errors.length > 0} title={applyReason || errors[0]} onClick={() => void run('Готовлю просмотр', async () => { const blob = await renderDocument(document); if (mounted.current) setReview({ blob, url: URL.createObjectURL(blob) }) })}><Check size={17} /><span>Применить</span></button>
     </header>
-    <div className="studio-command-bar"><div className="studio-source-switch"><button type="button" aria-pressed={source.kind === 'banner'} onClick={() => onSource('banner')}>Баннер</button><button type="button" aria-pressed={source.kind === 'content'} disabled={!hasContent} onClick={() => onSource('content')}>Промо-экран</button></div><span className="studio-document-name">{project.active.label}</span><div className="studio-tools"><button type="button" disabled={!mutable} onClick={() => addLayer('text')}><Type size={17} />Текст</button><button type="button" disabled={!mutable} onClick={() => addLayer('shape')}><Square size={17} />Фигура</button><button type="button" disabled={!mutable} onClick={() => { replacement.current = null; upload.current?.click() }}><ImagePlus size={17} />Загрузить</button></div><div className="studio-mobile-panels"><button type="button" aria-label="Показать слои" onClick={() => setPanel(panel === 'layers' ? null : 'layers')}><Layers2 size={18} /></button><button type="button" aria-label="Показать свойства" onClick={() => setPanel(panel === 'properties' ? null : 'properties')}><Settings2 size={18} /></button></div></div>
+    <div className="studio-command-bar"><div className="studio-source-switch"><button type="button" aria-pressed={source.kind === 'banner'} disabled={Boolean(busy)} onClick={() => onSource('banner')}>Баннер</button><button type="button" aria-pressed={source.kind === 'content'} disabled={!hasContent || Boolean(busy)} onClick={() => onSource('content')}>Промо-экран</button></div><span className="studio-document-name">{project.active.label}</span><div className="studio-tools"><button type="button" disabled={!mutable} onClick={() => addLayer('text')}><Type size={17} />Текст</button><button type="button" disabled={!mutable} onClick={() => addLayer('shape')}><Square size={17} />Фигура</button><button type="button" disabled={!mutable} onClick={() => { replacement.current = null; upload.current?.click() }}><ImagePlus size={17} />Загрузить</button></div><div className="studio-mobile-panels"><button type="button" aria-label="Показать слои" onClick={() => setPanel(panel === 'layers' ? null : 'layers')}><Layers2 size={18} /></button><button type="button" aria-label="Показать свойства" onClick={() => setPanel(panel === 'properties' ? null : 'properties')}><Settings2 size={18} /></button></div></div>
     <input ref={upload} type="file" accept="image/*,.svg" className="sr-only" aria-label="Загрузить материал в креатив" onChange={event => { const file = event.target.files?.[0]; if (file) void handleUpload(file); event.target.value = '' }} />
     {error && <div className="studio-error" role="alert">{error}<button type="button" aria-label="Закрыть сообщение" onClick={() => setError('')}><X size={16} /></button></div>}
     {busy && <div className="studio-progress" role="status"><LoaderCircle size={16} className="animate-spin" />{busy}…</div>}
     <div className="studio-workspace">
       {compare ? <StudioComparison variants={project.variants.filter(v => (compared.length ? compared : [project.active.id]).includes(v.id))} activeId={project.active.id} onSelect={id => { project.select(id); setCompare(false); setSelected(null) }} /> : <>
         <StudioLayers document={document} selected={selected} onSelect={select} onPatch={patch} editable={mutable} />
-        <div className="studio-middle"><StudioCanvas document={document} selected={selected} onSelect={select} onChange={project.change} editable={mutable} onFile={file => { replacement.current = null; void handleUpload(file) }} />{source.kind === 'content' && buttons.length > 0 && <div className="studio-native-preview">{buttons.map((button, i) => <span key={i}>{button.text}</span>)}<small>Банковские кнопки · под композицией</small></div>}
+        <div className="studio-middle"><StudioCanvas document={document} selected={selected} onSelect={select} onChange={project.change} editable={mutable} onFile={file => { replacement.current = null; void handleUpload(file) }} />{source.kind === 'content' && buttons.length > 0 && <div className="studio-native-preview">{buttons.map((button, i) => <span key={i} style={{ background: button.style?.backgroundColor ?? '#3155ff', color: button.textStyle?.textColor ?? '#ffffff', fontSize: Math.min(16, button.textStyle?.fontSize ?? 16) }}>{button.text}</span>)}<small>Банковские кнопки · под композицией</small></div>}
           <div className="studio-ai-bar"><Sparkles size={18} /><textarea rows={1} aria-label="Задача AI-дизайнеру" value={prompt} onChange={e => setPrompt(e.target.value)} disabled={!mutable} /><button type="button" disabled={!mutable || !prompt.trim() || errors.length > 0} onClick={() => void run('AI собирает варианты', async () => addVariants(await generateStudioVariants(document, prompt)))}>3 AI-варианта <Sparkles size={15} /></button></div>
         </div>
-        <StudioProperties document={document} layer={layer} editable={mutable && !layer?.locked} patch={values => { if (layer) patch(layer.id, values) }} onDocument={project.change} onDuplicate={duplicate} onDelete={removeLayer} onOrder={order} onReplace={() => { replacement.current = layer?.id ?? null; upload.current?.click() }} buttons={buttons} onButtons={next => { setButtons(next); try { localStorage.setItem(key + '.buttons', JSON.stringify(next)) } catch { setError('Не удалось сохранить кнопки локально.') } }} />
+        <StudioProperties document={document} layer={layer} editable={mutable && !layer?.locked} patch={values => { if (layer) patch(layer.id, values) }} onDocument={project.change} onDuplicate={duplicate} onDelete={removeLayer} onOrder={order} onReplace={() => { replacement.current = layer?.id ?? null; upload.current?.click() }} buttons={buttons} isPromo={source.kind === 'content'} onButtons={next => { setButtons(next); try { localStorage.setItem(key + '.buttons', JSON.stringify({ origin: JSON.stringify(source.item.content), buttons: next })) } catch { setError('Не удалось сохранить кнопки локально.') } }} />
         {panel && <button type="button" className="studio-panel-close" aria-label="Скрыть панель" onClick={() => setPanel(null)}><ChevronLeft size={18} /></button>}
       </>}
     </div>
