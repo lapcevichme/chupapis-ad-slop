@@ -6,13 +6,14 @@
 
 import json
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any, Callable, Literal
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from pydantic import BaseModel, Field
 
 from app.agent.llm import ImageGenerator, with_cache_breakpoints
+from app.agent.patterns import SvgPatternGenerator
 from app.agent.prompts import load_prompt
 from app.domain.creatives import validate_banner_json, validate_content_json
 from app.schemas.creative_json import BannerContent, PromoContent
@@ -59,6 +60,8 @@ class DesignRequest:
     content_image: bool | None = None
     # Просили картинку только для промо-экрана: картинку баннера не трогаем.
     promo_only: bool = False
+    # illustration — растровая картинка с предметом, pattern — SVG-фон, где тема передаётся только цветом.
+    image_style: Literal["illustration", "pattern"] = "illustration"
 
     @property
     def wants_content_image(self) -> bool:
@@ -112,22 +115,24 @@ def _validate(args: dict[str, Any], banner_type: dict[str, Any], with_content: b
 
 
 class Designer:
-    def __init__(self, model: BaseChatModel, images: ImageGenerator):
+    def __init__(self, model: BaseChatModel, images: ImageGenerator, patterns: SvgPatternGenerator | None = None):
         # Без принудительного tool_choice: часть моделей (в том числе Claude 5.5) его не поддерживает.
         self.model = model.bind_tools([DesignResult])
         self.images = images
+        self.patterns = patterns
 
     async def design(self, request: DesignRequest, progress: Callable[[str], None] = lambda _: None) -> DesignOutcome:
         t = request.banner_type
+        illustration = request.image_style == "illustration"
         task = {
             "brief": request.brief,
             "bannerType": t["code"],
             "titleMaxLength": t["titleMaxLength"],
             "textMaxLength": t["textMaxLength"],
             "withContent": request.with_content,
-            "needImagePrompt": request.generates_banner_image(t["code"]),
-            "imageSize": IMAGE_SIZES.get(t["code"]) if request.generates_banner_image(t["code"]) else None,
-            "needContentImagePrompt": request.wants_content_image and needs_own_content_image(t["code"]),
+            "needImagePrompt": illustration and request.generates_banner_image(t["code"]),
+            "imageSize": IMAGE_SIZES.get(t["code"]) if illustration and request.generates_banner_image(t["code"]) else None,
+            "needContentImagePrompt": illustration and request.wants_content_image and needs_own_content_image(t["code"]),
             "previousVersion": request.previous,
         }
         messages: list = [SystemMessage(load_prompt("design")), HumanMessage(json.dumps(task, ensure_ascii=False))]
@@ -151,17 +156,41 @@ class Designer:
             ]
         raise DesignError("Не удалось собрать валидный JSON: " + "; ".join(problems))
 
-    async def _generate(self, prompt: str | None, size: str, what: str, notes: list[str]) -> str | None:
+    async def _picture(self, request: DesignRequest, banner: dict[str, Any], prompt: str | None, size: str, what: str, notes: list[str]) -> str | None:
+        """Иллюстрация по промпту или фон-паттерн. Если иллюстрацию сделать не удалось, ставим паттерн."""
+        kind = "STORY" if size == IMAGE_SIZES["STORY"] else "SQUARE"
+        if request.image_style == "pattern":
+            url = await self._pattern(request, banner, kind, size)
+            if url is None:
+                notes.append(f"{what}: фон-паттерн сделать не удалось, осталось без изображения")
+            return url
         if not prompt:
             return None
+        reason = None
         try:
             url = await self.images.generate(prompt, size)
         except Exception as exc:  # генерация — бонус, сценарий без неё не ломается
-            notes.append(f"{what}: сгенерировать не удалось ({type(exc).__name__}), осталось без изображения")
+            url, reason = None, type(exc).__name__
+        if url is not None:
+            return url
+        fallback = await self._pattern(request, banner, kind, size)
+        why = f" ({reason})" if reason else ""
+        if fallback is not None:
+            notes.append(f"{what}: иллюстрацию сгенерировать не удалось{why}, вместо неё фон-паттерн")
+        else:
+            notes.append(f"{what}: сгенерировать не удалось{why}, осталось без изображения")
+        return fallback
+
+    async def _pattern(self, request: DesignRequest, banner: dict[str, Any], kind: str, size: str) -> str | None:
+        if self.patterns is None:
             return None
-        if url is None:
-            notes.append(f"{what}: генерация картинок недоступна, осталось без изображения")
-        return url
+        # Цвета в баннере в формате #RRGGBBAA, модели паттерна нужен #RRGGBB.
+        base = (banner.get("background") or {}).get("color") or "#FFFFFFFF"
+        text = (banner.get("titleStyle") or {}).get("textColor") or "#000000FF"
+        try:
+            return await self.patterns.generate(theme=request.brief, kind=kind, base_color=base[:7], text_color=text[:7], size=size)
+        except Exception:  # паттерн — тоже бонус
+            return None
 
     async def _finish(self, args: dict[str, Any], request: DesignRequest, progress) -> DesignOutcome:
         code = request.banner_type["code"]
@@ -180,8 +209,8 @@ class Designer:
             # Промо-экрану сторис нужна своя квадратная картинка. Генерируем по очереди, а не параллельно:
             # OpenRouter заранее резервирует деньги под каждый запрос, и два сразу упираются в небольшой лимит ключа.
             if request.generates_banner_image(code):
-                banner_url = await self._generate(args.get("imagePrompt"), IMAGE_SIZES[code], "Картинка баннера", notes)
-            own_url = await self._generate(args.get("contentImagePrompt") if own else None, CONTENT_IMAGE_SIZE, "Картинка промо-экрана", notes)
+                banner_url = await self._picture(request, banner, args.get("imagePrompt"), IMAGE_SIZES[code], "Картинка баннера", notes)
+            own_url = await self._picture(request, banner, args.get("contentImagePrompt"), CONTENT_IMAGE_SIZE, "Картинка промо-экрана", notes) if own else None
             icon = banner_url or request.previous_image
             if own_url:
                 content_image = {"url": own_url, "aspectRatio": CONTENT_IMAGE_ASPECT}

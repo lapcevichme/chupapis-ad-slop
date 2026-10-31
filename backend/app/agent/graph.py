@@ -27,6 +27,7 @@ from app.agent.llm import with_cache_breakpoints
 from app.agent.operations import apply_operations, confirmation_changes, draft_warnings, execute, public_draft
 from app.agent.prompts import load_prompt
 from app.agent.tools import ToolContext, run_tool, step_label, tool_schemas
+from app.config import settings
 
 
 def _replace(_old: Any, new: Any) -> Any:
@@ -117,6 +118,9 @@ def _context_note(state: AgentState, config: RunnableConfig, reminder: str | Non
         "с того места, где он остановился. Справка уже учитывает все выполненные записи.",
         f"Сейчас {datetime.now(UTC):%Y-%m-%d %H:%M} UTC. Пользователь {user}, роль {role or 'не задана'}.",
     ]
+    if settings.image_mode != "ask":
+        kind = "фон-паттерн" if settings.image_mode == "pattern" else "иллюстрация"
+        lines.append(f"Картинки: разрешён только один вид — {kind}. Про вид картинки не спрашивай.")
     if base:
         lines.append(
             f"Кампания этого диалога: id {base['id']}, состояние {base['state']}, published={str(base['published']).lower()}. "

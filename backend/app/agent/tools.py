@@ -19,6 +19,7 @@ from app.agent.operations import (
     build_operation,
     segments_label,
 )
+from app.config import settings
 from app.domain.creatives import check_banner, check_content
 from app.domain.pydantic_errors import map_pydantic_errors
 
@@ -79,6 +80,9 @@ class DesignArgs(BaseModel):
     channels: list[Literal["iOS", "ANDROID", "WEB"]] | None = Field(None, description="Каналы креативов; по умолчанию все допустимые для типа")
     withContent: bool = Field(True, description="Нужен ли промо-экран после тапа; у STORY он есть всегда")
     generateImage: bool = Field(False, description="Сгенерировать картинку; только если пользователь согласился")
+    imageStyle: Literal["pattern", "illustration"] = Field(
+        "illustration", description="pattern — абстрактный фон-паттерн, тема передаётся цветом; illustration — картинка с предметом по смыслу оффера"
+    )
     imageUrl: str | None = Field(None, description="Картинка пользователя (https), если он её прислал")
     replaceBannerId: Ref | None = Field(None, description="Правка: id баннера, который нужно переделать, вместо создания нового")
     promoImageOnly: bool = Field(False, description="Правка: нужна только картинка промо-экрана, баннер не менять. Вместе с replaceBannerId и generateImage")
@@ -95,7 +99,7 @@ class DiscardArgs(BaseModel):
 UI_TOOLS: dict[str, tuple[type[BaseModel], str]] = {
     "warn_user": (WarnArgs, "Показать пользователю предупреждение о спорном или противоречивом решении. Не отказ: после предупреждения продолжай."),
     "suggest_options": (SuggestArgs, "Показать кнопки-варианты ответа (сегменты, места, даты и т. п.)"),
-    "design_creative": (DesignArgs, "Поручить дизайн-агенту баннер и промо-экран. Кладёт в пакет баннер, контент и креативы по каналам."),
+    "design_creative": (DesignArgs, "Поручить дизайн-агенту баннер и промо-экран. Кладёт в пакет баннер, контент и креативы по каналам. Для нового баннера сначала узнай у пользователя вид картинки: фон-паттерн, иллюстрация или без картинки."),
     "request_confirmation": (ConfirmArgs, "Показать пакет пользователю и попросить подтверждение. Записи выполнятся только после «да»."),
     "discard_pending": (DiscardArgs, "Убрать операции из пакета до подтверждения"),
 }
@@ -253,6 +257,7 @@ async def _design(ctx: ToolContext, args: DesignArgs, progress: Callable[[str], 
                 previous=previous,
                 content_image=bool(linked_contents or saved_contents) if previous else None,
                 promo_only=args.promoImageOnly and previous is not None,
+                image_style=args.imageStyle if settings.image_mode == "ask" else settings.image_mode,
             ),
             progress,
         )
