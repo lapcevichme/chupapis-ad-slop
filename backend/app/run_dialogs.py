@@ -1,45 +1,24 @@
-"""Прогоняет эталонные диалоги из docs/dialogs на живой модели: `uv run python -m app.run_dialogs [имя ...]`.
-
-Каждый диалог идёт на свежей БД из моков (во временном файле, рабочая БД не трогается) через те же
-эндпоинты /chat, что и фронт. Транскрипт пишется в docs/dialogs/transcripts/<имя>.md. Модель
-недетерминирована, поэтому повтор даёт тот же сценарий, но не дословно тот же текст.
-
-Формат сценария: {"title", "description", "user", "role", "campaignId"?, "steps": [...]}, где шаг —
-{"say": "текст"} или {"confirm": true | false}; "as" и "role" в шаге говорят от имени другого пользователя.
-"""
-
 import asyncio
 import json
-import os
 import sys
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 
-# БД выбирается при импорте настроек, поэтому временный файл задаём раньше импортов приложения.
-_DB = Path(tempfile.mkdtemp()) / "dialogs.db"
-os.environ["DATABASE_URL"] = f"sqlite:///{_DB.as_posix()}"
+import httpx
+from langgraph.checkpoint.memory import InMemorySaver
 
-import httpx  # noqa: E402
-from langgraph.checkpoint.memory import InMemorySaver  # noqa: E402
-
-from app.agent.api_client import CampaignsApi  # noqa: E402
-from app.agent.factory import build_chat_service  # noqa: E402
-from app.config import BACKEND_DIR, settings  # noqa: E402
-from app.db import Base, SessionLocal, engine  # noqa: E402
-from app.main import app  # noqa: E402
-from app.seed import seed  # noqa: E402
+from app.agent.api_client import CampaignsApi
+from app.agent.factory import build_chat_service
+from app.core.config import BACKEND_DIR, Settings
+from app.db import Base
+from app.agent.sessions import SessionRegistry
+from app.main import create_app
+from app.seed import seed
 
 DIALOGS = BACKEND_DIR.parent / "docs" / "dialogs"
 TRANSCRIPTS = DIALOGS / "transcripts"
 ROLE_NAMES = {"campaignManager": "Менеджер", "campaignModerator": "Модератор"}
-
-
-def _reset_db() -> None:
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
-    with SessionLocal() as session:
-        seed(session)
 
 
 def _events(body: str) -> list[tuple[str, dict]]:
@@ -94,12 +73,25 @@ def _render_turn(events: list[tuple[str, dict]]) -> tuple[list[str], dict | None
 
 
 async def run_dialog(path: Path) -> Path:
-    scenario = json.loads(path.read_text(encoding="utf-8"))
-    _reset_db()
-    transport = httpx.ASGITransport(app=app)
-    app.state.chat = build_chat_service(
-        InMemorySaver(), api_factory=lambda user, role: CampaignsApi(user, role, base_url="http://api", transport=transport)
+    settings = Settings(
+        database_url=f"sqlite:///{Path(tempfile.mkdtemp()) / 'dialogs.db'}",
+        checkpoint_db=Path(tempfile.mkdtemp()) / 'checkpoints.db',
     )
+    app = create_app(settings)
+    async with app.router.lifespan_context(app):
+        Base.metadata.create_all(app.state.db.engine)
+        with app.state.db.sessions() as session:
+            seed(session, settings.seed_dir)
+        transport = httpx.ASGITransport(app=app)
+        app.state.chat = build_chat_service(
+            InMemorySaver(), settings, SessionRegistry(app.state.db.sessions),
+            api_factory=lambda user, role: CampaignsApi(user, role, base_url="http://api", transport=transport),
+        )
+        return await _run_dialog(path, settings, transport)
+
+
+async def _run_dialog(path, settings, transport) -> Path:
+    scenario = json.loads(path.read_text(encoding="utf-8"))
     lines = [
         f"# {scenario['title']}",
         "",

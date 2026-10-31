@@ -1,9 +1,10 @@
 import json
 from pathlib import Path
 
-from app.main import app
+from app.main import create_app
+from app.core.config import Settings
 
 
 def test_openapi_matches_frontend_contract():
     path = Path(__file__).resolve().parents[2] / "frontend" / "openapi.json"
-    assert app.openapi() == json.loads(path.read_text())
+    assert create_app(Settings(_env_file=None)).openapi() == json.loads(path.read_text())

@@ -7,7 +7,7 @@ import json
 
 from app.agent.designer import DesignResult
 from app.agent.tools import tool_schemas
-from app.config import BACKEND_DIR
+from app.core.config import BACKEND_DIR
 
 TARGET = BACKEND_DIR.parent / "docs" / "tools.json"
 

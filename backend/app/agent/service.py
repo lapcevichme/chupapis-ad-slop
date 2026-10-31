@@ -52,10 +52,10 @@ def _text(message) -> str:
 
 
 class ChatService:
-    def __init__(self, graph, api_factory, sessions: SessionRegistry | None = None):
+    def __init__(self, graph, api_factory, sessions: SessionRegistry):
         self.graph = graph
         self.api_factory = api_factory
-        self.sessions = sessions or SessionRegistry()
+        self.sessions = sessions
 
     @staticmethod
     def _config(session_id: str, user: str = "", role: str = "") -> dict[str, Any]:
@@ -185,7 +185,3 @@ class ChatService:
         finally:
             if not task.done():
                 task.cancel()
-
-
-def default_api_factory(user: str, role: str) -> CampaignsApi:
-    return CampaignsApi(user, role)

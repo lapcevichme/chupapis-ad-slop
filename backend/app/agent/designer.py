@@ -112,10 +112,11 @@ def _validate(args: dict[str, Any], banner_type: dict[str, Any], with_content: b
 
 
 class Designer:
-    def __init__(self, model: BaseChatModel, images: ImageGenerator):
+    def __init__(self, model: BaseChatModel, images: ImageGenerator, *, cache_enabled: bool = True):
         # Без принудительного tool_choice: часть моделей (в том числе Claude 5.5) его не поддерживает.
         self.model = model.bind_tools([DesignResult])
         self.images = images
+        self.cache_enabled = cache_enabled
 
     async def design(self, request: DesignRequest, progress: Callable[[str], None] = lambda _: None) -> DesignOutcome:
         t = request.banner_type
@@ -133,7 +134,7 @@ class Designer:
         messages: list = [SystemMessage(load_prompt("design")), HumanMessage(json.dumps(task, ensure_ascii=False))]
         for attempt in range(1, MAX_ATTEMPTS + 1):
             progress(f"Дизайнер собирает креатив, попытка {attempt}")
-            response: AIMessage = await self.model.ainvoke(with_cache_breakpoints(messages, stable=1))
+            response: AIMessage = await self.model.ainvoke(with_cache_breakpoints(messages, stable=1, enabled=self.cache_enabled))
             call = next((c for c in response.tool_calls if c["name"] == "DesignResult"), None)
             if call is None:
                 problems = ["модель ответила текстом вместо вызова DesignResult"]

@@ -1,11 +1,12 @@
 from collections.abc import Iterator
 from pathlib import Path
 
+from fastapi import Request
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-from app.config import settings
+from app.core.config import Settings
 
 
 class Base(DeclarativeBase):
@@ -29,10 +30,15 @@ def make_engine(url: str) -> Engine:
     return engine
 
 
-engine = make_engine(settings.database_url)
-SessionLocal = sessionmaker(engine, expire_on_commit=False)
+class Database:
+    def __init__(self, settings: Settings):
+        self.engine = make_engine(settings.database_url)
+        self.sessions = sessionmaker(self.engine, expire_on_commit=False)
+
+    def dispose(self) -> None:
+        self.engine.dispose()
 
 
-def get_session() -> Iterator[Session]:
-    with SessionLocal() as session:
+def get_session(request: Request) -> Iterator[Session]:
+    with request.app.state.db.sessions() as session:
         yield session

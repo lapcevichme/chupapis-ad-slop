@@ -9,15 +9,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import models
-from app.config import settings
-from app.db import SessionLocal
+from app.core.config import BACKEND_DIR, Settings
+from app.db import Database
 
 
 def _load(name: str, seed_dir: Path) -> Any:
     return json.loads((seed_dir / f"{name}.json").read_text(encoding="utf-8"))
 
 
-def seed(session: Session, seed_dir: Path = settings.seed_dir) -> bool:
+def seed(session: Session, seed_dir: Path = BACKEND_DIR / "seed") -> bool:
     if session.scalar(select(models.Topic.value).limit(1)) is not None:
         return False
 
@@ -124,5 +124,10 @@ def seed(session: Session, seed_dir: Path = settings.seed_dir) -> bool:
 
 
 if __name__ == "__main__":
-    with SessionLocal() as s:
-        print("Моки загружены" if seed(s) else "БД уже заполнена, сид пропущен")
+    settings = Settings()
+    database = Database(settings)
+    try:
+        with database.sessions() as session:
+            print("Моки загружены" if seed(session, settings.seed_dir) else "БД уже заполнена, сид пропущен")
+    finally:
+        database.dispose()

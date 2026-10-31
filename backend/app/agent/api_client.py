@@ -4,7 +4,6 @@ from typing import Any
 
 import httpx
 
-from app.config import settings
 
 
 class ApiCallError(Exception):
@@ -15,9 +14,9 @@ class ApiCallError(Exception):
 
 
 class CampaignsApi:
-    def __init__(self, user: str, role: str, *, base_url: str | None = None, transport: httpx.AsyncBaseTransport | None = None):
+    def __init__(self, user: str, role: str, *, base_url: str, transport: httpx.AsyncBaseTransport | None = None):
         self._client = httpx.AsyncClient(
-            base_url=base_url or settings.campaigns_api_url,
+            base_url=base_url,
             headers={"X-User": user, "X-Role": role},
             transport=transport,
             timeout=30,

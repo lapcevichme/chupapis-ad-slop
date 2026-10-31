@@ -50,6 +50,7 @@ class AgentDeps:
     chat_model: BaseChatModel
     designer: Designer
     api_factory: Callable[[str, str], CampaignsApi]
+    cache_enabled: bool = True
 
 
 def actor(config: RunnableConfig) -> tuple[str, str]:
@@ -154,7 +155,7 @@ def build_graph(deps: AgentDeps, checkpointer):
         # и в историю не попадает. Заодно модель видит её последней и не верит устаревшим сообщениям.
         note = _context_note(state, config, reminder)
         history = [SystemMessage(load_prompt("chat")), *state["messages"]]
-        request = with_cache_breakpoints([*history, HumanMessage(note)], stable=len(history))
+        request = with_cache_breakpoints([*history, HumanMessage(note)], stable=len(history), enabled=deps.cache_enabled)
         response = await model.ainvoke(request, config)
         return {"messages": [response], **fresh}
 

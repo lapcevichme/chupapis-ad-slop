@@ -7,7 +7,6 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from app.config import settings
 from app.domain.enums import ActionType
 from app.domain.pydantic_errors import map_pydantic_errors
 from app.errors import ApiError, api_error
@@ -30,7 +29,7 @@ def check_link(action_type: ActionType, link: ActionLink | None, field: str) -> 
 
 
 def check_image_url(url: str, field: str) -> list[ApiError]:
-    if url.startswith("https://") or url.startswith(settings.media_base_url):
+    if url.startswith("https://") or url.startswith("/api/media/"):
         return []
     return [api_error("IMAGE_URL_INVALID", field)]
 

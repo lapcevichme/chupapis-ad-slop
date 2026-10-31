@@ -10,14 +10,14 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage
 from langchain_openai import ChatOpenAI
 
-from app.config import settings
+from app.core.config import Settings
 
 # 4 попытки генерации картинки, паузы между ними 2, 4 и 8 секунд.
 IMAGE_ATTEMPTS = 4
 IMAGE_RETRY_DELAYS = (2, 4, 8)
 
 
-def chat_model(model: str, *, temperature: float = 0.3) -> BaseChatModel:
+def chat_model(settings: Settings, model: str, *, temperature: float = 0.3) -> BaseChatModel:
     providers = [p.strip() for p in settings.llm_providers.split(",") if p.strip()]
     return ChatOpenAI(
         model=model,
@@ -52,12 +52,12 @@ def _mark(message: BaseMessage) -> BaseMessage:
     return message.model_copy(update={"content": content})
 
 
-def with_cache_breakpoints(messages: list[BaseMessage], stable: int) -> list[BaseMessage]:
+def with_cache_breakpoints(messages: list[BaseMessage], stable: int, *, enabled: bool = True) -> list[BaseMessage]:
     """Точки кеша Anthropic: на первом сообщении (системный промпт, перед ним в кеш попадают инструменты)
     и на последнем непустом из первых `stable` сообщений — это история, которая между шагами только растёт.
     Всё после `stable` меняется каждый шаг и в кеш не идёт.
     """
-    if not settings.llm_prompt_cache or not messages:
+    if not enabled or not messages:
         return messages
     result = list(messages)
     marks = {0} | {next((i for i in range(min(stable, len(result)) - 1, 0, -1) if _text_of(result[i]).strip()), 0)}
@@ -75,8 +75,9 @@ class ImageGenerator(Protocol):
 class OpenRouterImageGenerator:
     """Картинка через OpenAI-совместимый /images/generations. Бэкенд сохраняет файл в /media и отдаёт ссылку."""
 
-    def __init__(self, model: str, transport: httpx.AsyncBaseTransport | None = None):
+    def __init__(self, model: str, settings: Settings, transport: httpx.AsyncBaseTransport | None = None):
         self.model = model
+        self.settings = settings
         self.transport = transport
 
     async def generate(self, prompt: str, size: str | None = None) -> str | None:
@@ -88,21 +89,21 @@ class OpenRouterImageGenerator:
         raw = base64.b64decode(data[0]["b64_json"])
         extension = "jpg" if raw[:2] == b"\xff\xd8" else "png"
         name = f"{uuid.uuid4().hex}.{extension}"
-        settings.media_dir.mkdir(parents=True, exist_ok=True)
-        (settings.media_dir / name).write_bytes(raw)
-        return f"{settings.media_base_url}/{name}"
+        self.settings.media_dir.mkdir(parents=True, exist_ok=True)
+        (self.settings.media_dir / name).write_bytes(raw)
+        return f"{self.settings.media_base_url}/{name}"
 
     async def _post_with_retries(self, body: dict) -> httpx.Response:
         """Сетевые сбои, 429 и 5xx повторяем с растущей паузой; остальные 4xx — ошибка запроса, повторять бессмысленно."""
         last_error: Exception | None = None
-        async with httpx.AsyncClient(timeout=settings.llm_timeout_seconds, transport=self.transport) as client:
+        async with httpx.AsyncClient(timeout=self.settings.llm_timeout_seconds, transport=self.transport) as client:
             for attempt in range(IMAGE_ATTEMPTS):
                 if attempt:
                     await asyncio.sleep(IMAGE_RETRY_DELAYS[attempt - 1])
                 try:
                     response = await client.post(
-                        f"{settings.llm_base_url}/images/generations",
-                        headers={"Authorization": f"Bearer {settings.llm_api_key}"},
+                        f"{self.settings.llm_base_url}/images/generations",
+                        headers={"Authorization": f"Bearer {self.settings.llm_api_key}"},
                         json=body,
                     )
                 except httpx.TransportError as exc:
@@ -121,7 +122,7 @@ class NoImageGenerator:
         return None
 
 
-def image_generator() -> ImageGenerator:
+def image_generator(settings: Settings) -> ImageGenerator:
     if not settings.image_model or not settings.llm_api_key:
         return NoImageGenerator()
-    return OpenRouterImageGenerator(settings.image_model)
+    return OpenRouterImageGenerator(settings.image_model, settings)

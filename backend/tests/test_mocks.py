@@ -2,14 +2,14 @@
 
 import json
 
-from app.config import settings
+from app.core.config import BACKEND_DIR
 from app.domain.creatives import validate_banner_json, validate_content_json
 
 LIMITS = {1: ("STORY", 100, 500), 2: ("SMART_BANNER", 250, 1000)}
 
 
 def _seed(name):
-    return json.loads((settings.seed_dir / f"{name}.json").read_text(encoding="utf-8"))
+    return json.loads(((BACKEND_DIR / "seed") / f"{name}.json").read_text(encoding="utf-8"))
 
 
 def test_mock_banners_pass_schema():

@@ -2,7 +2,7 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-BACKEND_DIR = Path(__file__).resolve().parent.parent
+BACKEND_DIR = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
@@ -35,6 +35,3 @@ class Settings(BaseSettings):
     # Агент ходит в API кампаний по HTTP, поэтому заглушку можно заменить реальным бэкендом.
     campaigns_api_url: str = "http://localhost:8000"
     checkpoint_db: Path = BACKEND_DIR / "data" / "checkpoints.db"
-
-
-settings = Settings()

@@ -3,9 +3,10 @@ from logging.config import fileConfig
 from alembic import context
 
 from app import models  # noqa: F401  регистрирует таблицы в Base.metadata
-from app.config import settings
+from app.core.config import Settings
 from app.db import Base, make_engine
 
+settings = Settings()
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

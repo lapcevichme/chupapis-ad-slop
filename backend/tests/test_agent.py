@@ -14,7 +14,7 @@ from pydantic import Field
 from app.agent.api_client import CampaignsApi
 from app.agent.factory import build_chat_service
 from app.agent.llm import CACHE_CONTROL, NoImageGenerator, _text_of
-from app.main import app
+from app.agent.sessions import SessionRegistry
 from tests.conftest import MANAGER, MODERATOR
 from tests.test_scenario import CAMPAIGN
 
@@ -82,12 +82,12 @@ def events(response) -> list[tuple[str, dict]]:
 @pytest.fixture
 def chat(client):
     def api_factory(user, role):
-        return CampaignsApi(user, role, base_url="http://api", transport=httpx.ASGITransport(app=app))
+        return CampaignsApi(user, role, base_url="http://api", transport=httpx.ASGITransport(app=client.app))
 
     def install(chat_script: list[AIMessage], design_script: list[AIMessage] | None = None, images=None):
         model = ScriptedModel(script=chat_script)
-        app.state.chat = build_chat_service(
-            InMemorySaver(),
+        client.app.state.chat = build_chat_service(
+            InMemorySaver(), client.app.state.settings, SessionRegistry(client.app.state.db.sessions),
             chat=model,
             design=ScriptedModel(script=design_script or []),
             images=images or NoImageGenerator(),
@@ -212,8 +212,8 @@ def test_model_failure_is_human_readable(client, chat):
             request = _httpx.Request("POST", "https://openrouter.ai/api/v1/chat/completions")
             raise openai.InternalServerError("Error code: 500 - upstream", response=_httpx.Response(500, request=request), body=None)
 
-    app.state.chat = build_chat_service(InMemorySaver(), chat=Failing(script=[]), design=ScriptedModel(script=[]), images=NoImageGenerator(),
-                                        api_factory=lambda u, r: CampaignsApi(u, r, base_url="http://api", transport=httpx.ASGITransport(app=app)))
+    client.app.state.chat = build_chat_service(InMemorySaver(), client.app.state.settings, SessionRegistry(client.app.state.db.sessions), chat=Failing(script=[]), design=ScriptedModel(script=[]), images=NoImageGenerator(),
+                                        api_factory=lambda u, r: CampaignsApi(u, r, base_url="http://api", transport=httpx.ASGITransport(app=client.app)))
     sid = client.post("/chat", json={}, headers=MANAGER).json()["sessionId"]
     error = next(data for kind, data in events(client.post(f"/chat/{sid}/messages", json={"text": "Привет"}, headers=MANAGER)) if kind == "error")
     assert error["code"] == "LLM_UNAVAILABLE"

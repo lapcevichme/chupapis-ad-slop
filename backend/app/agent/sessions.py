@@ -10,7 +10,6 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from app.db import SessionLocal
 from app.domain.audit import utcnow
 from app.models import ChatSession
 
@@ -18,7 +17,7 @@ from app.models import ChatSession
 class SessionRegistry:
     """Запросы короткие и синхронные, поэтому из асинхронного кода они уходят в пул потоков."""
 
-    def __init__(self, session_factory=SessionLocal):
+    def __init__(self, session_factory):
         self.session_factory = session_factory
 
     async def find(self, campaign_id: int, user: str) -> str | None:
