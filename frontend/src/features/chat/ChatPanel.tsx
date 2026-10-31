@@ -160,7 +160,7 @@ export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role
         ))}
         {suggestions.length > 0 && !busy && (
           <div className="animate-rise">
-            <Suggestions key={suggestions.map((item) => item.value).join()} items={suggestions} onSend={submit} />
+            <Suggestions key={suggestions.map((item) => item.question).join()} questions={suggestions} onSend={submit} />
           </div>
         )}
         {confirmation && !busy && (

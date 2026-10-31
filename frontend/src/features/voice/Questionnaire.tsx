@@ -88,6 +88,7 @@ export function Questionnaire({ pages, answers, page, intro, introPage, notes, o
         <h2 ref={heading} tabIndex={-1} className="m-0 text-xl leading-7 font-semibold text-balance outline-none">
           {current.group || 'Выберите вариант'}
         </h2>
+        {current.question && current.question !== current.group && <p className="m-0 -mt-1 text-sm leading-5 text-muted-foreground">{current.question}</p>}
         <div className="flex flex-col gap-2">
           {current.options.map((option) => (
             <SuggestionButton key={option.value} pressed={answer?.value === option.value && !answer.custom} onClick={() => choose(option.value)}>

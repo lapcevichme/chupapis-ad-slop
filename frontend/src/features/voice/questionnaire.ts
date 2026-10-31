@@ -1,8 +1,11 @@
-import type { Suggestion } from '@/types/api'
+import type { SuggestionQuestion } from '@/types/api'
+
+export type QuestionOption = SuggestionQuestion['options'][number]
 
 export interface QuestionPage {
   group: string
-  options: Suggestion[]
+  question?: string
+  options: QuestionOption[]
 }
 
 export interface Answer {
@@ -12,27 +15,24 @@ export interface Answer {
 
 export type Answers = Record<string, Answer>
 
-export function buildPages(items: Suggestion[], questions: string[] = []): QuestionPage[] {
-  return addQuestions(mergeItems([], items, ''), questions)
+// Страница анкеты — вопрос агента. Вопрос без вариантов остаётся страницей только со своим ответом.
+export function buildPages(questions: SuggestionQuestion[]): QuestionPage[] {
+  return questions.reduce<QuestionPage[]>(
+    (pages, question) => mergeOptions(pages, question.options, question.header, question.question),
+    [],
+  )
 }
 
-// Вопрос без вариантов становится страницей только со свободным ответом.
-export function addQuestions(pages: QuestionPage[], questions: string[]): QuestionPage[] {
-  const missing = questions.filter((question) => !pages.some((page) => page.group === question))
-  return [...pages, ...missing.map((group) => ({ group, options: [] }))]
-}
-
-// Варианты без темы относятся к тому пункту, который сейчас обсуждают.
-export function mergeItems(pages: QuestionPage[], items: Suggestion[], fallbackGroup: string): QuestionPage[] {
+// Варианты добавляются к странице с той же темой: так ход обсуждения дополняет свой пункт.
+export function mergeOptions(pages: QuestionPage[], options: QuestionOption[], group: string, question?: string): QuestionPage[] {
   const result = pages.map((page) => ({ ...page, options: [...page.options] }))
-  for (const item of items) {
-    const group = item.group ?? fallbackGroup
-    let page = result.find((candidate) => candidate.group === group)
-    if (!page) {
-      page = { group, options: [] }
-      result.push(page)
-    }
-    if (!page.options.some((option) => option.value === item.value)) page.options.push(item)
+  let page = result.find((candidate) => candidate.group === group)
+  if (!page) {
+    page = { group, question, options: [] }
+    result.push(page)
+  }
+  for (const option of options) {
+    if (!page.options.some((known) => known.value === option.value)) page.options.push(option)
   }
   return result
 }

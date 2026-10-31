@@ -2758,22 +2758,52 @@
       "type": "function",
       "function": {
         "name": "suggest_options",
-        "description": "Показать кнопки-варианты ответа (сегменты, места, даты и т. п.)",
+        "description": "Задать пользователю вопросы с вариантами ответа (сегменты, места, даты и т. п.). К каждому вопросу интерфейс сам добавляет поле для своего ответа",
         "parameters": {
           "$defs": {
-            "Suggestion": {
+            "Question": {
+              "properties": {
+                "header": {
+                  "description": "Тема вопроса в 1–3 слова: «Время начала», «Картинка»",
+                  "title": "Header",
+                  "type": "string"
+                },
+                "question": {
+                  "description": "Сам вопрос целиком, с вопросительным знаком",
+                  "title": "Question",
+                  "type": "string"
+                },
+                "options": {
+                  "description": "Варианты ответа. Своё значение пользователь впишет сам: вариант «Другое» не добавляй. В тексте минимум два варианта; без вариантов и с одним — только в голосовом режиме",
+                  "items": {
+                    "$ref": "#/$defs/QuestionOption"
+                  },
+                  "maxItems": 8,
+                  "title": "Options",
+                  "type": "array"
+                },
+                "multiSelect": {
+                  "default": false,
+                  "description": "Можно выбрать несколько вариантов, например сегменты или каналы",
+                  "title": "Multiselect",
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "header",
+                "question"
+              ],
+              "title": "Question",
+              "type": "object"
+            },
+            "QuestionOption": {
               "properties": {
                 "label": {
-                  "description": "Текст кнопки",
+                  "description": "Вариант ответа коротко, 1–5 слов",
                   "title": "Label",
                   "type": "string"
                 },
-                "value": {
-                  "description": "Текст, который уйдёт в чат при нажатии",
-                  "title": "Value",
-                  "type": "string"
-                },
-                "group": {
+                "description": {
                   "anyOf": [
                     {
                       "type": "string"
@@ -2783,37 +2813,44 @@
                     }
                   ],
                   "default": null,
-                  "description": "Тема вопроса, например «Дата начала». Нужна, только если за раз спрашиваешь о нескольких темах",
-                  "title": "Group"
+                  "description": "Пояснение под вариантом: что он значит или что будет дальше",
+                  "title": "Description"
+                },
+                "value": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Текст, который уйдёт в чат при выборе; по умолчанию label",
+                  "title": "Value"
                 }
               },
               "required": [
-                "label",
-                "value"
+                "label"
               ],
-              "title": "Suggestion",
+              "title": "QuestionOption",
               "type": "object"
             }
           },
           "properties": {
-            "items": {
-              "items": {
-                "$ref": "#/$defs/Suggestion"
-              },
-              "maxItems": 16,
-              "title": "Items",
-              "type": "array"
-            },
             "questions": {
-              "description": "Только в голосовом режиме: вопросы без готовых вариантов, человек ответит своими словами",
               "items": {
-                "type": "string"
+                "$ref": "#/$defs/Question"
               },
               "maxItems": 5,
+              "minItems": 1,
               "title": "Questions",
               "type": "array"
             }
           },
+          "required": [
+            "questions"
+          ],
           "title": "SuggestArgs",
           "type": "object"
         }

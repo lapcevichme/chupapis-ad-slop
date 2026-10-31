@@ -1,9 +1,9 @@
 import json
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Any, Callable, Literal, Self
+from typing import Any, Callable, Literal
 
-from pydantic import BaseModel, Field, ValidationError, model_validator
+from pydantic import BaseModel, Field, ValidationError
 
 from app.core.errors import ApiError
 from app.infra.agent.designer import (
@@ -110,29 +110,33 @@ class WarnArgs(BaseModel):
     severity: Literal["info", "warning"] = "warning"
 
 
-class Suggestion(BaseModel):
-    label: str = Field(description="Текст кнопки")
-    value: str = Field(description="Текст, который уйдёт в чат при нажатии")
-    group: str | None = Field(
-        None,
-        description="Тема вопроса, например «Дата начала». Нужна, только если за раз спрашиваешь о нескольких темах",
+class QuestionOption(BaseModel):
+    label: str = Field(description="Вариант ответа коротко, 1–5 слов")
+    description: str | None = Field(
+        None, description="Пояснение под вариантом: что он значит или что будет дальше"
+    )
+    value: str | None = Field(
+        None, description="Текст, который уйдёт в чат при выборе; по умолчанию label"
+    )
+
+
+class Question(BaseModel):
+    header: str = Field(description="Тема вопроса в 1–3 слова: «Время начала», «Картинка»")
+    question: str = Field(description="Сам вопрос целиком, с вопросительным знаком")
+    options: list[QuestionOption] = Field(
+        default_factory=list,
+        max_length=8,
+        description="Варианты ответа. Своё значение пользователь впишет сам: вариант «Другое» не добавляй. "
+        "В тексте минимум два варианта; без вариантов и с одним — только в голосовом режиме",
+    )
+    multiSelect: bool = Field(
+        False, description="Можно выбрать несколько вариантов, например сегменты или каналы"
     )
 
 
 class SuggestArgs(BaseModel):
-    # Несколько групп по 2–4 варианта: время, место, тема, исключения.
-    items: list[Suggestion] = Field(default_factory=list, max_length=16)
-    questions: list[str] = Field(
-        default_factory=list,
-        max_length=5,
-        description="Только в голосовом режиме: вопросы без готовых вариантов, человек ответит своими словами",
-    )
-
-    @model_validator(mode="after")
-    def has_something_to_ask(self) -> Self:
-        if not self.items and not self.questions:
-            raise ValueError("Нужен хотя бы один вариант или вопрос")
-        return self
+    # Несколько вопросов за раз: время, место, тема, исключения.
+    questions: list[Question] = Field(min_length=1, max_length=5)
 
 
 class DesignArgs(BaseModel):
@@ -195,7 +199,8 @@ UI_TOOLS: dict[str, tuple[type[BaseModel], str]] = {
     ),
     "suggest_options": (
         SuggestArgs,
-        "Показать кнопки-варианты ответа (сегменты, места, даты и т. п.)",
+        "Задать пользователю вопросы с вариантами ответа (сегменты, места, даты и т. п.). "
+        "К каждому вопросу интерфейс сам добавляет поле для своего ответа",
     ),
     "design_creative": (
         DesignArgs,
@@ -662,18 +667,27 @@ async def _run_ui_tool(
         return "Предупреждение показано. Продолжай, если пользователь не передумал."
     if name == "suggest_options":
         suggestions = SuggestArgs.model_validate(raw)
-        if suggestions.questions and not ctx.voice:
+        # Голосовая анкета принимает и открытый вопрос, и решение одним вариантом; в тексте это не выбор.
+        thin = [q.header for q in suggestions.questions if len(q.options) < 2]
+        if thin and not ctx.voice:
             return (
-                "Ошибка: questions работают только в голосовом режиме, спроси текстом с вариантами."
+                f"Ошибка: у вопросов {', '.join(thin)} меньше двух вариантов. Вопросы без вариантов "
+                "и с одним вариантом работают только в голосовом режиме, добавь варианты."
             )
-        ctx.emit(
-            "suggestions",
+        questions = [
             {
-                "items": [i.model_dump() for i in suggestions.items],
-                "questions": suggestions.questions,
-            },
-        )
-        return "Кнопки показаны. Дождись ответа пользователя."
+                "header": q.header,
+                "question": q.question,
+                "multiSelect": q.multiSelect,
+                "options": [
+                    {"label": o.label, "value": o.value or o.label, "description": o.description}
+                    for o in q.options
+                ],
+            }
+            for q in suggestions.questions
+        ]
+        ctx.emit("suggestions", {"questions": questions})
+        return "Вопросы показаны. Дождись ответа пользователя."
     if name == "discard_pending":
         discard = DiscardArgs.model_validate(raw)
         before = len(ctx.pending)

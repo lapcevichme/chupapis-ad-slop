@@ -15,15 +15,24 @@ class ChatEventStep(BaseModel):
     status: Literal["running", "done", "failed"]
 
 
-class SuggestionItem(BaseModel):
+class SuggestionOption(BaseModel):
     label: str
     value: str
-    group: str | None = None
+    description: str | None = None
+
+
+class SuggestionQuestion(BaseModel):
+    header: str
+    question: str
+    # Пусто — открытый вопрос голосового режима: человек отвечает своими словами.
+    options: list[SuggestionOption]
+    multiSelect: bool = False
 
 
 class ChatEventSuggestions(BaseModel):
-    items: list[SuggestionItem]
-    questions: list[str] = []
+    """Опросник: варианты к каждому вопросу и поле для своего ответа, его фронт добавляет сам."""
+
+    questions: list[SuggestionQuestion]
 
 
 class ConfirmationOperation(BaseModel):

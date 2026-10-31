@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useReducer, useRef } from 'react'
 import { answerChatConfirmation, createChatSession, getChatSession, retryChat, sendChatMessage } from '@/api/chat'
-import type { CampaignDraft, ChatEvent, ChatSession, ChatStep, ChatWarning, Confirmation, ConfirmationAnswer, DraftValidation, Suggestion } from '@/types/api'
+import type { CampaignDraft, ChatEvent, ChatSession, ChatStep, ChatWarning, Confirmation, ConfirmationAnswer, DraftValidation, SuggestionQuestion } from '@/types/api'
 
 const SESSION_KEY = 'adpilot.chat.session'
 const CONNECTION_ERROR = 'Не удалось получить ответ. Проверьте соединение и попробуйте ещё раз.'
@@ -22,8 +22,7 @@ interface ChatState {
   busy: boolean
   campaignId: number | null
   messages: ChatMessage[]
-  suggestions: Suggestion[]
-  questions: string[]
+  suggestions: SuggestionQuestion[]
   confirmation: Confirmation | null
   draft: CampaignDraft | null
   validation: DraftValidation | null
@@ -42,7 +41,6 @@ const EMPTY: Omit<ChatState, 'busy'> = {
   campaignId: null,
   messages: [],
   suggestions: [],
-  questions: [],
   confirmation: null,
   draft: null,
   validation: null,
@@ -80,11 +78,10 @@ function applyEvent(state: ChatState, event: ChatEvent): ChatState {
     case 'warning':
       return { ...state, messages: updateAnswer(state.messages, (answer) => ({ ...answer, warnings: [...answer.warnings, event.data] })) }
     case 'suggestions':
-      // За один ход агент может вызвать suggest_options несколько раз, поэтому варианты копим.
+      // За один ход агент может вызвать suggest_options несколько раз, поэтому вопросы копим.
       return {
         ...state,
-        suggestions: [...state.suggestions, ...event.data.items.filter((item) => !state.suggestions.some((known) => known.value === item.value))],
-        questions: [...new Set([...state.questions, ...event.data.questions])],
+        suggestions: [...state.suggestions, ...event.data.questions.filter((item) => !state.suggestions.some((known) => known.question === item.question))],
       }
     case 'confirmation_required':
       return { ...state, confirmation: event.data }
@@ -134,7 +131,6 @@ function reducer(state: ChatState, action: ChatAction): ChatState {
         busy: true,
         error: null,
         suggestions: [],
-        questions: [],
         confirmation: null,
         messages: [...messages, { role: 'assistant', text: '', steps: [], warnings: [] }],
       }

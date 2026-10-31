@@ -14,7 +14,7 @@ import type { CampaignState, Dictionaries } from '@/types/api'
 import { Orb } from './Orb'
 import type { OrbMode } from './Orb'
 import { Questionnaire } from './Questionnaire'
-import { buildPages, discussionMessage, formatAnswers, mergeItems } from './questionnaire'
+import { buildPages, discussionMessage, formatAnswers, mergeOptions } from './questionnaire'
 import type { Answers, QuestionPage } from './questionnaire'
 import { spokenText } from './spokenText'
 import { voiceAudio } from './voiceAudio'
@@ -55,7 +55,7 @@ interface VoiceModeProps {
 }
 
 export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview, onClose }: VoiceModeProps) {
-  const { busy, messages, suggestions, questions, confirmation, error, send, answer, retry } = chat
+  const { busy, messages, suggestions, confirmation, error, send, answer, retry } = chat
   const [speaking, setSpeaking] = useState(false)
   const [muted, setMuted] = useState(voiceAudio.muted)
   const [textOnly, setTextOnly] = useState(false)
@@ -88,28 +88,29 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview
   const startedEmpty = useRef(messages.length === 0)
   const waitCuePlayed = useRef(false)
   const wasBusy = useRef(busy)
-  const latest = useRef({ text: lastAnswer?.text ?? '', hasConfirmation: confirmation !== null, hasSuggestions: suggestions.length > 0 || questions.length > 0 })
+  const latest = useRef({ text: lastAnswer?.text ?? '', hasConfirmation: confirmation !== null, hasSuggestions: suggestions.length > 0 })
   useEffect(() => {
-    latest.current = { text: lastAnswer?.text ?? '', hasConfirmation: confirmation !== null, hasSuggestions: suggestions.length > 0 || questions.length > 0 }
+    latest.current = { text: lastAnswer?.text ?? '', hasConfirmation: confirmation !== null, hasSuggestions: suggestions.length > 0 }
   })
 
   useEffect(() => {
-    if ((suggestions.length === 0 && questions.length === 0) || busy) return
+    if (suggestions.length === 0 || busy) return
     const group = discussingRef.current
     setQuestionnaire((current) => {
-      if (group === null || !current) return { pages: buildPages(suggestions, questions), answers: {}, page: 0, introPage: 0 }
+      if (group === null || !current) return { pages: buildPages(suggestions), answers: {}, page: 0, introPage: 0 }
       // Ход обсуждения касается одного пункта, как бы модель ни назвала тему.
-      const pages = mergeItems(current.pages, suggestions.map((item) => ({ ...item, group })), group)
+      const options = suggestions.flatMap((question) => question.options)
+      const pages = mergeOptions(current.pages, options, group)
       // Единственный вариант агента — это и есть итог обсуждения, его сразу отмечаем.
-      const decided = suggestions.length === 1
+      const decided = options.length === 1
       return {
         ...current,
         pages,
-        answers: decided ? { ...current.answers, [group]: { value: suggestions[0].value, custom: false } } : current.answers,
+        answers: decided ? { ...current.answers, [group]: { value: options[0].value, custom: false } } : current.answers,
       }
     })
     if (group !== null) startDiscussion(null)
-  }, [suggestions, questions, busy, startDiscussion])
+  }, [suggestions, busy, startDiscussion])
 
   useEffect(() => {
     // В уже начатом диалоге приветствие не к месту.

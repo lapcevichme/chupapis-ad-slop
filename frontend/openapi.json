@@ -5337,7 +5337,7 @@
         "title": "ChatEventStep",
         "type": "object"
       },
-      "SuggestionItem": {
+      "SuggestionOption": {
         "properties": {
           "label": {
             "title": "Label",
@@ -5347,7 +5347,7 @@
             "title": "Value",
             "type": "string"
           },
-          "group": {
+          "description": {
             "anyOf": [
               {
                 "type": "string"
@@ -5357,36 +5357,60 @@
               }
             ],
             "default": null,
-            "title": "Group"
+            "title": "Description"
           }
         },
         "required": [
           "label",
           "value"
         ],
-        "title": "SuggestionItem",
+        "title": "SuggestionOption",
+        "type": "object"
+      },
+      "SuggestionQuestion": {
+        "properties": {
+          "header": {
+            "title": "Header",
+            "type": "string"
+          },
+          "question": {
+            "title": "Question",
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/SuggestionOption"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "multiSelect": {
+            "default": false,
+            "title": "Multiselect",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "header",
+          "question",
+          "options"
+        ],
+        "title": "SuggestionQuestion",
         "type": "object"
       },
       "ChatEventSuggestions": {
+        "description": "Опросник: варианты к каждому вопросу и поле для своего ответа, его фронт добавляет сам.",
         "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/SuggestionItem"
-            },
-            "title": "Items",
-            "type": "array"
-          },
           "questions": {
-            "default": [],
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/SuggestionQuestion"
             },
             "title": "Questions",
             "type": "array"
           }
         },
         "required": [
-          "items"
+          "questions"
         ],
         "title": "ChatEventSuggestions",
         "type": "object"

@@ -69,12 +69,11 @@ def _render_turn(
             out.append(f"> ⚠️ **Предупреждение:** {data['message']}")
         elif kind == "suggestions":
             flush()
-            groups: dict[str, list[str]] = {}
-            for item in data["items"]:
-                groups.setdefault(item.get("group") or "Варианты", []).append(item["label"])
             out += [
-                f"> 🔘 {group}: " + " · ".join(f"[{label}]" for label in labels)
-                for group, labels in groups.items()
+                f"> 🔘 {q['header']}: "
+                + " · ".join(f"[{o['label']}]" for o in q["options"])
+                + " · [свой вариант]"
+                for q in data["questions"]
             ]
         elif kind == "confirmation_required":
             flush()

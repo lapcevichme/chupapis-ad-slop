@@ -1264,27 +1264,39 @@ export interface components {
              */
             status: "running" | "done" | "failed";
         };
-        /** SuggestionItem */
-        SuggestionItem: {
+        /** SuggestionOption */
+        SuggestionOption: {
             /** Label */
             label: string;
             /** Value */
             value: string;
             /**
-             * Group
+             * Description
              * @default null
              */
-            group: string | null;
+            description: string | null;
         };
-        /** ChatEventSuggestions */
-        ChatEventSuggestions: {
-            /** Items */
-            items: components["schemas"]["SuggestionItem"][];
+        /** SuggestionQuestion */
+        SuggestionQuestion: {
+            /** Header */
+            header: string;
+            /** Question */
+            question: string;
+            /** Options */
+            options: components["schemas"]["SuggestionOption"][];
             /**
-             * Questions
-             * @default []
+             * Multiselect
+             * @default false
              */
-            questions: string[];
+            multiSelect: boolean;
+        };
+        /**
+         * ChatEventSuggestions
+         * @description Опросник: варианты к каждому вопросу и поле для своего ответа, его фронт добавляет сам.
+         */
+        ChatEventSuggestions: {
+            /** Questions */
+            questions: components["schemas"]["SuggestionQuestion"][];
         };
         /** ChatEventDraftUpdated */
         ChatEventDraftUpdated: {

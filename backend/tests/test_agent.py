@@ -262,14 +262,26 @@ def test_invalid_banner_rejected_before_api(client, chat):
     assert client.get(f"/chat/{sid}", headers=MANAGER).json()["pendingConfirmation"] is None
 
 
-def test_suggestions_keep_groups(client, chat):
-    items = [
-        {"label": "5 ноября", "value": "С 5 ноября", "group": "Дата начала"},
-        {"label": "Главный экран", "value": "На главном", "group": "Место показа"},
+def test_suggestions_keep_questions(client, chat):
+    questions = [
+        {
+            "header": "Дата начала",
+            "question": "Когда начать показ?",
+            "options": [{"label": "5 ноября", "value": "С 5 ноября"}, {"label": "Сегодня"}],
+        },
+        {
+            "header": "Сегменты",
+            "question": "Кому показываем?",
+            "multiSelect": True,
+            "options": [
+                {"label": "Москва", "description": "Клиенты из Москвы"},
+                {"label": "26–45 лет"},
+            ],
+        },
     ]
     chat(
         [
-            tool_message(call("suggest_options", {"items": items}, 1)),
+            tool_message(call("suggest_options", {"questions": questions}, 1)),
             AIMessage(content="Что выбираем?"),
         ]
     )
@@ -277,8 +289,15 @@ def test_suggestions_keep_groups(client, chat):
 
     reply = events(client.post(f"/chat/{sid}/messages", json={"text": "Бриф"}, headers=MANAGER))
 
-    suggestions = next(data for kind, data in reply if kind == "suggestions")
-    assert suggestions["items"] == items
+    first, second = next(data for kind, data in reply if kind == "suggestions")["questions"]
+    # Без value в чат уходит сам вариант.
+    assert [o["value"] for o in first["options"]] == ["С 5 ноября", "Сегодня"]
+    assert first["multiSelect"] is False and second["multiSelect"] is True
+    assert second["options"][0] == {
+        "label": "Москва",
+        "value": "Москва",
+        "description": "Клиенты из Москвы",
+    }
 
 
 def test_voice_rules_only_in_voice_mode_and_keep_cached_prefix(client, chat):
@@ -295,7 +314,15 @@ def test_voice_rules_only_in_voice_mode_and_keep_cached_prefix(client, chat):
 
 
 def test_voice_questions_without_options_reach_client(client, chat):
-    questions = ["Какая скидка?", "До какого числа акция?"]
+    # Открытый вопрос — без вариантов, решение — одним вариантом: в голосе можно и то и другое.
+    questions = [
+        {"header": "Скидка", "question": "Какая скидка?"},
+        {
+            "header": "Ссылка",
+            "question": "Куда ведёт кнопка?",
+            "options": [{"label": "Без ссылки"}],
+        },
+    ]
     chat([tool_message(call("suggest_options", {"questions": questions}, 1))])
     sid = client.post("/chat", json={}, headers=MANAGER).json()["sessionId"]
 
@@ -306,13 +333,29 @@ def test_voice_questions_without_options_reach_client(client, chat):
     )
 
     suggestions = next(data for kind, data in reply if kind == "suggestions")
-    assert suggestions == {"items": [], "questions": questions}
+    assert suggestions == {
+        "questions": [
+            {"header": "Скидка", "question": "Какая скидка?", "multiSelect": False, "options": []},
+            {
+                "header": "Ссылка",
+                "question": "Куда ведёт кнопка?",
+                "multiSelect": False,
+                "options": [{"label": "Без ссылки", "value": "Без ссылки", "description": None}],
+            },
+        ]
+    }
 
 
 def test_questions_without_options_are_voice_only(client, chat):
     model = chat(
         [
-            tool_message(call("suggest_options", {"questions": ["Какая скидка?"]}, 1)),
+            tool_message(
+                call(
+                    "suggest_options",
+                    {"questions": [{"header": "Скидка", "question": "Какая скидка?"}]},
+                    1,
+                )
+            ),
             AIMessage(content="Какая скидка?"),
         ]
     )
@@ -471,9 +514,15 @@ def test_suggestions_end_the_turn(client, chat):
             call(
                 "suggest_options",
                 {
-                    "items": [
-                        {"label": "00:00 UTC", "value": "00:00"},
-                        {"label": "09:00 UTC", "value": "09:00"},
+                    "questions": [
+                        {
+                            "header": "Время начала",
+                            "question": "Когда начать показ?",
+                            "options": [
+                                {"label": "00:00 UTC", "value": "00:00"},
+                                {"label": "09:00 UTC", "value": "09:00"},
+                            ],
+                        }
                     ]
                 },
                 1,
@@ -562,10 +611,11 @@ def test_request_prefix_is_stable_for_prompt_cache(client, chat):
 
 def test_bad_tool_arguments_go_back_to_model(client, chat):
     # Раньше лишняя кнопка роняла весь ход с AGENT_FAILED.
-    items = [{"label": str(i), "value": str(i)} for i in range(20)]
+    options = [{"label": str(i)} for i in range(20)]
+    questions = [{"header": "Числа", "question": "Какое?", "options": options}]
     model = chat(
         [
-            tool_message(call("suggest_options", {"items": items}, 1)),
+            tool_message(call("suggest_options", {"questions": questions}, 1)),
             AIMessage(content="Сократил варианты."),
         ]
     )
