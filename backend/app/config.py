@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     seed_dir: Path = BACKEND_DIR / "seed"
     media_dir: Path = BACKEND_DIR / "data" / "media"
     # Картинки, которые раздаёт сам бэкенд. Валидатор баннера принимает их наравне с https-ссылками.
-    media_base_url: str = "http://localhost:8000/media"
+    media_base_url: str = "/api/media"
     cors_origins: list[str] = ["http://localhost:5173"]
 
 
