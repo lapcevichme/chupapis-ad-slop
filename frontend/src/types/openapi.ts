@@ -522,6 +522,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/speech/synthesis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Synthesize Speech */
+        post: operations["synthesize_speech"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -1149,6 +1166,11 @@ export interface components {
             } | null;
             validation: components["schemas"]["DraftValidation"];
             pendingConfirmation: components["schemas"]["ChatEventConfirmationRequired"] | null;
+        };
+        /** SynthesisBody */
+        SynthesisBody: {
+            /** Text */
+            text: string;
         };
         /** TagCreate */
         TagCreate: {
@@ -3181,7 +3203,7 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
-            /** @description TRANSCRIPTION_FAILED */
+            /** @description TRANSCRIPTION_FAILED, SYNTHESIS_FAILED */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -3190,7 +3212,79 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description TRANSCRIPTION_UNAVAILABLE */
+            /** @description TRANSCRIPTION_UNAVAILABLE, SYNTHESIS_UNAVAILABLE */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    synthesize_speech: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User"?: string | null;
+                "X-Role"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SynthesisBody"];
+            };
+        };
+        responses: {
+            /** @description Озвученный текст, MP3 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "audio/mpeg": unknown;
+                };
+            };
+            /** @description Ошибки валидации или жизненного цикла */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ENTITY_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description TRANSCRIPTION_FAILED, SYNTHESIS_FAILED */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description TRANSCRIPTION_UNAVAILABLE, SYNTHESIS_UNAVAILABLE */
             503: {
                 headers: {
                     [name: string]: unknown;

@@ -54,6 +54,8 @@
 
 `POST /speech/transcriptions` — multipart с полем `file`, ответ `{"text": "..."}`; для тишины текст пустой. Нужен `X-User`, роль не проверяется: ручка ничего не записывает. Ошибки в обычном JSON: 400 `AUDIO_EMPTY`, `AUDIO_TOO_LARGE`, `AUDIO_FORMAT_UNSUPPORTED`; 502 `TRANSCRIPTION_FAILED`; 503 `TRANSCRIPTION_UNAVAILABLE`, если нет ключа или `STT_MODEL` пуст. Клиент подставляет текст в поле ввода и сам сообщение не отправляет.
 
+`POST /speech/synthesis` — тело `{"text": "..."}`, ответ `audio/mpeg`. Нужен `X-User`. Ошибки: 400 `SPEECH_TEXT_EMPTY`, `SPEECH_TEXT_TOO_LONG`; 502 `SYNTHESIS_FAILED`; 503 `SYNTHESIS_UNAVAILABLE`.
+
 ## Служебное и совместимость данных
 
 - `/health` и `/mock/cbro/export` сохраняются. CBRO — успешная локальная заглушка.

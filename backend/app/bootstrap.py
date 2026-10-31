@@ -9,14 +9,19 @@ from app.infra.agent.graph import AgentDeps, build_graph
 from app.infra.agent.patterns import SvgPatternGenerator
 from app.infra.campaigns_api import ApiFactory, CampaignsApi
 from app.infra.llm import ImageGenerator, chat_model, image_generator
-from app.infra.speech import speech_transcriber
+from app.infra.speech import speech_synthesizer, speech_transcriber
 from app.service.chat import ChatService
 from app.service.chat_sessions import SessionRegistry
 from app.service.speech import SpeechService
 
 
 def build_speech_service(settings: Settings) -> SpeechService:
-    return SpeechService(speech_transcriber(settings), max_audio_bytes=settings.stt_max_audio_bytes)
+    return SpeechService(
+        speech_transcriber(settings),
+        speech_synthesizer(settings),
+        max_audio_bytes=settings.stt_max_audio_bytes,
+        max_text_chars=settings.tts_max_chars,
+    )
 
 
 def build_chat_service(

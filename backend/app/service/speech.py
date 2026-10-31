@@ -1,7 +1,7 @@
 import logging
 
 from app.core.errors import DomainError, api_error, fail
-from app.infra.speech import Transcriber, TranscriptionFailed
+from app.infra.speech import SpeechFailed, Synthesizer, Transcriber
 
 logger = logging.getLogger(__name__)
 
@@ -20,9 +20,18 @@ AUDIO_FORMATS = {
 
 
 class SpeechService:
-    def __init__(self, transcriber: Transcriber | None, *, max_audio_bytes: int) -> None:
+    def __init__(
+        self,
+        transcriber: Transcriber | None,
+        synthesizer: Synthesizer | None,
+        *,
+        max_audio_bytes: int,
+        max_text_chars: int,
+    ) -> None:
         self._transcriber = transcriber
+        self._synthesizer = synthesizer
         self.max_audio_bytes = max_audio_bytes
+        self._max_text_chars = max_text_chars
 
     async def transcribe(self, audio: bytes, content_type: str | None) -> str:
         if self._transcriber is None:
@@ -37,6 +46,20 @@ class SpeechService:
             raise fail("AUDIO_FORMAT_UNSUPPORTED", "file")
         try:
             return await self._transcriber.transcribe(audio, audio_format)
-        except TranscriptionFailed as exc:
+        except SpeechFailed as exc:
             logger.warning("Transcription failed: %s", exc)
             raise DomainError([api_error("TRANSCRIPTION_FAILED")], status_code=502) from exc
+
+    async def synthesize(self, text: str) -> bytes:
+        if self._synthesizer is None:
+            raise DomainError([api_error("SYNTHESIS_UNAVAILABLE")], status_code=503)
+        spoken = text.strip()
+        if not spoken:
+            raise fail("SPEECH_TEXT_EMPTY", "text")
+        if len(spoken) > self._max_text_chars:
+            raise fail("SPEECH_TEXT_TOO_LONG", "text")
+        try:
+            return await self._synthesizer.synthesize(spoken)
+        except SpeechFailed as exc:
+            logger.warning("Speech synthesis failed: %s", exc)
+            raise DomainError([api_error("SYNTHESIS_FAILED")], status_code=502) from exc

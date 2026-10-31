@@ -12,6 +12,10 @@ ERRORS: dict[str, str] = {
     "AUDIO_FORMAT_UNSUPPORTED": "Такой формат записи не поддерживается",
     "TRANSCRIPTION_UNAVAILABLE": "Распознавание речи не настроено",
     "TRANSCRIPTION_FAILED": "Не удалось распознать запись, попробуйте ещё раз",
+    "SPEECH_TEXT_EMPTY": "Нет текста для озвучки",
+    "SPEECH_TEXT_TOO_LONG": "Текст для озвучки слишком длинный",
+    "SYNTHESIS_UNAVAILABLE": "Озвучка не настроена",
+    "SYNTHESIS_FAILED": "Не удалось озвучить текст, попробуйте ещё раз",
     # Шапка кампании
     "NAME_REQUIRED": "Название обязательно",
     "NAME_TOO_LONG": "Название длиннее 100 символов",

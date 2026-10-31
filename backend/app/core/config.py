@@ -47,7 +47,12 @@ class Settings(BaseSettings):
     stt_model: str = "openai/whisper-large-v3"
     # Код языка ISO-639-1. С явным языком Whisper не ошибается в определении на коротких фразах.
     stt_language: str = "ru"
-    stt_timeout_seconds: float = 30.0
+    # Озвучка через {llm_base_url}/audio/speech. Нужна модель, отдающая MP3. Пустая строка выключает её.
+    tts_model: str = "elevenlabs/eleven-flash-v2.5"
+    tts_voice: str = "sarah"
+    # Платим за символ, поэтому длину реплики ограничивает сервер.
+    tts_max_chars: int = 1000
+    speech_timeout_seconds: float = 30.0
     stt_max_audio_bytes: int = 5 * 1024 * 1024
     # Агент ходит в API кампаний по HTTP, поэтому заглушку можно заменить реальным бэкендом.
     campaigns_api_url: str = "http://localhost:8000"
