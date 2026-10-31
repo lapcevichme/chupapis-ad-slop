@@ -1,5 +1,5 @@
 import { Menu } from '@base-ui/react/menu'
-import { Check, ChevronDown } from 'lucide-react'
+import { Check, ChevronDown, LogOut } from 'lucide-react'
 import { USERS } from '@/api/currentUser'
 import { Button } from '@/components/ui/button'
 
@@ -12,7 +12,7 @@ function initials(login: string) {
     .toUpperCase()
 }
 
-function Avatar({ login }: { login: string }) {
+export function Avatar({ login }: { login: string }) {
   return (
     <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-xs leading-4 font-semibold text-accent-foreground">
       {initials(login)}
@@ -24,9 +24,10 @@ interface UserMenuProps {
   login: string
   disabled: boolean
   onSelect: (login: string) => void
+  onSignOut: () => void
 }
 
-export function UserMenu({ login, disabled, onSelect }: UserMenuProps) {
+export function UserMenu({ login, disabled, onSelect, onSignOut }: UserMenuProps) {
   const current = USERS.find((user) => user.login === login) ?? USERS[0]
 
   return (
@@ -71,6 +72,11 @@ export function UserMenu({ login, disabled, onSelect }: UserMenuProps) {
                 </Menu.RadioItem>
               ))}
             </Menu.RadioGroup>
+            <Menu.Separator className="my-2 h-px bg-border" />
+            <Menu.Item onClick={onSignOut} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 text-sm leading-5 outline-none data-highlighted:bg-muted">
+              <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center text-muted-foreground"><LogOut className="size-4" /></span>
+              Выйти
+            </Menu.Item>
           </Menu.Popup>
         </Menu.Positioner>
       </Menu.Portal>

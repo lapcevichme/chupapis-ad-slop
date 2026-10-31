@@ -142,6 +142,10 @@ function reducer(state: ChatState, action: ChatAction): ChatState {
   }
 }
 
+export function forgetChatSession() {
+  localStorage.removeItem(SESSION_KEY)
+}
+
 export function useChat() {
   const queryClient = useQueryClient()
   const sessionId = useRef(localStorage.getItem(SESSION_KEY))

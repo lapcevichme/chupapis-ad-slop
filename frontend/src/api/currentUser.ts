@@ -12,8 +12,17 @@ export function getCurrentUser(): User {
   return USERS.find((user) => user.login === login) ?? USERS[0]
 }
 
+export function hasCurrentUser() {
+  const login = localStorage.getItem(STORAGE_KEY)
+  return USERS.some((user) => user.login === login)
+}
+
 export function setCurrentUser(login: string) {
   localStorage.setItem(STORAGE_KEY, login)
+}
+
+export function clearCurrentUser() {
+  localStorage.removeItem(STORAGE_KEY)
 }
 
 export function userHeaders() {

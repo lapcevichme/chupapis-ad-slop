@@ -4,6 +4,7 @@
 @import "@fontsource-variable/onest";
 @import "@fontsource-variable/lora";
 @import "./workspace.css";
+@import "./features/entry/entry.css";
 
 @custom-variant dark (&:is(.dark *));
 

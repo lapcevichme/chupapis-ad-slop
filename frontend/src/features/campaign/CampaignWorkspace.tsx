@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowUpRight, LayoutGrid, Menu, MessageSquare, Plus, X } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { getCampaign, getCampaignAudit, getCampaignWarnings, getDictionaries, listCampaigns, saveCampaignChange } from '@/api/campaigns'
 import type { CampaignChange } from '@/api/campaigns'
 import { getCurrentUser, setCurrentUser, USERS } from '@/api/currentUser'
@@ -32,8 +32,21 @@ const EDIT_NOTICES: Partial<Record<CampaignState, string>> = {
   ACTIVE: 'Показ продолжится по одобренной версии, а правки вступят в силу после новой модерации.',
 }
 
-export function CampaignWorkspace() {
+interface CampaignWorkspaceProps {
+  initialBrief?: string
+  onSignOut: () => void
+}
+
+export function CampaignWorkspace({ initialBrief, onSignOut }: CampaignWorkspaceProps) {
   const chat = useChat()
+  const { send } = chat
+  // StrictMode запускает эффект дважды, а бриф должен уйти агенту ровно один раз.
+  const briefSent = useRef(false)
+  useEffect(() => {
+    if (!initialBrief || briefSent.current) return
+    briefSent.current = true
+    void send(initialBrief)
+  }, [initialBrief, send])
   const queryClient = useQueryClient()
   const [login, setLogin] = useState(() => getCurrentUser().login)
   const [requestedBannerId, setRequestedBannerId] = useState<EntityId>()
@@ -141,7 +154,7 @@ export function CampaignWorkspace() {
           {campaigns.data?.map((item) => <button key={item.id} disabled={chat.busy} className={`campaign-link ${item.id === campaignId ? 'selected' : ''}`} onClick={() => openCampaign(item.id)}><span>{item.name}</span><small>{item.state === 'ON_MODERATION' ? 'На модерации' : item.published ? 'Показ идёт' : item.state === 'NEEDS_WORK' ? 'Нужны правки' : ''}</small></button>)}
           {campaigns.data?.length === 0 && <p className="nav-message">Здесь будут ваши кампании.</p>}
         </div>
-        <div className="nav-bottom"><UserMenu login={login} disabled={chat.busy} onSelect={(next) => {setCurrentUser(next); setLogin(next); void queryClient.invalidateQueries(); openCampaign(campaignId)}} /><ThemeToggle /></div>
+        <div className="nav-bottom"><UserMenu login={login} disabled={chat.busy} onSelect={(next) => {setCurrentUser(next); setLogin(next); void queryClient.invalidateQueries(); openCampaign(campaignId)}} onSignOut={onSignOut} /><ThemeToggle /></div>
       </aside>
       {navOpen && <button className="nav-scrim" aria-label="Закрыть меню кампаний" onClick={() => setNavOpen(false)} />}
       <div className="pilot-workspace">
