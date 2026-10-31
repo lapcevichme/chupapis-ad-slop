@@ -1,6 +1,7 @@
 import logging
 
 from app.core.errors import DomainError, api_error, fail
+from app.infra.live import LiveSessionFailed, LiveSessions, LiveSessionStarted
 from app.infra.speech import SpeechFailed, Synthesizer, Transcriber
 
 logger = logging.getLogger(__name__)
@@ -27,7 +28,9 @@ class SpeechService:
         *,
         max_audio_bytes: int,
         max_text_chars: int,
+        live_sessions: LiveSessions | None = None,
     ) -> None:
+        self._live_sessions = live_sessions
         self._transcriber = transcriber
         self._synthesizer = synthesizer
         self.max_audio_bytes = max_audio_bytes
@@ -63,3 +66,12 @@ class SpeechService:
         except SpeechFailed as exc:
             logger.warning("Speech synthesis failed: %s", exc)
             raise DomainError([api_error("SYNTHESIS_FAILED")], status_code=502) from exc
+
+    async def start_live_session(self, offer_sdp: str) -> LiveSessionStarted:
+        if self._live_sessions is None:
+            raise DomainError([api_error("LIVE_VOICE_UNAVAILABLE")], status_code=503)
+        try:
+            return await self._live_sessions.create(offer_sdp)
+        except LiveSessionFailed as exc:
+            logger.warning("Live session failed: %s", exc)
+            raise DomainError([api_error("LIVE_VOICE_FAILED")], status_code=502) from exc

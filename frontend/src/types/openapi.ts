@@ -539,6 +539,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/speech/live/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start Live Session */
+        post: operations["start_live_session"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/media/images": {
         parameters: {
             query?: never;
@@ -1124,6 +1141,18 @@ export interface components {
             style?: components["schemas"]["ComponentStyle"] | null;
             /** Components */
             components: (components["schemas"]["PromoText"] | components["schemas"]["PromoImage"] | components["schemas"]["PromoButton"])[];
+        };
+        /** LiveSessionBody */
+        LiveSessionBody: {
+            /** Sdp */
+            sdp: string;
+        };
+        /** LiveSessionStart */
+        LiveSessionStart: {
+            /** Sessionid */
+            sessionId: string;
+            /** Sdp */
+            sdp: string;
         };
         /** MessageBody */
         MessageBody: {
@@ -3467,7 +3496,7 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
-            /** @description TRANSCRIPTION_FAILED, SYNTHESIS_FAILED */
+            /** @description TRANSCRIPTION_FAILED, SYNTHESIS_FAILED, LIVE_VOICE_FAILED */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -3476,7 +3505,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description TRANSCRIPTION_UNAVAILABLE, SYNTHESIS_UNAVAILABLE */
+            /** @description TRANSCRIPTION_UNAVAILABLE, SYNTHESIS_UNAVAILABLE, LIVE_VOICE_UNAVAILABLE */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -3539,7 +3568,7 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
-            /** @description TRANSCRIPTION_FAILED, SYNTHESIS_FAILED */
+            /** @description TRANSCRIPTION_FAILED, SYNTHESIS_FAILED, LIVE_VOICE_FAILED */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -3548,7 +3577,79 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description TRANSCRIPTION_UNAVAILABLE, SYNTHESIS_UNAVAILABLE */
+            /** @description TRANSCRIPTION_UNAVAILABLE, SYNTHESIS_UNAVAILABLE, LIVE_VOICE_UNAVAILABLE */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    start_live_session: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-User"?: string | null;
+                "X-Role"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LiveSessionBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiveSessionStart"];
+                };
+            };
+            /** @description Ошибки валидации или жизненного цикла */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ENTITY_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description TRANSCRIPTION_FAILED, SYNTHESIS_FAILED, LIVE_VOICE_FAILED */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description TRANSCRIPTION_UNAVAILABLE, SYNTHESIS_UNAVAILABLE, LIVE_VOICE_UNAVAILABLE */
             503: {
                 headers: {
                     [name: string]: unknown;

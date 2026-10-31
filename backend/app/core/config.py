@@ -57,6 +57,11 @@ class Settings(BaseSettings):
     tts_max_chars: int = 1000
     speech_timeout_seconds: float = 30.0
     stt_max_audio_bytes: int = 5 * 1024 * 1024
+    # Голосовой режим на GPT-Live. Модели нет в OpenRouter, нужен свой ключ OpenAI; без него режим работает как раньше.
+    openai_api_key: str = ""
+    live_base_url: str = "https://api.openai.com/v1"
+    live_model: str = "gpt-live-1"
+    live_voice: str = "marin"
     # Агент ходит в API кампаний по HTTP, поэтому заглушку можно заменить реальным бэкендом.
     campaigns_api_url: str = "http://localhost:8000"
     checkpoint_db: Path = BACKEND_DIR / "data" / "checkpoints.db"

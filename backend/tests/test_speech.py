@@ -9,6 +9,7 @@ import pytest
 
 from app.core.config import Settings
 from app.infra import speech as infra
+from app.infra.live import LiveSessionFailed, LiveSessionStarted, OpenAILiveSessions, live_sessions
 from app.infra.speech import OpenRouterSynthesizer, OpenRouterTranscriber, SpeechFailed
 from app.service.speech import SpeechService
 from tests.conftest import MANAGER, codes
@@ -237,3 +238,111 @@ def test_synthesis_without_key_reports_unavailable(client):
     response = say(client)
     assert response.status_code == 503
     assert codes(response) == ["SYNTHESIS_UNAVAILABLE"]
+
+
+class FakeLiveSessions:
+    def __init__(self, result: LiveSessionStarted | Exception | None = None):
+        self.result = result or LiveSessionStarted("sess_1", "answer")
+        self.offers: list[str] = []
+
+    async def create(self, offer_sdp: str) -> LiveSessionStarted:
+        self.offers.append(offer_sdp)
+        if isinstance(self.result, Exception):
+            raise self.result
+        return self.result
+
+
+def live_client(handler):
+    settings = Settings(_env_file=None, openai_api_key="openai-key")
+    return OpenAILiveSessions(settings, transport=httpx.MockTransport(handler))
+
+
+def use_live(client, fake):
+    client.app.state.speech = SpeechService(
+        None, None, max_audio_bytes=100, max_text_chars=20, live_sessions=fake
+    )
+
+
+def post_live(client, sdp="offer", headers=MANAGER):
+    return client.post("/speech/live/sessions", json={"sdp": sdp}, headers=headers)
+
+
+def test_live_session_uses_client_delegation_and_stays_on_server_key():
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        return httpx.Response(
+            201, json={"session": {"id": "sess_1"}, "transport": {"type": "webrtc", "sdp": "ans"}}
+        )
+
+    started = asyncio.run(live_client(handler).create("offer"))
+    assert started == LiveSessionStarted("sess_1", "ans")
+    assert str(calls[0].url) == "https://api.openai.com/v1/live/sessions"
+    assert calls[0].headers["Authorization"] == "Bearer openai-key"
+    body = json.loads(calls[0].content)
+    assert body["transport"] == {"type": "webrtc", "sdp": "offer"}
+    assert body["session"]["model"] == "gpt-live-1"
+    assert body["session"]["audio"] == {"output": {"voice": "marin"}}
+    # Сессия не получает своего бэкенда и инструментов: записи идут только через агента и карточку.
+    assert body["session"]["delegation"] == {"type": "client"}
+    assert "<|SpawnThinking|>" in body["session"]["instructions"]
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        httpx.Response(401, json={"error": {}}),
+        httpx.Response(500),
+        httpx.Response(201, json={"session": {}}),
+        httpx.Response(201, content=b"not json"),
+    ],
+)
+def test_live_session_provider_problem_is_failure_without_retry(response):
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        return response
+
+    with pytest.raises(LiveSessionFailed):
+        asyncio.run(live_client(handler).create("offer"))
+    assert len(calls) == 1
+
+
+def test_live_endpoint_returns_answer(client):
+    fake = FakeLiveSessions()
+    use_live(client, fake)
+    response = post_live(client)
+    assert response.status_code == 201
+    assert response.json() == {"sessionId": "sess_1", "sdp": "answer"}
+    assert fake.offers == ["offer"]
+
+
+def test_live_endpoint_requires_user(client):
+    fake = FakeLiveSessions()
+    use_live(client, fake)
+    assert codes(post_live(client, headers={})) == ["USER_REQUIRED"]
+    assert fake.offers == []
+
+
+@pytest.mark.parametrize("sdp", ["", "x" * (64 * 1024 + 1)])
+def test_live_endpoint_rejects_bad_offer_before_provider(client, sdp):
+    fake = FakeLiveSessions()
+    use_live(client, fake)
+    assert post_live(client, sdp).status_code in (400, 422)
+    assert fake.offers == []
+
+
+def test_live_provider_failure_is_502(client):
+    use_live(client, FakeLiveSessions(LiveSessionFailed("HTTP 500")))
+    response = post_live(client)
+    assert response.status_code == 502
+    assert codes(response) == ["LIVE_VOICE_FAILED"]
+
+
+def test_live_without_openai_key_reports_unavailable(client):
+    response = post_live(client)
+    assert response.status_code == 503
+    assert codes(response) == ["LIVE_VOICE_UNAVAILABLE"]
+    assert live_sessions(Settings(_env_file=None, llm_api_key="openrouter-only")) is None

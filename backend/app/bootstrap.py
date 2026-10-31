@@ -9,6 +9,7 @@ from app.infra.agent.graph import AgentDeps, build_graph
 from app.infra.agent.patterns import SvgPatternGenerator
 from app.infra.agent.studio_designer import StudioDesigner
 from app.infra.campaigns_api import ApiFactory, CampaignsApi
+from app.infra.live import live_sessions
 from app.infra.llm import ImageGenerator, chat_model, image_generator
 from app.infra.speech import speech_synthesizer, speech_transcriber
 from app.service.chat import ChatService
@@ -30,6 +31,7 @@ def build_speech_service(settings: Settings) -> SpeechService:
         speech_synthesizer(settings),
         max_audio_bytes=settings.stt_max_audio_bytes,
         max_text_chars=settings.tts_max_chars,
+        live_sessions=live_sessions(settings),
     )
 
 

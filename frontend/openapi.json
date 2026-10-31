@@ -3150,7 +3150,7 @@
             }
           },
           "502": {
-            "description": "TRANSCRIPTION_FAILED, SYNTHESIS_FAILED",
+            "description": "TRANSCRIPTION_FAILED, SYNTHESIS_FAILED, LIVE_VOICE_FAILED",
             "content": {
               "application/json": {
                 "schema": {
@@ -3160,7 +3160,7 @@
             }
           },
           "503": {
-            "description": "TRANSCRIPTION_UNAVAILABLE, SYNTHESIS_UNAVAILABLE",
+            "description": "TRANSCRIPTION_UNAVAILABLE, SYNTHESIS_UNAVAILABLE, LIVE_VOICE_UNAVAILABLE",
             "content": {
               "application/json": {
                 "schema": {
@@ -3261,7 +3261,7 @@
             }
           },
           "502": {
-            "description": "TRANSCRIPTION_FAILED, SYNTHESIS_FAILED",
+            "description": "TRANSCRIPTION_FAILED, SYNTHESIS_FAILED, LIVE_VOICE_FAILED",
             "content": {
               "application/json": {
                 "schema": {
@@ -3271,7 +3271,122 @@
             }
           },
           "503": {
-            "description": "TRANSCRIPTION_UNAVAILABLE, SYNTHESIS_UNAVAILABLE",
+            "description": "TRANSCRIPTION_UNAVAILABLE, SYNTHESIS_UNAVAILABLE, LIVE_VOICE_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/speech/live/sessions": {
+      "post": {
+        "tags": [
+          "speech"
+        ],
+        "summary": "Start Live Session",
+        "operationId": "start_live_session",
+        "parameters": [
+          {
+            "name": "X-User",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User"
+            }
+          },
+          {
+            "name": "X-Role",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiveSessionBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveSessionStart"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Ошибки валидации или жизненного цикла",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ENTITY_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "TRANSCRIPTION_FAILED, SYNTHESIS_FAILED, LIVE_VOICE_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "TRANSCRIPTION_UNAVAILABLE, SYNTHESIS_UNAVAILABLE, LIVE_VOICE_UNAVAILABLE",
             "content": {
               "application/json": {
                 "schema": {
@@ -5112,6 +5227,39 @@
           "components"
         ],
         "title": "LinearContainer"
+      },
+      "LiveSessionBody": {
+        "properties": {
+          "sdp": {
+            "type": "string",
+            "maxLength": 65536,
+            "minLength": 1,
+            "title": "Sdp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sdp"
+        ],
+        "title": "LiveSessionBody"
+      },
+      "LiveSessionStart": {
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "title": "Sessionid"
+          },
+          "sdp": {
+            "type": "string",
+            "title": "Sdp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sessionId",
+          "sdp"
+        ],
+        "title": "LiveSessionStart"
       },
       "MessageBody": {
         "properties": {

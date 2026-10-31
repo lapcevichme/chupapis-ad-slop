@@ -16,6 +16,8 @@ ERRORS: dict[str, str] = {
     "SPEECH_TEXT_TOO_LONG": "Текст для озвучки слишком длинный",
     "SYNTHESIS_UNAVAILABLE": "Озвучка не настроена",
     "SYNTHESIS_FAILED": "Не удалось озвучить текст, попробуйте ещё раз",
+    "LIVE_VOICE_UNAVAILABLE": "GPT-Live не настроен",
+    "LIVE_VOICE_FAILED": "Не удалось начать разговор с GPT-Live",
     # Шапка кампании
     "NAME_REQUIRED": "Название обязательно",
     "NAME_TOO_LONG": "Название длиннее 100 символов",

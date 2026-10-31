@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Request, Response, UploadFile
 
 from app.api.deps import ERROR_RESPONSES, ActorDep
 from app.contracts.errors import ErrorResponse
-from app.contracts.speech import SynthesisBody, Transcription
+from app.contracts.speech import LiveSessionBody, LiveSessionStart, SynthesisBody, Transcription
 from app.core.errors import fail
 from app.service.speech import SpeechService
 
@@ -13,10 +13,15 @@ router = APIRouter(
     tags=["speech"],
     responses={
         **ERROR_RESPONSES,
-        502: {"model": ErrorResponse, "description": "TRANSCRIPTION_FAILED, SYNTHESIS_FAILED"},
+        502: {
+            "model": ErrorResponse,
+            "description": "TRANSCRIPTION_FAILED, SYNTHESIS_FAILED, LIVE_VOICE_FAILED",
+        },
         503: {
             "model": ErrorResponse,
-            "description": "TRANSCRIPTION_UNAVAILABLE, SYNTHESIS_UNAVAILABLE",
+            "description": (
+                "TRANSCRIPTION_UNAVAILABLE, SYNTHESIS_UNAVAILABLE, LIVE_VOICE_UNAVAILABLE"
+            ),
         },
     },
 )
@@ -45,3 +50,11 @@ async def transcribe_speech(file: UploadFile, speech: SpeechDep, _actor: ActorDe
 )
 async def synthesize_speech(body: SynthesisBody, speech: SpeechDep, _actor: ActorDep) -> Response:
     return Response(await speech.synthesize(body.text), media_type="audio/mpeg")
+
+
+@router.post("/live/sessions", response_model=LiveSessionStart, status_code=201)
+async def start_live_session(
+    body: LiveSessionBody, speech: SpeechDep, _actor: ActorDep
+) -> LiveSessionStart:
+    started = await speech.start_live_session(body.sdp)
+    return LiveSessionStart(sessionId=started.session_id, sdp=started.answer_sdp)

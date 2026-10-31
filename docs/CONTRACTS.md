@@ -56,6 +56,8 @@
 
 `POST /speech/synthesis` — тело `{"text": "..."}`, ответ `audio/mpeg`. Нужен `X-User`. Ошибки: 400 `SPEECH_TEXT_EMPTY`, `SPEECH_TEXT_TOO_LONG`; 502 `SYNTHESIS_FAILED`; 503 `SYNTHESIS_UNAVAILABLE`.
 
+`POST /speech/live/sessions` — эксперимент, только в ветке `experiment/gpt-live-voice`. Тело `{"sdp": "<предложение браузера>"}`, ответ 201 `{"sessionId": "...", "sdp": "<ответ>"}`. Нужен `X-User`. Ключ OpenAI остаётся на сервере. Ошибки: 502 `LIVE_VOICE_FAILED`; 503 `LIVE_VOICE_UNAVAILABLE`, если нет `OPENAI_API_KEY`: клиент тогда работает по прежней схеме. Описание — [gpt-live.md](../design/voice/gpt-live.md).
+
 ## Служебное и совместимость данных
 
 - `/health` и `/mock/cbro/export` сохраняются. CBRO — успешная локальная заглушка.
