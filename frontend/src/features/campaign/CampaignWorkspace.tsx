@@ -13,12 +13,11 @@ import { CampaignPassport } from './CampaignPassport'
 import { CampaignPicker } from './CampaignPicker'
 import { managerNextStep } from './nextStep'
 import { ThemeToggle } from './ThemeToggle'
+import { UserMenu } from './UserMenu'
 
 const NEW_CAMPAIGN = ''
 // В контракте чата у шага нет типа, поэтому работу дизайнера узнаём по подписи. Если она изменится, пропадёт только индикатор в превью.
 const DESIGN_STEP = /^(Дизайнер|Генерирую)/
-const SELECT_CLASS =
-  'h-11 max-w-72 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50'
 
 function Message({ children }: { children: string }) {
   return <p className="m-0 p-4 text-[13px] leading-[18px] text-muted-foreground">{children}</p>
@@ -91,30 +90,17 @@ export function CampaignWorkspace() {
           {saved?.published && <span className="text-[13px] leading-[18px] text-muted-foreground">Показ идёт</span>}
         </div>
         <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2">
-            <label htmlFor="user-select" className="text-[13px] leading-[18px] text-muted-foreground">
-              Пользователь
-            </label>
-            <select
-              id="user-select"
-              value={login}
-              disabled={chat.busy}
-              onChange={(event) => {
-                setCurrentUser(event.target.value)
-                setLogin(event.target.value)
-                void queryClient.invalidateQueries()
-                // У каждого пользователя свой диалог по кампании: docs/ours/chat-api.md §10.
-                openCampaign(campaignId)
-              }}
-              className={SELECT_CLASS}
-            >
-              {USERS.map((user) => (
-                <option key={user.login} value={user.login}>
-                  {user.login}, {user.title}
-                </option>
-              ))}
-            </select>
-          </div>
+          <UserMenu
+            login={login}
+            disabled={chat.busy}
+            onSelect={(next) => {
+              setCurrentUser(next)
+              setLogin(next)
+              void queryClient.invalidateQueries()
+              // У каждого пользователя свой диалог по кампании: docs/ours/chat-api.md §10.
+              openCampaign(campaignId)
+            }}
+          />
           <ThemeToggle />
         </div>
       </header>

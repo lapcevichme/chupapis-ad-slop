@@ -2,9 +2,9 @@ import type { User } from '@/types/api'
 
 const STORAGE_KEY = 'adpilot.user'
 
-export const USERS: (User & { title: string })[] = [
-  { login: 'ivanov.p', role: 'campaignManager', title: 'менеджер' },
-  { login: 'petrova.m', role: 'campaignModerator', title: 'модератор' },
+export const USERS: (User & { title: string; description: string })[] = [
+  { login: 'ivanov.p', role: 'campaignManager', title: 'менеджер', description: 'Менеджер: собирает кампании' },
+  { login: 'petrova.m', role: 'campaignModerator', title: 'модератор', description: 'Модератор: одобряет кампании' },
 ]
 
 export function getCurrentUser(): User {
