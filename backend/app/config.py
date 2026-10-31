@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     # Собирает JSON баннера и контента и пишет тексты: важнее качество, чем скорость.
     design_model: str = "anthropic/claude-sonnet-5.5"
     # Генерация картинок для баннера. Пустая строка выключает генерацию.
-    image_model: str = "openai/gpt-5-image-mini"
+    image_model: str = "openai/gpt-image-2.5-sunburst"
     llm_timeout_seconds: float = 90.0
     # Агент ходит в API кампаний по HTTP, поэтому заглушку можно заменить реальным бэкендом.
     campaigns_api_url: str = "http://localhost:8000"

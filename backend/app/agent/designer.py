@@ -18,6 +18,8 @@ from app.domain.creatives import validate_banner_json, validate_content_json
 from app.schemas.creative_json import BannerContent, PromoContent
 
 MAX_ATTEMPTS = 3
+# Сторис занимает экран целиком, смарт-баннер — горизонтальная плашка.
+IMAGE_SIZES = {"STORY": "1024x1536", "SMART_BANNER": "1536x1024"}
 
 
 class DesignResult(BaseModel):
@@ -90,6 +92,7 @@ class Designer:
             "textMaxLength": t["textMaxLength"],
             "withContent": request.with_content,
             "needImagePrompt": request.generate_image,
+            "imageSize": IMAGE_SIZES.get(t["code"]) if request.generate_image else None,
             "previousVersion": request.previous,
         }
         messages: list = [SystemMessage(load_prompt("design")), HumanMessage(json.dumps(task, ensure_ascii=False))]
@@ -124,7 +127,7 @@ class Designer:
         if url is None and request.generate_image and args.get("imagePrompt"):
             progress("Генерирую картинку")
             try:
-                url = await self.images.generate(args["imagePrompt"])
+                url = await self.images.generate(args["imagePrompt"], IMAGE_SIZES.get(request.banner_type["code"]))
             except Exception as exc:  # генерация — бонус, сценарий без неё не ломается
                 notes.append(f"Картинку сгенерировать не удалось ({type(exc).__name__}), баннер без изображения")
             else:

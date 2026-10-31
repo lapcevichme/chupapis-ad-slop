@@ -23,41 +23,46 @@ def chat_model(model: str, *, temperature: float = 0.3) -> BaseChatModel:
 
 
 class ImageGenerator(Protocol):
-    async def generate(self, prompt: str) -> str | None:
-        """Возвращает ссылку на картинку или None, если сгенерировать не удалось."""
+    async def generate(self, prompt: str, size: str | None = None) -> str | None:
+        """Возвращает ссылку на картинку или None, если сгенерировать не удалось. size — "ШxВ"."""
 
 
 class OpenRouterImageGenerator:
-    """Картинка через chat completions с modalities=["image"]: модель отдаёт data URL, бэкенд сохраняет файл в /media."""
+    """Картинка через OpenAI-совместимый /images/generations. Бэкенд сохраняет файл в /media и отдаёт ссылку."""
 
     def __init__(self, model: str):
         self.model = model
 
-    async def generate(self, prompt: str) -> str | None:
-        async with httpx.AsyncClient(timeout=settings.llm_timeout_seconds) as client:
-            response = await client.post(
-                f"{settings.llm_base_url}/chat/completions",
-                headers={"Authorization": f"Bearer {settings.llm_api_key}"},
-                json={
-                    "model": self.model,
-                    "modalities": ["image", "text"],
-                    "messages": [{"role": "user", "content": prompt}],
-                },
-            )
+    async def generate(self, prompt: str, size: str | None = None) -> str | None:
+        body = {"model": self.model, "prompt": prompt} | ({"size": size} if size else {})
+        # Один повтор: соединение с провайдером картинок иногда рвётся (httpx.ReadError).
+        transport = httpx.AsyncHTTPTransport(retries=1)
+        async with httpx.AsyncClient(timeout=settings.llm_timeout_seconds, transport=transport) as client:
+            for attempt in range(2):
+                try:
+                    response = await client.post(
+                        f"{settings.llm_base_url}/images/generations",
+                        headers={"Authorization": f"Bearer {settings.llm_api_key}"},
+                        json=body,
+                    )
+                    break
+                except httpx.TransportError:
+                    if attempt == 1:
+                        raise
             response.raise_for_status()
-        images = response.json()["choices"][0]["message"].get("images") or []
-        if not images:
+        data = response.json().get("data") or []
+        if not data or not data[0].get("b64_json"):
             return None
-        header, _, data = images[0]["image_url"]["url"].partition(",")
-        extension = "jpg" if "jpeg" in header else "png"
+        raw = base64.b64decode(data[0]["b64_json"])
+        extension = "jpg" if raw[:2] == b"\xff\xd8" else "png"
         name = f"{uuid.uuid4().hex}.{extension}"
         settings.media_dir.mkdir(parents=True, exist_ok=True)
-        (settings.media_dir / name).write_bytes(base64.b64decode(data))
+        (settings.media_dir / name).write_bytes(raw)
         return f"{settings.media_base_url}/{name}"
 
 
 class NoImageGenerator:
-    async def generate(self, prompt: str) -> str | None:
+    async def generate(self, prompt: str, size: str | None = None) -> str | None:
         return None
 
 
