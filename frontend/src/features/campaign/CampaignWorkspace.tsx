@@ -1,9 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowUpRight, LayoutGrid, Menu, MessageSquare, Plus, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { ArrowUpRight, LayoutGrid, Menu, MessageSquare, Plus, Sparkles, X } from 'lucide-react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { getCampaign, getCampaignAudit, getCampaignWarnings, getDictionaries, listCampaigns, saveCampaignChange } from '@/api/campaigns'
 import type { CampaignChange } from '@/api/campaigns'
 import { getCurrentUser, setCurrentUser, USERS } from '@/api/currentUser'
+import { applyStudioToCampaign } from '@/api/studioCampaigns'
 import { Button } from '@/components/ui/button'
 import { ChatPanel } from '@/features/chat/ChatPanel'
 import { useChat } from '@/features/chat/useChat'
@@ -21,6 +22,8 @@ import { StatusBadge } from './StatusBadge'
 import { ValidationSummary } from './ValidationSummary'
 import { ThemeToggle } from './ThemeToggle'
 import { UserMenu } from './UserMenu'
+
+const CreativeStudio = lazy(() => import('@/features/studio/CreativeStudio').then(module => ({ default: module.CreativeStudio })))
 
 const NEW_CAMPAIGN = ''
 const VOICE_ENABLED = import.meta.env.VITE_VOICE_MODE !== 'false'
@@ -51,6 +54,7 @@ export function CampaignWorkspace({ initialBrief, onSignOut }: CampaignWorkspace
   const [login, setLogin] = useState(() => getCurrentUser().login)
   const [requestedBannerId, setRequestedBannerId] = useState<EntityId>()
   const [voiceOpen, setVoiceOpen] = useState(false)
+  const [studioKind, setStudioKind] = useState<'banner' | 'content' | null>(null)
   const [pane, setPane] = useState<'creative' | 'details' | 'history'>('creative')
   const [mobilePane, setMobilePane] = useState<'dialog' | 'work'>('dialog')
   const [navOpen, setNavOpen] = useState(false)
@@ -88,6 +92,8 @@ export function CampaignWorkspace({ initialBrief, onSignOut }: CampaignWorkspace
   const nextStep = role === 'campaignManager' && saved && warnings.data ? managerNextStep(saved.state, warnings.data.errors.length, (saved.creatives?.length ?? 0) > 0) : null
   const designStep = chat.messages.at(-1)?.steps.find((step) => step.status === 'running' && DESIGN_STEP.test(step.label))
   const moderator = role === 'campaignModerator'
+  const studioSource = studioKind === 'banner' && banner && bannerType ? { kind: 'banner' as const, item: banner, type: bannerType } : studioKind === 'content' && content ? { kind: 'content' as const, item: content } : null
+  const studioApplyReason = role !== 'campaignManager' ? 'Применить макет может менеджер кампании.' : chat.busy ? 'Подождите, пока ассистент закончит.' : chat.confirmation ? 'Сначала ответьте на карточку подтверждения. Макет можно пока редактировать и скачать.' : !saved || typeof studioSource?.item.id !== 'number' ? 'Сначала сохраните кампанию и креатив. Локальные варианты останутся в студии.' : !EDITABLE_STATES.includes(saved.state) ? 'Кампания на проверке или завершена. Можно подготовить варианты, применение сейчас недоступно.' : undefined
 
   async function applyChange(change: CampaignChange) {
     if (!saved) {
@@ -163,7 +169,7 @@ export function CampaignWorkspace({ initialBrief, onSignOut }: CampaignWorkspace
         <header className="pilot-topbar">
           <button className="mobile-menu" aria-label="Открыть меню кампаний" onClick={() => setNavOpen(true)}><Menu size={21} /></button>
           <div className="workspace-location"><span>Кампании</span><span className="location-divider">/</span><strong>{details?.name ?? (moderator ? 'На проверке' : 'Новая кампания')}</strong></div>
-          <div className="topbar-actions">{saved && <StatusBadge state={saved.state} />}{chat.confirmation && <span className="unsaved-label">Предложенные изменения</span>}
+          <div className="topbar-actions">{saved && <StatusBadge state={saved.state} />}{chat.confirmation && <span className="unsaved-label">Предложенные изменения</span>}{banner && bannerType && <Button className="studio-launch" onClick={() => setStudioKind('banner')}><Sparkles size={16} /><span>Студия</span></Button>}
           </div>
         </header>
         <div className="pilot-stage">
@@ -198,6 +204,12 @@ export function CampaignWorkspace({ initialBrief, onSignOut }: CampaignWorkspace
           onClose={() => setVoiceOpen(false)}
         />
       )}
+      {studioSource && <Suspense fallback={<div role="status" className="studio-opening">Открываю студию…</div>}><CreativeStudio key={`${campaignId}-${studioSource.kind}-${studioSource.item.id}`} source={studioSource} campaignId={campaignId} editable={role === 'campaignManager' && !chat.busy} applyReason={studioApplyReason} notice={saved && EDIT_NOTICES[saved.state]} hasContent={Boolean(content)} onSource={setStudioKind} onClose={() => setStudioKind(null)} onApply={async (source, document, png, buttons) => {
+        if (!saved || studioApplyReason) throw new Error(studioApplyReason ?? 'Кампания ещё не сохранена.')
+        await applyStudioToCampaign(saved.id, source, document, png, buttons)
+        chat.clearDraft()
+        await Promise.all([queryClient.invalidateQueries({ queryKey: ['campaigns'] }), queryClient.invalidateQueries({ queryKey: ['campaign'] })])
+      }} /></Suspense>}
     </div>
   )
 }
