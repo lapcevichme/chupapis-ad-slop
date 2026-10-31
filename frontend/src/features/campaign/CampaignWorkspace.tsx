@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus } from 'lucide-react'
+import { AudioLines, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { getCampaign, getCampaignAudit, getCampaignWarnings, getDictionaries, listCampaigns, saveCampaignChange } from '@/api/campaigns'
 import type { CampaignChange } from '@/api/campaigns'
@@ -7,7 +7,10 @@ import { getCurrentUser, setCurrentUser, USERS } from '@/api/currentUser'
 import { Button } from '@/components/ui/button'
 import { ChatPanel } from '@/features/chat/ChatPanel'
 import { useChat } from '@/features/chat/useChat'
+import { dictationSupported } from '@/features/chat/useDictation'
 import { CreativePreview, DesignPlaceholder } from '@/features/preview/CreativePreview'
+import { voiceAudio } from '@/features/voice/voiceAudio'
+import { VoiceMode } from '@/features/voice/VoiceMode'
 import type { CampaignState, EntityId } from '@/types/api'
 import { CampaignLifecycle } from './CampaignLifecycle'
 import { CampaignPassport } from './CampaignPassport'
@@ -19,6 +22,7 @@ import { ThemeToggle } from './ThemeToggle'
 import { UserMenu } from './UserMenu'
 
 const NEW_CAMPAIGN = ''
+const VOICE_ENABLED = import.meta.env.VITE_VOICE_MODE !== 'false'
 // В контракте чата у шага нет типа, поэтому работу дизайнера узнаём по подписи. Если она изменится, пропадёт только индикатор в превью.
 const DESIGN_STEP = /^(Дизайнер|Генерирую)/
 const EDITABLE_STATES: CampaignState[] = ['DRAFT', 'NEEDS_WORK', 'APPROVED', 'ACTIVE', 'ACTIVE_EDITING']
@@ -36,6 +40,7 @@ export function CampaignWorkspace() {
   const queryClient = useQueryClient()
   const [login, setLogin] = useState(() => getCurrentUser().login)
   const [requestedBannerId, setRequestedBannerId] = useState<EntityId>()
+  const [voiceOpen, setVoiceOpen] = useState(false)
   const campaignId = chat.campaignId
 
   const campaigns = useQuery({ queryKey: ['campaigns'], queryFn: listCampaigns })
@@ -129,6 +134,18 @@ export function CampaignWorkspace() {
           {saved?.published && <span className="text-[13px] leading-[18px] text-muted-foreground">Показ идёт</span>}
         </div>
         <div className="flex flex-wrap items-center gap-4">
+          {VOICE_ENABLED && role === 'campaignManager' && dictationSupported() && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                voiceAudio.unlock()
+                setVoiceOpen(true)
+              }}
+            >
+              <AudioLines aria-hidden="true" />
+              Голосом
+            </Button>
+          )}
           <UserMenu
             login={login}
             disabled={chat.busy}
@@ -188,6 +205,17 @@ export function CampaignWorkspace() {
           )}
         </section>
       </main>
+
+      {voiceOpen && (
+        <VoiceMode
+          chat={chat}
+          dictionaries={dictionaries.data}
+          nextStep={nextStep}
+          campaignState={saved?.state}
+          preview={banner && bannerType ? <CreativePreview key={banner.id} banner={banner} bannerType={bannerType} content={content} status={designStep?.label} /> : undefined}
+          onClose={() => setVoiceOpen(false)}
+        />
+      )}
     </div>
   )
 }

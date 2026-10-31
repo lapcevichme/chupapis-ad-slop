@@ -59,9 +59,11 @@ interface ConfirmationCardProps {
   dictionaries?: Dictionaries
   onApprove: () => void
   onReject: () => void
+  // В голосовом режиме поля ввода нет, поэтому подсказка про него только путает.
+  hideEditHint?: boolean
 }
 
-export function ConfirmationCard({ confirmation, dictionaries, onApprove, onReject }: ConfirmationCardProps) {
+export function ConfirmationCard({ confirmation, dictionaries, onApprove, onReject, hideEditHint = false }: ConfirmationCardProps) {
   const action = primaryAction(confirmation)
   const changes = confirmation.changes.filter((change) => !isEmpty(change.from) || !isEmpty(change.to))
   const toModeration = confirmation.operations.some((operation) => operation.kind === 'to_moderation')
@@ -99,7 +101,7 @@ export function ConfirmationCard({ confirmation, dictionaries, onApprove, onReje
           Не подтверждать
         </Button>
       </div>
-      <p className="m-0 text-xs leading-4 opacity-80">Или напишите ниже, что изменить: это отменит предложение.</p>
+      {!hideEditHint && <p className="m-0 text-xs leading-4 opacity-80">Или напишите ниже, что изменить: это отменит предложение.</p>}
     </section>
   )
 }
