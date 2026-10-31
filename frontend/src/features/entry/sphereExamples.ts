@@ -23,8 +23,8 @@ export type SphereExample = ExampleBase &
     | { kind: 'promo'; promo: PromoContent }
   )
 
-// Три уровня широты: соседние по долготе карточки не наезжают друг на друга, даже когда сфера маленькая.
-const LATITUDES = { upper: 48, middle: 8, lower: -32 }
+// Соседние по долготе карточки чередуются по широте: высокие истории и промо сверху, низкие баннеры снизу, поэтому они не наезжают друг на друга.
+const LATITUDES = { upper: 48, lower: -24 }
 const SMART_BANNER = 'Смарт-баннер'
 
 export const SPHERE_EXAMPLES: SphereExample[] = [
@@ -37,7 +37,7 @@ export const SPHERE_EXAMPLES: SphereExample[] = [
     titleColor: '#FFFFFFFF',
     image: '/entry/hotels.webp',
     longitude: 58,
-    latitude: LATITUDES.middle,
+    latitude: LATITUDES.upper,
     banner: {
       title: 'Кэшбэк 5% на отели',
       titleStyle: { fontSize: 22, fontWeight: 'bold', textColor: '#FFFFFFFF' },
@@ -59,7 +59,7 @@ export const SPHERE_EXAMPLES: SphereExample[] = [
     titleColor: '#000014FF',
     image: '/entry/transfers.webp',
     longitude: 118,
-    latitude: LATITUDES.upper,
+    latitude: LATITUDES.lower,
     banner: {
       title: 'Переводы без комиссии',
       titleStyle: { fontSize: 15, fontWeight: 'medium', textColor: '#000014FF' },
@@ -80,7 +80,7 @@ export const SPHERE_EXAMPLES: SphereExample[] = [
     titleColor: '#000014FF',
     image: '/entry/car.webp',
     longitude: 178,
-    latitude: LATITUDES.lower,
+    latitude: LATITUDES.upper,
     promo: {
       role: 'promo',
       component: {
@@ -106,7 +106,7 @@ export const SPHERE_EXAMPLES: SphereExample[] = [
     titleColor: '#000014FF',
     image: '/entry/movies.webp',
     longitude: 238,
-    latitude: LATITUDES.middle,
+    latitude: LATITUDES.lower,
     banner: {
       title: 'Подписка на фильмы',
       titleStyle: { fontSize: 15, fontWeight: 'medium', textColor: '#000014FF' },
