@@ -7,11 +7,13 @@ import { cn } from '@/lib/utils'
 import type { CampaignListItem, ChatStep, ChatWarning, Dictionaries, UserRole } from '@/types/api'
 import { ChatMarkdown } from './ChatMarkdown'
 import { ConfirmationCard } from './ConfirmationCard'
+import { MicButton } from './MicButton'
 import { ModerationBar } from './ModerationBar'
 import { ModerationQueue } from './ModerationQueue'
 import { NextStepBar } from './NextStepBar'
 import { SuggestionButton, Suggestions } from './Suggestions'
 import type { ChatMessage, useChat } from './useChat'
+import { useDictation } from './useDictation'
 
 // Первый бриф из §9 задания: с него начинается демо.
 const EXAMPLE_BRIEFS = [
@@ -88,6 +90,8 @@ export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role
   const [text, setText] = useState('')
   const log = useRef<HTMLDivElement>(null)
   const stickToBottom = useRef(true)
+  // Распознанное попадает в поле, а не уходит сразу: Whisper ошибается, и текст должен увидеть человек.
+  const dictation = useDictation((spoken) => setText((current) => (current.trim() ? `${current.trimEnd()} ${spoken}` : spoken)))
 
   useEffect(() => {
     if (log.current && stickToBottom.current) log.current.scrollTop = log.current.scrollHeight
@@ -199,6 +203,12 @@ export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role
           <NextStepBar step={nextStep} onSend={submit} />
         </div>
       )}
+      {dictation.error && !showQueue && (
+        <p role="alert" className="m-0 flex shrink-0 items-start gap-2 border-t bg-error px-3 py-2 text-[13px] leading-[18px] text-error-foreground">
+          <CircleAlert className="mt-px size-4 shrink-0" aria-hidden="true" />
+          {dictation.error}
+        </p>
+      )}
       {!showQueue && (
         <form
           className="flex items-end gap-2 border-t p-3"
@@ -211,11 +221,12 @@ export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role
             aria-label="Сообщение ассистенту"
             rows={2}
             value={text}
-            placeholder={confirmation ? 'Что изменить?' : 'Напишите сообщение'}
+            placeholder={dictation.status === 'recording' ? 'Говорите…' : confirmation ? 'Что изменить?' : 'Напишите сообщение'}
             onChange={(event) => setText(event.target.value)}
             onKeyDown={handleKeyDown}
-            className="min-h-11 min-w-0 flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm leading-5 outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            className="field-sizing-content max-h-40 min-h-[58px] min-w-0 flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm leading-5 outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
           />
+          <MicButton status={dictation.status} onToggle={dictation.toggle} />
           {/* Пустая кнопка не зелёная: зелёным на экране выделено одно главное действие. */}
           <Button type="submit" size="icon" variant={text.trim() ? 'default' : 'secondary'} aria-label="Отправить" disabled={busy || !text.trim()}>
             <SendHorizontal aria-hidden="true" />
