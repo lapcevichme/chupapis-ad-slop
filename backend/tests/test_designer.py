@@ -47,23 +47,22 @@ def design(banner_type) -> tuple[object, FakeImages]:
     return outcome, images
 
 
-def test_story_gets_separate_square_promo_image():
+# Квадрат над текстом занимал почти половину экрана, и промо-экран не влезал без прокрутки.
+def test_story_promo_gets_own_wide_image():
     outcome, images = design(STORY)
-    assert sorted(images.calls) == [
-        ("banner background", "1024x1536"),
-        ("promo square", "1024x1024"),
-    ]
+    assert images.calls == [("banner background", "1024x1536"), ("promo square", "1536x1024")]
     promo_image = outcome.content["component"]["components"][0]
-    assert promo_image["role"] == "image" and promo_image["aspectRatio"] == 1.0
+    assert promo_image["role"] == "image" and promo_image["aspectRatio"] == 1.5
     assert promo_image["url"] != outcome.banner["image"]["url"]
 
 
-def test_smart_banner_reuses_square_icon():
+# Картинка смарт-баннера — фон всей карточки, а не иконка 64×64.
+def test_smart_banner_gets_card_background_and_own_promo_image():
     outcome, images = design(SMART)
-    assert images.calls == [("banner background", "1024x1024")]
+    assert images.calls == [("banner background", "1536x1024"), ("promo square", "1536x1024")]
     promo_image = outcome.content["component"]["components"][0]
     assert (
-        promo_image["url"] == outcome.banner["image"]["url"] and promo_image["aspectRatio"] == 1.0
+        promo_image["url"] != outcome.banner["image"]["url"] and promo_image["aspectRatio"] == 1.5
     )
 
 
@@ -86,7 +85,7 @@ def test_edit_without_new_image_keeps_previous_one():
     assert outcome.banner["image"] == {"url": "/api/media/old.png"}
 
 
-def test_promo_only_story_generates_just_the_square_image():
+def test_promo_only_generates_just_the_promo_image():
     previous = {"id": 217, "content": {**BANNER_OK, "image": {"url": "/api/media/old.png"}}}
     args = {
         "bannerName": "Тест",
@@ -106,6 +105,6 @@ def test_promo_only_story_generates_just_the_square_image():
         promo_only=True,
     )
     outcome = asyncio.run(designer.design(request))
-    assert images.calls == [("promo square", "1024x1024")]
+    assert images.calls == [("promo square", "1536x1024")]
     assert outcome.banner["image"] == {"url": "/api/media/old.png"}
-    assert outcome.content_image == {"url": "/api/media/1.png", "aspectRatio": 1.0}
+    assert outcome.content_image == {"url": "/api/media/1.png", "aspectRatio": 1.5}

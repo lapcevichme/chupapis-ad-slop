@@ -2,7 +2,7 @@ import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Annotated, Any, TypedDict, cast
+from typing import Annotated, Any, Literal, TypedDict, cast
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import (
@@ -57,6 +57,7 @@ class AgentDeps:
     designer: Designer
     api_factory: Callable[[str, str], CampaignsApi]
     cache_enabled: bool = True
+    image_mode: Literal["mixed", "ask", "pattern", "illustration"] = "mixed"
 
 
 def actor(config: RunnableConfig) -> tuple[str, str]:
@@ -129,7 +130,9 @@ async def draft_report(
     }
 
 
-def _context_note(state: AgentState, config: RunnableConfig, reminder: str | None = None) -> str:
+def _context_note(
+    state: AgentState, config: RunnableConfig, reminder: str | None = None, image_mode: str = "ask"
+) -> str:
     user, role = actor(config)
     base = state.get("base")
     lines = [
@@ -139,6 +142,16 @@ def _context_note(state: AgentState, config: RunnableConfig, reminder: str | Non
         "с того места, где он остановился. Справка уже учитывает все выполненные записи.",
         f"Сейчас {datetime.now(UTC):%Y-%m-%d %H:%M} UTC. Пользователь {user}, роль {role or 'не задана'}.",
     ]
+    if image_mode != "ask":
+        kinds = {
+            "mixed": "фон баннера — паттерн, картинка промо-экрана — иллюстрация",
+            "pattern": "только фон-паттерн",
+            "illustration": "только иллюстрация",
+        }
+        lines.append(
+            f"Картинки: {kinds[image_mode]}, вид выбирает система. Про вид не спрашивай, спроси только, нужны ли картинки "
+            "(кнопки «С картинками» и «Без картинок»), и при согласии вызывай design_creative с generateImage: true."
+        )
     if base:
         lines.append(
             f"Кампания этого диалога: id {base['id']}, состояние {base['state']}, published={str(base['published']).lower()}. "
@@ -181,7 +194,7 @@ def build_graph(deps: AgentDeps, checkpointer: BaseCheckpointSaver[Any]) -> Agen
         # Префикс запроса (инструменты, промпт, история) между шагами не меняется и берётся из кеша провайдера.
         # Всё, что меняется каждый шаг — время, черновик, состояние кампании, — идёт одной заметкой в конце
         # и в историю не попадает. Заодно модель видит её последней и не верит устаревшим сообщениям.
-        note = _context_note(state, config, reminder)
+        note = _context_note(state, config, reminder, deps.image_mode)
         history = [SystemMessage(load_prompt("chat")), *state["messages"]]
         request = with_cache_breakpoints(
             [*history, HumanMessage(note)], stable=len(history), enabled=deps.cache_enabled
@@ -197,6 +210,7 @@ def build_graph(deps: AgentDeps, checkpointer: BaseCheckpointSaver[Any]) -> Agen
             ctx = ToolContext(
                 client=client,
                 designer=deps.designer,
+                image_mode=deps.image_mode,
                 campaign_id=state.get("campaign_id"),
                 base=state.get("base"),
                 pending=list(state.get("pending") or []),

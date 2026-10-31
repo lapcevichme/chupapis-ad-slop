@@ -1,23 +1,30 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
-import { getCampaign, getCampaignAudit, getCampaignWarnings, getDictionaries, listCampaigns } from '@/api/campaigns'
+import { getCampaign, getCampaignAudit, getCampaignWarnings, getDictionaries, listCampaigns, saveCampaignChange } from '@/api/campaigns'
+import type { CampaignChange } from '@/api/campaigns'
 import { getCurrentUser, setCurrentUser, USERS } from '@/api/currentUser'
 import { Button } from '@/components/ui/button'
 import { ChatPanel } from '@/features/chat/ChatPanel'
 import { useChat } from '@/features/chat/useChat'
 import { CreativePreview, DesignPlaceholder } from '@/features/preview/CreativePreview'
-import type { EntityId } from '@/types/api'
+import type { CampaignState, EntityId } from '@/types/api'
 import { CampaignLifecycle } from './CampaignLifecycle'
 import { CampaignPassport } from './CampaignPassport'
 import { CampaignPicker } from './CampaignPicker'
 import { managerNextStep } from './nextStep'
+import type { PassportEdit } from './PassportForms'
 import { ThemeToggle } from './ThemeToggle'
 import { UserMenu } from './UserMenu'
 
 const NEW_CAMPAIGN = ''
 // В контракте чата у шага нет типа, поэтому работу дизайнера узнаём по подписи. Если она изменится, пропадёт только индикатор в превью.
 const DESIGN_STEP = /^(Дизайнер|Генерирую)/
+const EDITABLE_STATES: CampaignState[] = ['DRAFT', 'NEEDS_WORK', 'APPROVED', 'ACTIVE', 'ACTIVE_EDITING']
+const EDIT_NOTICES: Partial<Record<CampaignState, string>> = {
+  APPROVED: 'Правка снимет одобрение: кампания вернётся в черновик, и её снова проверит модератор.',
+  ACTIVE: 'Показ продолжится по одобренной версии, а правки вступят в силу после новой модерации.',
+}
 
 function Message({ children }: { children: string }) {
   return <p className="m-0 p-4 text-[13px] leading-[18px] text-muted-foreground">{children}</p>
@@ -59,8 +66,37 @@ export function CampaignWorkspace() {
   const content = details?.contents?.find((item) => item.id === contentId)
   const failed = campaign.isError || warnings.isError || dictionaries.isError
   const role = USERS.find((user) => user.login === login)?.role
-  const nextStep = role === 'campaignManager' && saved && warnings.data ? managerNextStep(saved.state, warnings.data.errors.length > 0) : null
+  const nextStep = role === 'campaignManager' && saved && warnings.data ? managerNextStep(saved.state, warnings.data.errors.length > 0, (saved.creatives?.length ?? 0) > 0) : null
   const designStep = chat.messages.at(-1)?.steps.find((step) => step.status === 'running' && DESIGN_STEP.test(step.label))
+
+  async function applyChange(change: CampaignChange) {
+    if (!saved) {
+      // Несохранённый черновик живёт в сессии агента, поэтому правка идёт через него и потом через карточку подтверждения.
+      void chat.send(`Поправь в черновике: ${change.summary.join('; ')}`)
+      return
+    }
+    if (!dictionaries.data) return
+    try {
+      await saveCampaignChange(saved.id, change, dictionaries.data)
+    } finally {
+      // Правка из двух запросов могла пройти наполовину, поэтому экран обновляем и при ошибке.
+      await queryClient.invalidateQueries({ queryKey: ['campaigns'] })
+      await queryClient.invalidateQueries({ queryKey: ['campaign'] })
+      chat.clearDraft()
+    }
+  }
+
+  function blockedReason() {
+    if (chat.busy) return 'Подождите, пока ассистент закончит'
+    if (saved && chat.confirmation) return 'Сначала ответьте на карточку подтверждения в чате'
+    return undefined
+  }
+
+  // Правит только менеджер и только там, где это разрешает жизненный цикл. Модератору формы не показываем.
+  const edit: PassportEdit | undefined =
+    role === 'campaignManager' && (!saved || EDITABLE_STATES.includes(saved.state))
+      ? { notice: saved && EDIT_NOTICES[saved.state], blockedReason: blockedReason(), onSubmit: applyChange }
+      : undefined
 
   function openCampaign(id: number | null) {
     setRequestedBannerId(undefined)
@@ -132,6 +168,7 @@ export function CampaignWorkspace() {
               dictionaries={dictionaries.data}
               selectedBannerId={banner?.id}
               onSelectBanner={setRequestedBannerId}
+              edit={edit}
             />
           ) : (
             !failed && !chat.busy && <Message>{role === 'campaignModerator' ? 'Паспорт появится здесь, когда вы откроете кампанию.' : 'Паспорт кампании появится здесь, когда ассистент начнёт её собирать.'}</Message>

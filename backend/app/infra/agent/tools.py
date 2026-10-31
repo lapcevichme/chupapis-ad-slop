@@ -137,6 +137,10 @@ class DesignArgs(BaseModel):
     generateImage: bool = Field(
         False, description="Сгенерировать картинку; только если пользователь согласился"
     )
+    imageStyle: Literal["pattern", "illustration"] = Field(
+        "illustration",
+        description="pattern — абстрактный фон-паттерн, тема передаётся цветом; illustration — картинка с предметом по смыслу оффера",
+    )
     imageUrl: str | None = Field(
         None, description="Картинка пользователя (https), если он её прислал"
     )
@@ -172,7 +176,8 @@ UI_TOOLS: dict[str, tuple[type[BaseModel], str]] = {
     ),
     "design_creative": (
         DesignArgs,
-        "Поручить дизайн-агенту баннер и промо-экран. Кладёт в пакет баннер, контент и креативы по каналам.",
+        "Поручить дизайн-агенту баннер и промо-экран. Кладёт в пакет баннер, контент и креативы по каналам. "
+        "Для нового баннера сначала узнай у пользователя вид картинки: фон-паттерн, иллюстрация или без картинки.",
     ),
     "request_confirmation": (
         ConfirmArgs,
@@ -225,6 +230,7 @@ class ToolContext:
     pending: list[dict[str, Any]]
     counter: int
     emit: Callable[[str, dict[str, Any]], None]
+    image_mode: Literal["mixed", "ask", "pattern", "illustration"] = "mixed"
     draft_changed: bool = False
     _cache: dict[str, Any] = field(default_factory=dict)
 
@@ -381,6 +387,7 @@ async def _design(ctx: ToolContext, args: DesignArgs, progress: Callable[[str], 
                 previous=previous,
                 content_image=bool(linked_contents or saved_contents) if previous else None,
                 promo_only=args.promoImageOnly and previous is not None,
+                image_style=args.imageStyle if ctx.image_mode == "ask" else ctx.image_mode,
             ),
             progress,
         )

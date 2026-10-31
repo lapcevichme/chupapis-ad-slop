@@ -16,13 +16,16 @@ IMAGE_ATTEMPTS = 4
 IMAGE_RETRY_DELAYS = (2, 4, 8)
 
 
-def chat_model(settings: Settings, model: str, *, temperature: float = 0.3) -> BaseChatModel:
+def chat_model(
+    settings: Settings, model: str, *, temperature: float = 0.3, max_tokens: int | None = None
+) -> BaseChatModel:
     providers = [p.strip() for p in settings.llm_providers.split(",") if p.strip()]
     return ChatOpenAI(
         model=model,
         base_url=settings.llm_base_url,
         api_key=SecretStr(settings.llm_api_key or "missing-key"),
         temperature=temperature,
+        max_completion_tokens=max_tokens,
         timeout=settings.llm_timeout_seconds,
         # SDK OpenAI сам повторяет сетевые сбои, 429 и 5xx с экспоненциальной паузой: 1 + 3 повтора.
         max_retries=3,
