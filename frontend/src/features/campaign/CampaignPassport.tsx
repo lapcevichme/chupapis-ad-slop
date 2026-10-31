@@ -1,22 +1,52 @@
+import { Pencil } from 'lucide-react'
+import { useState } from 'react'
 import type { ReactNode } from 'react'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { CampaignDraft, CampaignValidation, Dictionaries, EntityId } from '@/types/api'
 import { Flash } from './Flash'
+import { AudienceForm, MainForm, PlacesForm, RulesForm } from './PassportForms'
+import type { PassportEdit } from './PassportForms'
 import { ValidationSummary } from './ValidationSummary'
 import { formatCount, formatDateTime } from './format'
 
 const NOT_SET = 'Не задано'
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+interface SectionProps {
+  title: string
+  edit?: PassportEdit
+  form?: (onClose: () => void) => ReactNode
+  children: ReactNode
+}
+
+function Section({ title, edit, form, children }: SectionProps) {
+  const [editing, setEditing] = useState(false)
+  const canEdit = edit && form
+
   return (
     <section className="flex flex-col gap-3 rounded-lg border bg-card p-4 text-card-foreground">
-      <h2 className="m-0 text-sm leading-5 font-semibold">{title}</h2>
-      {children}
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="m-0 text-sm leading-5 font-semibold">{title}</h2>
+        {canEdit && !editing && (
+          <Button
+            variant="ghost"
+            className="-my-2 -mr-2 text-[13px] font-medium"
+            aria-label={`Изменить: ${title}`}
+            title={edit.blockedReason}
+            disabled={Boolean(edit.blockedReason)}
+            onClick={() => setEditing(true)}
+          >
+            <Pencil aria-hidden="true" />
+            Изменить
+          </Button>
+        )}
+      </div>
+      {canEdit && editing ? form(() => setEditing(false)) : children}
     </section>
   )
 }
 
-function Field({ label, value, code, flash }: { label: string; value: ReactNode; code?: string; flash?: string }) {
+function Field({ label, value, code, flash, hint }: { label: string; value: ReactNode; code?: string; flash?: string; hint?: string }) {
   return (
     <div className="flex min-w-0 flex-col gap-0.5">
       <span className="text-xs leading-4 text-muted-foreground">{label}</span>
@@ -24,6 +54,7 @@ function Field({ label, value, code, flash }: { label: string; value: ReactNode;
         <span className="text-sm leading-5 font-medium wrap-anywhere">{value}</span>
       </Flash>
       {code && <span className="font-mono text-xs leading-4 text-muted-foreground">{code}</span>}
+      {hint && <span className="text-xs leading-4 text-muted-foreground">{hint}</span>}
     </div>
   )
 }
@@ -70,9 +101,11 @@ interface CampaignPassportProps {
   dictionaries: Dictionaries
   selectedBannerId?: EntityId
   onSelectBanner: (id: EntityId) => void
+  edit?: PassportEdit
 }
 
-export function CampaignPassport({ campaign, validation, dictionaries, selectedBannerId, onSelectBanner }: CampaignPassportProps) {
+export function CampaignPassport({ campaign, validation, dictionaries, selectedBannerId, onSelectBanner, edit }: CampaignPassportProps) {
+  const formProps = edit && { campaign, dictionaries, edit }
   const topic = dictionaries.topics.find((item) => item.value === campaign.topic)
   const places = campaign.places ?? []
   const banners = campaign.banners ?? []
@@ -81,7 +114,7 @@ export function CampaignPassport({ campaign, validation, dictionaries, selectedB
 
   return (
     <div className="flex animate-stagger flex-col gap-3">
-      <Section title="Основное">
+      <Section title="Основное" edit={edit} form={formProps && ((onClose) => <MainForm {...formProps} onClose={onClose} />)}>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3.5">
           <Field label="Название" value={campaign.name ?? NOT_SET} />
           {campaign.marketingName && <Field label="Маркетинговое название" value={campaign.marketingName} />}
@@ -93,7 +126,7 @@ export function CampaignPassport({ campaign, validation, dictionaries, selectedB
         </div>
       </Section>
 
-      <Section title="Аудитория">
+      <Section title="Аудитория" edit={edit} form={formProps && ((onClose) => <AudienceForm {...formProps} onClose={onClose} />)}>
         <Flash value={JSON.stringify([campaign.audienceType, campaign.segments])} className="flex flex-col gap-3">
           {campaign.audienceType === 'ALL_USERS' && <Field label="Кому показываем" value="Все пользователи" code="ALL_USERS" />}
           {campaign.audienceType === 'SEGMENTED' && (
@@ -106,7 +139,7 @@ export function CampaignPassport({ campaign, validation, dictionaries, selectedB
         </Flash>
       </Section>
 
-      <Section title="Места показа">
+      <Section title="Места показа" edit={edit} form={formProps && ((onClose) => <PlacesForm {...formProps} onClose={onClose} />)}>
         <Flash value={places.join()}>
           {places.length > 0 ? (
             <ul className="m-0 flex list-none flex-col p-0">
@@ -128,10 +161,20 @@ export function CampaignPassport({ campaign, validation, dictionaries, selectedB
         </Flash>
       </Section>
 
-      <Section title="Правила показа">
+      <Section title="Правила показа" edit={edit} form={formProps && ((onClose) => <RulesForm {...formProps} onClose={onClose} />)}>
         <div className="grid grid-cols-2 gap-3.5">
-          <Field label="Вес" value={<span className="tabular-nums">{campaign.weight ?? NOT_SET}</span>} flash={String(campaign.weight)} />
-          <Field label="Начальный CTR" value={<span className="tabular-nums">{campaign.initialCtr ?? NOT_SET}</span>} flash={String(campaign.initialCtr)} />
+          <Field
+            label="Вес"
+            hint="Приоритет среди кампаний в одном месте показа"
+            value={<span className="tabular-nums">{campaign.weight ?? NOT_SET}</span>}
+            flash={String(campaign.weight)}
+          />
+          <Field
+            label="Начальный CTR"
+            hint="Ожидаемая кликабельность, пока нет статистики"
+            value={<span className="tabular-nums">{campaign.initialCtr == null ? NOT_SET : `${campaign.initialCtr}%`}</span>}
+            flash={String(campaign.initialCtr)}
+          />
         </div>
       </Section>
 

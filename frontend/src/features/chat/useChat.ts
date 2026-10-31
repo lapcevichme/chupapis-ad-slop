@@ -32,6 +32,7 @@ interface ChatState {
 type ChatAction =
   | { type: 'restore'; session: ChatSession | null }
   | { type: 'reset'; campaignId: number | null }
+  | { type: 'clearDraft' }
   | { type: 'start'; userText?: string; retry?: boolean }
   | { type: 'event'; event: ChatEvent }
   | { type: 'fail'; error: ChatError }
@@ -119,6 +120,8 @@ function reducer(state: ChatState, action: ChatAction): ChatState {
       }
     case 'reset':
       return { ...EMPTY, busy: false, campaignId: action.campaignId }
+    case 'clearDraft':
+      return { ...state, draft: null, validation: null }
     case 'start': {
       // При повторе ответ, оборвавшийся на ошибке, заменяется новым.
       const previous = action.retry && state.messages.at(-1)?.role === 'assistant' ? state.messages.slice(0, -1) : state.messages
@@ -245,5 +248,8 @@ export function useChat() {
     }
   }, [])
 
-  return { ...state, send, answer, retry, open }
+  // Кампанию поправили вручную: снимок в сессии устарел, а источник правды теперь API. Следующий ход агента прочитает её заново.
+  const clearDraft = useCallback(() => dispatch({ type: 'clearDraft' }), [])
+
+  return { ...state, send, answer, retry, open, clearDraft }
 }
