@@ -33,11 +33,11 @@ export function useStudioProject(key: string, initial: StudioDocument, origin: s
   }
   function select(id: string) { store({ ...project, activeId: id }); setPast([]); setFuture([]) }
   function add(documents: StudioDocument[], label?: string) {
-    if (project.variants.length + documents.length > 12) return false
+    if (project.variants.length + documents.length > 12) return null
     const incoming = documents.map(document => ({ id: crypto.randomUUID(), label: label ?? document.name, document: structuredClone(document) }))
     store({ variants: [...project.variants, ...incoming], activeId: incoming[0].id, origin })
     setPast([]); setFuture([])
-    return true
+    return incoming.map(variant => variant.id)
   }
   function remove(id: string) {
     if (project.variants.length < 2) return

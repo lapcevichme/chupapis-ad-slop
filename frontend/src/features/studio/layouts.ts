@@ -40,7 +40,7 @@ export function makeLayoutVariants(base: StudioDocument): StudioDocument[] {
       shape({ name: 'Графический знак', shape: 'ellipse', x: tall ? w * .64 : w * .77, y: tall ? h * .44 : 18, width: w * .3, height: w * .3, fill: ink })
     }
     const pictureLayers = images.map((image, i) => ({ ...image, x: tall ? pad + i * 8 : w * .69, y: tall ? (index === 1 ? 20 : index === 2 ? h * .27 : h * .56) + i * 8 : 24 + i * 5, width: tall ? w - pad * 2 : w * .26, height: tall ? h * .27 : h - 76, rotation: index === 1 ? -4 : 0, opacity: 1, radius: index === 1 ? 0 : 16 }))
-    const textWidth = tall ? w - pad * 2 : (images.length || index === 2 ? w * .59 : w - pad * 2)
+    const textWidth = (tall ? w - pad * 2 : (images.length || index === 2 ? w * .59 : w - pad * 2)) - (index === 1 ? 12 : 0)
     const textY = tall && index === 1 ? h * .44 : (tall ? 30 : 18)
     const available = tall ? (index === 1 ? h * .42 : h * .46) : h - 70
     const copy = tall && index === 2 ? [...stack(text.filter(x => x.role === 'title'), pad, 30, textWidth, h * .23, ink, true, false), ...stack(text.filter(x => x.role !== 'title'), pad, h * .6, textWidth, h * .23, '#ffffff', true, false)] : stack(text, pad, textY, textWidth, available, ink, tall, index === 1)
