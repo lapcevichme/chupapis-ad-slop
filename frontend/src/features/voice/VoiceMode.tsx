@@ -103,6 +103,7 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, imageUp
   const handleLiveRequest = useCallback(
     (text: string) => {
       startedAt.current ??= Date.now()
+      setEditing(false)
       handleText(text)
     },
     [handleText],
@@ -124,10 +125,6 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, imageUp
   useEffect(() => {
     if (!recording && !live.active && live.status !== 'connecting') voiceAudio.detachMicrophone()
   }, [recording, live.active, live.status])
-
-  useEffect(() => {
-    if (busy) setEditing(false)
-  }, [busy])
 
   const lastAnswer = messages.findLast((message) => message.role === 'assistant')
   const lastHeard = messages.findLast((message) => message.role === 'user')
