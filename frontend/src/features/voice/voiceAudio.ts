@@ -1,8 +1,16 @@
 import { synthesizeSpeech } from '@/api/speech'
 
 // Заготовки лежат в public/voice, их создаёт backend/app/generate_voice_cues.py: первый звук не должен ждать агента.
-const CUES = ['greet', 'wait', 'more', 'form', 'confirm'] as const
-export type VoiceCue = (typeof CUES)[number]
+// У заполняющих фраз несколько вариантов, иначе на третьем ходе слышно, что это запись.
+const CUES = {
+  greet: ['greet'],
+  wait: ['wait-1', 'wait-2', 'wait-3', 'wait-4', 'wait-5'],
+  more: ['more-1', 'more-2', 'more-3'],
+  form: ['form'],
+  confirm: ['confirm'],
+} as const
+export type VoiceCue = keyof typeof CUES
+const CUE_FILES: string[] = Object.values(CUES).flat()
 
 function createAnalyser(context: AudioContext) {
   const analyser = context.createAnalyser()
@@ -18,7 +26,8 @@ class VoiceAudio {
   private microphoneSource: MediaStreamAudioSourceNode | null = null
   private playing: AudioBufferSourceNode | null = null
   private abort: AbortController | null = null
-  private cues = new Map<VoiceCue, Promise<AudioBuffer>>()
+  private cues = new Map<string, Promise<AudioBuffer>>()
+  private lastFile = new Map<VoiceCue, string>()
   private samples = new Uint8Array(512)
   muted = false
 
@@ -29,20 +38,28 @@ class VoiceAudio {
       this.output = createAnalyser(this.context)
       this.output.connect(this.context.destination)
       this.microphone = createAnalyser(this.context)
-      for (const cue of CUES) this.loadCue(cue)
+      for (const file of CUE_FILES) this.loadFile(file)
     }
     void this.context.resume()
   }
 
-  private loadCue(cue: VoiceCue) {
-    let buffer = this.cues.get(cue)
+  private pickFile(cue: VoiceCue) {
+    const files: readonly string[] = CUES[cue]
+    const fresh = files.filter((file) => file !== this.lastFile.get(cue))
+    const file = fresh[Math.floor(Math.random() * fresh.length)] ?? files[0]
+    this.lastFile.set(cue, file)
+    return file
+  }
+
+  private loadFile(file: string) {
+    let buffer = this.cues.get(file)
     if (!buffer) {
-      buffer = fetch(`/voice/${cue}.mp3`)
+      buffer = fetch(`/voice/${file}.mp3`)
         .then((response) => response.arrayBuffer())
         .then((data) => (this.context as AudioContext).decodeAudioData(data))
       // Без заготовки режим работает, просто тише; при следующем запросе попробуем загрузить снова.
-      buffer.catch(() => this.cues.delete(cue))
-      this.cues.set(cue, buffer)
+      buffer.catch(() => this.cues.delete(file))
+      this.cues.set(file, buffer)
     }
     return buffer
   }
@@ -82,7 +99,7 @@ class VoiceAudio {
     const controller = new AbortController()
     this.abort = controller
     try {
-      const buffer = await this.loadCue(cue)
+      const buffer = await this.loadFile(this.pickFile(cue))
       if (!controller.signal.aborted) await this.play(buffer)
     } catch {
       // Заготовка только заполняет паузу: её отсутствие не должно мешать разговору.
