@@ -1,5 +1,3 @@
-"""Инструменты чат-агента. JSON-схемы аргументов генерируются из Pydantic-моделей."""
-
 import json
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -277,11 +275,16 @@ async def _propose(ctx: ToolContext, spec: WriteOp, raw: dict[str, Any]) -> str:
             title_max=banner_type["titleMaxLength"],
             text_max=banner_type["textMaxLength"],
             prefix="banner.content",
+            media_base_url=ctx.designer.media_base_url,
         )
         if errors:
             return _errors_text(errors)
     if isinstance(args, (CreateContentArgs, UpdateContentArgs)):
-        errors = check_content(args.content.content, prefix="content.content")
+        errors = check_content(
+            args.content.content,
+            prefix="content.content",
+            media_base_url=ctx.designer.media_base_url,
+        )
         if errors:
             return _errors_text(errors)
 

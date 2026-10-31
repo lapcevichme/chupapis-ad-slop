@@ -1,9 +1,3 @@
-"""Дизайн-агент: по задаче от чат-агента собирает JSON баннера и PROMO-контента.
-
-Результат проверяется теми же схемами и правилами, что и в API (`app.infra.creative_validation`).
-Ошибки возвращаются модели, и она исправляет JSON, пока он не пройдёт проверку.
-"""
-
 import json
 from dataclasses import dataclass, field
 from typing import Any, Callable
@@ -18,12 +12,9 @@ from app.infra.creative_validation import validate_banner_json, validate_content
 from app.infra.llm import ImageGenerator, with_cache_breakpoints
 
 MAX_ATTEMPTS = 3
-# Сторис: картинка — фон всего экрана, текст поверх. Смарт-баннер: картинка — квадратная иконка в карточке.
 IMAGE_SIZES = {"STORY": "1024x1536", "SMART_BANNER": "1024x1024"}
-# На промо-экране картинка стоит над текстом во всю ширину, поэтому там всегда квадрат с предметом на весь кадр.
 CONTENT_IMAGE_SIZE = "1024x1024"
 CONTENT_IMAGE_ASPECT = 1.0
-# Своя картинка пользователя: пропорции неизвестны, на промо-экране показываем её широкой полосой.
 USER_IMAGE_ASPECT = 1.5
 
 
@@ -61,9 +52,7 @@ class DesignRequest:
     generate_image: bool
     image_url: str | None = None
     previous: dict[str, Any] | None = None
-    # Нужна ли картинка для промо-экрана; по умолчанию — если промо-экран собирается в этом же запросе.
     content_image: bool | None = None
-    # Просили картинку только для промо-экрана: картинку баннера не трогаем.
     promo_only: bool = False
 
     @property
@@ -78,7 +67,6 @@ class DesignRequest:
     def generates_banner_image(self, type_code: str) -> bool:
         if not self.generate_image:
             return False
-        # Промо-экрану смарт-баннера хватает прежней иконки, промо-экрану сторис нужна своя картинка.
         return not (self.promo_only and (needs_own_content_image(type_code) or self.previous_image))
 
 
@@ -89,7 +77,6 @@ class DesignOutcome:
     content_name: str | None
     content: dict[str, Any] | None
     notes: list[str] = field(default_factory=list)
-    # Картинка для промо-экрана: у сторис своя квадратная, у смарт-баннера та же иконка.
     content_image: dict[str, Any] | None = None
 
 
@@ -97,13 +84,20 @@ class DesignError(Exception):
     pass
 
 
-def _validate(args: dict[str, Any], banner_type: dict[str, Any], with_content: bool) -> list[str]:
+def _validate(
+    args: dict[str, Any],
+    banner_type: dict[str, Any],
+    with_content: bool,
+    *,
+    media_base_url: str = "/api/media",
+) -> list[str]:
     _, errors = validate_banner_json(
         args.get("banner"),
         type_code=banner_type["code"],
         title_max=banner_type["titleMaxLength"],
         text_max=banner_type["textMaxLength"],
         prefix="banner",
+        media_base_url=media_base_url,
     )
     problems = [f"{e.code} {e.field}: {e.message}" for e in errors]
     if not args.get("bannerName"):
@@ -112,17 +106,26 @@ def _validate(args: dict[str, Any], banner_type: dict[str, Any], with_content: b
         if args.get("content") is None:
             problems.append("content обязателен: нужен промо-экран")
         else:
-            _, content_errors = validate_content_json(args["content"], prefix="content")
+            _, content_errors = validate_content_json(
+                args["content"], prefix="content", media_base_url=media_base_url
+            )
             problems += [f"{e.code} {e.field}: {e.message}" for e in content_errors]
     return problems
 
 
 class Designer:
-    def __init__(self, model: BaseChatModel, images: ImageGenerator, *, cache_enabled: bool = True):
-        # Без принудительного tool_choice: часть моделей (в том числе Claude 5.5) его не поддерживает.
+    def __init__(
+        self,
+        model: BaseChatModel,
+        images: ImageGenerator,
+        *,
+        cache_enabled: bool = True,
+        media_base_url: str = "/api/media",
+    ):
         self.model = model.bind_tools([DesignResult])
         self.images = images
         self.cache_enabled = cache_enabled
+        self.media_base_url = media_base_url
 
     async def design(
         self, request: DesignRequest, progress: Callable[[str], None] = lambda _: None
@@ -159,7 +162,9 @@ class Designer:
                     HumanMessage("Верни результат только вызовом инструмента DesignResult."),
                 ]
                 continue
-            problems = _validate(call["args"], t, request.with_content)
+            problems = _validate(
+                call["args"], t, request.with_content, media_base_url=self.media_base_url
+            )
             if not problems:
                 return await self._finish(call["args"], request, progress)
             messages += [
@@ -179,7 +184,7 @@ class Designer:
             return None
         try:
             url = await self.images.generate(prompt, size)
-        except Exception as exc:  # генерация — бонус, сценарий без неё не ломается
+        except Exception as exc:
             notes.append(
                 f"{what}: сгенерировать не удалось ({type(exc).__name__}), осталось без изображения"
             )
@@ -201,15 +206,12 @@ class Designer:
                 mode="json", exclude_none=True
             )
         notes: list[str] = []
-
-        banner_url, content_image = request.image_url, None
+        banner_url, content_image = (request.image_url, None)
         if banner_url:
             content_image = {"url": banner_url, "aspectRatio": USER_IMAGE_ASPECT}
         elif request.generate_image:
             own = request.wants_content_image and needs_own_content_image(code)
             progress("Генерирую картинки" if own else "Генерирую картинку")
-            # Промо-экрану сторис нужна своя квадратная картинка. Генерируем по очереди, а не параллельно:
-            # OpenRouter заранее резервирует деньги под каждый запрос, и два сразу упираются в небольшой лимит ключа.
             if request.generates_banner_image(code):
                 banner_url = await self._generate(
                     args.get("imagePrompt"), IMAGE_SIZES[code], "Картинка баннера", notes
@@ -223,12 +225,10 @@ class Designer:
             icon = banner_url or request.previous_image
             if own_url:
                 content_image = {"url": own_url, "aspectRatio": CONTENT_IMAGE_ASPECT}
-            elif icon and not needs_own_content_image(code) and request.wants_content_image:
+            elif icon and (not needs_own_content_image(code)) and request.wants_content_image:
                 content_image = {"url": icon, "aspectRatio": CONTENT_IMAGE_ASPECT}
         if not banner_url:
-            # Модель картинку не заполняет, поэтому правка без новой генерации оставляет прежнюю.
             banner_url = request.previous_image
-
         if banner_url:
             banner["image"] = {"url": banner_url}
         if content is not None and content_image:
@@ -242,5 +242,5 @@ class Designer:
 def insert_content_image(content: dict[str, Any], image: dict[str, Any]) -> None:
     """Ставит картинку первым компонентом промо-экрана, если места хватает и картинки там ещё нет."""
     components = content["component"]["components"]
-    if len(components) < 6 and not any(c["role"] == "image" for c in components):
+    if len(components) < 6 and (not any((c["role"] == "image" for c in components))):
         components.insert(0, {"role": "image", **image})

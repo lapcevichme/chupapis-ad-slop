@@ -1,8 +1,3 @@
-"""Проверка JSON баннера и контента: схема плюс правила, которых нет в самой схеме.
-
-Функции не ходят в БД, поэтому их же вызывает агент перед отправкой креатива в API.
-"""
-
 from typing import Any
 
 from pydantic import ValidationError
@@ -27,7 +22,7 @@ def _has_link(link: ActionLink | None) -> bool:
 
 
 def check_link(action_type: ActionType, link: ActionLink | None, field: str) -> list[ApiError]:
-    if action_type in LINK_REQUIRED_ACTIONS and not _has_link(link):
+    if action_type in LINK_REQUIRED_ACTIONS and (not _has_link(link)):
         return [
             api_error(
                 "LINK_REQUIRED",
@@ -46,8 +41,8 @@ def check_link(action_type: ActionType, link: ActionLink | None, field: str) -> 
     return []
 
 
-def check_image_url(url: str, field: str) -> list[ApiError]:
-    if url.startswith("https://") or url.startswith("/api/media/"):
+def check_image_url(url: str, field: str, *, media_base_url: str = "/api/media") -> list[ApiError]:
+    if url.startswith("https://") or url.startswith(media_base_url.rstrip("/") + "/"):
         return []
     return [api_error("IMAGE_URL_INVALID", field)]
 
@@ -59,6 +54,7 @@ def check_banner(
     title_max: int,
     text_max: int,
     prefix: str = "content",
+    media_base_url: str = "/api/media",
 ) -> list[ApiError]:
     errors: list[ApiError] = []
     if content.title is not None and len(content.title) > title_max:
@@ -79,42 +75,62 @@ def check_banner(
         )
     errors += check_link(content.actionType, content.link, f"{prefix}.link")
     if content.image is not None:
-        errors += check_image_url(content.image.url, f"{prefix}.image.url")
+        errors += check_image_url(
+            content.image.url, f"{prefix}.image.url", media_base_url=media_base_url
+        )
     return errors
 
 
-def check_content(content: PromoContent, *, prefix: str = "content") -> list[ApiError]:
+def check_content(
+    content: PromoContent, *, prefix: str = "content", media_base_url: str = "/api/media"
+) -> list[ApiError]:
     errors: list[ApiError] = []
     for index, component in enumerate(content.component.components):
         field = f"{prefix}.component.components[{index}]"
         if isinstance(component, PromoButton):
             errors += check_link(component.actionType, component.link, f"{field}.link")
         elif isinstance(component, PromoImage):
-            errors += check_image_url(component.url, f"{field}.url")
+            errors += check_image_url(component.url, f"{field}.url", media_base_url=media_base_url)
     return errors
 
 
 def validate_banner_json(
-    raw: Any, *, type_code: str, title_max: int, text_max: int, prefix: str = "content"
+    raw: Any,
+    *,
+    type_code: str,
+    title_max: int,
+    text_max: int,
+    prefix: str = "content",
+    media_base_url: str = "/api/media",
 ) -> tuple[BannerContent | None, list[ApiError]]:
     try:
         content = BannerContent.model_validate(raw)
     except ValidationError as exc:
-        return None, map_pydantic_errors(
-            exc.errors(), prefix=prefix, fallback="BANNER_SCHEMA_INVALID"
+        return (
+            None,
+            map_pydantic_errors(exc.errors(), prefix=prefix, fallback="BANNER_SCHEMA_INVALID"),
         )
-    return content, check_banner(
-        content, type_code=type_code, title_max=title_max, text_max=text_max, prefix=prefix
+    return (
+        content,
+        check_banner(
+            content,
+            type_code=type_code,
+            title_max=title_max,
+            text_max=text_max,
+            prefix=prefix,
+            media_base_url=media_base_url,
+        ),
     )
 
 
 def validate_content_json(
-    raw: Any, *, prefix: str = "content"
+    raw: Any, *, prefix: str = "content", media_base_url: str = "/api/media"
 ) -> tuple[PromoContent | None, list[ApiError]]:
     try:
         content = PromoContent.model_validate(raw)
     except ValidationError as exc:
-        return None, map_pydantic_errors(
-            exc.errors(), prefix=prefix, fallback="CONTENT_SCHEMA_INVALID"
+        return (
+            None,
+            map_pydantic_errors(exc.errors(), prefix=prefix, fallback="CONTENT_SCHEMA_INVALID"),
         )
-    return content, check_content(content, prefix=prefix)
+    return (content, check_content(content, prefix=prefix, media_base_url=media_base_url))

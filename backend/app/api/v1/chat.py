@@ -1,5 +1,3 @@
-"""API чата (docs/ours/chat-api.md). Ответы на сообщения и подтверждения — поток SSE."""
-
 from collections.abc import AsyncIterator
 from typing import Annotated, Any
 

@@ -1,5 +1,3 @@
-"""Заглушка Content Broker (§5, mocks/cbro_export.json): всегда успех."""
-
 from fastapi import APIRouter
 
 from app.contracts import campaigns as api

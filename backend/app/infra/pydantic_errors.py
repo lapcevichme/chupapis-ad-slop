@@ -1,5 +1,3 @@
-"""Перевод ошибок Pydantic в коды каталога `rules.ERRORS`."""
-
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
 

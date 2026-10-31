@@ -1,10 +1,3 @@
-"""JSON-контент баннера (§2.6) и PROMO-контента (§2.7).
-
-Эти модели — единственная схема креативов: по ним валидирует API, по ним же агент проверяет
-сгенерированный JSON до отправки. Правила, зависящие от типа баннера и от конфигурации
-(лимиты длины, ссылки, домен картинок), живут в `app.infra.creative_validation`.
-"""
-
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field

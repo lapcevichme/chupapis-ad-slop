@@ -1,5 +1,3 @@
-"""HTTP-клиент API кампаний. Агент не ходит в БД: адрес API задаётся конфигом."""
-
 from collections.abc import Callable
 from typing import Any
 

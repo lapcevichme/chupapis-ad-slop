@@ -1,5 +1,3 @@
-"""Прогон валидации всей кампании (§4): GET /warnings и проверка перед to-moderation."""
-
 from datetime import date, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -48,20 +46,19 @@ async def check_segment_codes(
     return errors
 
 
-async def campaign_errors(session: AsyncSession, c: models.Campaign) -> list[ApiError]:
+async def campaign_errors(
+    session: AsyncSession, c: models.Campaign, *, media_base_url: str = "/api/media"
+) -> list[ApiError]:
     errors = check_schedule(c.start_date, c.start_time, c.end_date, c.end_time)
-
-    included, excluded = c.segment_codes("included"), c.segment_codes("excluded")
-    if c.audience_type == AudienceType.SEGMENTED and not included:
+    included, excluded = (c.segment_codes("included"), c.segment_codes("excluded"))
+    if c.audience_type == AudienceType.SEGMENTED and (not included):
         errors.append(api_error("SEGMENTS_REQUIRED", "segments.included"))
     if c.audience_type == AudienceType.ALL_USERS and (included or excluded):
         errors.append(api_error("SEGMENTS_FORBIDDEN_FOR_ALL_USERS", "segments"))
     errors += await check_segment_codes(session, included, "segments.included")
     errors += await check_segment_codes(session, excluded, "segments.excluded")
-
     if not c.place_links:
         errors.append(api_error("PLACES_REQUIRED", "places"))
-
     for b in c.banners:
         t = b.banner_type
         _, banner_errors = validate_banner_json(
@@ -70,10 +67,13 @@ async def campaign_errors(session: AsyncSession, c: models.Campaign) -> list[Api
             title_max=t.title_max_length,
             text_max=t.text_max_length,
             prefix=f"banners[{b.id}].content",
+            media_base_url=media_base_url,
         )
         errors += banner_errors
     for x in c.contents:
-        _, content_errors = validate_content_json(x.content, prefix=f"contents[{x.id}].content")
+        _, content_errors = validate_content_json(
+            x.content, prefix=f"contents[{x.id}].content", media_base_url=media_base_url
+        )
         errors += content_errors
     for cr in c.creatives:
         if cr.channel_code not in cr.banner.banner_type.channels:
@@ -91,15 +91,15 @@ def place_covered(place: models.Place, creatives: list[models.Creative]) -> bool
     """§7.2 mock-data: место покрыто, если есть креатив с баннером типа place.defaultBanner."""
     if place.default_banner is None:
         return True
-    return any(cr.banner.banner_type.code == place.default_banner for cr in creatives)
+    return any((cr.banner.banner_type.code == place.default_banner for cr in creatives))
 
 
 def campaign_warning_codes(c: models.Campaign) -> list[str]:
     places = [link.place for link in c.place_links]
     codes: list[str] = []
-    if not all(place_covered(p, c.creatives) for p in places):
+    if not all((place_covered(p, c.creatives) for p in places)):
         codes.append("PLACE_NO_CREATIVE")
-    if any(p.state == PlaceState.INACTIVE for p in places):
+    if any((p.state == PlaceState.INACTIVE for p in places)):
         codes.append("PLACE_INACTIVE")
     if not c.tag_links:
         codes.append("TAGS_MISSING")

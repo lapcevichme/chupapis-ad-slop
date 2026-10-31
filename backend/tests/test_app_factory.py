@@ -19,6 +19,30 @@ def test_request_context_headers_and_error_envelope(client):
     assert invalid.headers["X-Request-ID"] == "campaign-check"
 
 
+def test_media_url_validation_uses_application_settings(tmp_path):
+    app = create_app(
+        Settings(
+            _env_file=None,
+            database_url=f"sqlite:///{tmp_path / 'media.db'}",
+            checkpoint_db=tmp_path / "checkpoints.db",
+            media_dir=tmp_path / "media",
+            media_base_url="/custom-media",
+            llm_api_key="",
+        )
+    )
+    with TestClient(app) as client:
+        client.portal.call(initialize_database, app)
+        body = {
+            "name": "Настроенный префикс медиа",
+            "bannerTypeId": 2,
+            "content": {"actionType": "default", "image": {"url": "/custom-media/banner.png"}},
+        }
+        assert client.post("/campaigns/101/banners", json=body, headers=MANAGER).status_code == 201
+        assert client.get("/campaigns/101/warnings").json()["errors"] == []
+        body["content"]["image"]["url"] = "/api/media/banner.png"
+        assert client.post("/campaigns/101/banners", json=body, headers=MANAGER).status_code == 400
+
+
 def test_applications_have_independent_settings_and_databases(tmp_path):
     apps = [
         create_app(

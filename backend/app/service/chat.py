@@ -1,5 +1,3 @@
-"""Сессии чата поверх графа: создание, снимок для восстановления и SSE-поток ответа."""
-
 import asyncio
 import logging
 from collections.abc import AsyncIterator

@@ -32,6 +32,7 @@ def build_chat_service(
             design or chat_model(settings, settings.design_model, temperature=0.7),
             images or image_generator(settings),
             cache_enabled=settings.llm_prompt_cache,
+            media_base_url=settings.media_base_url,
         ),
         api_factory=resolved_factory,
         cache_enabled=settings.llm_prompt_cache,

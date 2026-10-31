@@ -1,5 +1,3 @@
-"""Загрузка моков в пустую БД: `uv run python -m app.seed`. Повторный запуск ничего не меняет."""
-
 import json
 from datetime import date, datetime
 from pathlib import Path

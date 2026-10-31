@@ -1,5 +1,3 @@
-"""DTO API кампаний (§3 task.md). Имена полей — как в контракте, в camelCase."""
-
 from dataclasses import asdict
 from datetime import date, datetime
 from typing import Any, Literal, Self

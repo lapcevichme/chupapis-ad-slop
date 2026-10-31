@@ -1,5 +1,3 @@
-"""События SSE-потока чата (docs/ours/chat-api.md §1). Схемы попадают в openapi.json как ChatEvent*."""
-
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field

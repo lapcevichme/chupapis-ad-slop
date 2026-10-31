@@ -1,8 +1,3 @@
-"""Выгружает JSON-схемы инструментов агентов в docs/tools.json: `uv run python -m app.export_tools`.
-
-Схемы генерируются из Pydantic-моделей, те же уходят модели в каждом запросе. Файл — артефакт §8 задания.
-"""
-
 import json
 from typing import Any
 

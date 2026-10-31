@@ -91,6 +91,8 @@ async def _transition(
     campaign_id: int,
     action: AuditAction,
     comment: str | None = None,
+    *,
+    media_base_url: str = "/api/media",
 ) -> models.Campaign:
     require_role(actor, TRANSITIONS[action].role)
     c = await get_campaign(session, campaign_id)
@@ -98,7 +100,7 @@ async def _transition(
     if action == AuditAction.DECLINE and (not (comment or "").strip()):
         raise fail("DECLINE_COMMENT_REQUIRED", "comment")
     if action == AuditAction.TO_MODERATION:
-        raise_if(await campaign_errors(session, c))
+        raise_if(await campaign_errors(session, c, media_base_url=media_base_url))
     if action == AuditAction.ACTIVATE:
         export_campaign(c.id)
         c.published = True
@@ -116,8 +118,9 @@ async def _transition(
 
 
 class CampaignService:
-    def __init__(self, uow: UnitOfWork) -> None:
+    def __init__(self, uow: UnitOfWork, *, media_base_url: str = "/api/media") -> None:
         self._uow = uow
+        self._media_base_url = media_base_url
 
     async def list_campaigns(self) -> list[dto.CampaignListItem]:
         return [campaign_list_item(c) for c in await self._uow.campaigns.list()]
@@ -143,7 +146,7 @@ class CampaignService:
         )
         await _apply_info(session, c, body)
         session.add(c)
-        await session.flush()
+        await self._uow.flush()
         audit.record(
             session,
             campaign_id=c.id,
@@ -162,7 +165,7 @@ class CampaignService:
         before = info_snapshot(c)
         await _apply_info(session, c, body)
         mark_edited(c, actor.login)
-        await session.flush()
+        await self._uow.flush()
         audit.record(
             session,
             campaign_id=c.id,
@@ -221,7 +224,7 @@ class CampaignService:
             for i, code in enumerate(codes)
         ]
         mark_edited(c, actor.login)
-        await session.flush()
+        await self._uow.flush()
         after = snapshot(segments(c))
         audit.record(
             session,
@@ -238,7 +241,8 @@ class CampaignService:
         session = self._uow.session
         c = await get_campaign(session, campaign_id)
         return dto.ValidationReport(
-            errors=await campaign_errors(session, c), warnings=campaign_warnings(c)
+            errors=await campaign_errors(session, c, media_base_url=self._media_base_url),
+            warnings=campaign_warnings(c),
         )
 
     async def get_audit(self, campaign_id: int) -> list[dto.AuditRecord]:
@@ -254,7 +258,13 @@ class CampaignService:
     async def send_to_moderation(self, campaign_id: int, actor: Actor) -> dto.CampaignRef:
         session = self._uow.session
         return campaign_ref(
-            await _transition(session, actor, campaign_id, AuditAction.TO_MODERATION)
+            await _transition(
+                session,
+                actor,
+                campaign_id,
+                AuditAction.TO_MODERATION,
+                media_base_url=self._media_base_url,
+            )
         )
 
     async def decline_campaign(
@@ -263,17 +273,38 @@ class CampaignService:
         session = self._uow.session
         return campaign_ref(
             await _transition(
-                session, actor, campaign_id, AuditAction.DECLINE, comment=body.comment
+                session,
+                actor,
+                campaign_id,
+                AuditAction.DECLINE,
+                comment=body.comment,
+                media_base_url=self._media_base_url,
             )
         )
 
     async def approve_campaign(self, campaign_id: int, actor: Actor) -> dto.CampaignRef:
         session = self._uow.session
-        return campaign_ref(await _transition(session, actor, campaign_id, AuditAction.APPROVE))
+        return campaign_ref(
+            await _transition(
+                session,
+                actor,
+                campaign_id,
+                AuditAction.APPROVE,
+                media_base_url=self._media_base_url,
+            )
+        )
 
     async def activate_campaign(self, campaign_id: int, actor: Actor) -> dto.CampaignRef:
         session = self._uow.session
-        return campaign_ref(await _transition(session, actor, campaign_id, AuditAction.ACTIVATE))
+        return campaign_ref(
+            await _transition(
+                session,
+                actor,
+                campaign_id,
+                AuditAction.ACTIVATE,
+                media_base_url=self._media_base_url,
+            )
+        )
 
     async def stop_campaign(self, campaign_id: int, actor: Actor) -> dto.CampaignRef:
         session = self._uow.session

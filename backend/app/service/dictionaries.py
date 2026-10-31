@@ -76,7 +76,7 @@ class DictionaryService:
             state=PlaceState.ACTIVE,
         )
         session.add(p)
-        await session.flush()
+        await self._uow.flush()
         audit.record(
             session,
             campaign_id=None,
@@ -94,7 +94,7 @@ class DictionaryService:
             raise fail("TAG_NAME_DUPLICATE", "name")
         t = models.Tag(name=body.name)
         session.add(t)
-        await session.flush()
+        await self._uow.flush()
         audit.record(
             session,
             campaign_id=None,

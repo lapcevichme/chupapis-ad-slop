@@ -1,8 +1,3 @@
-"""Жизненный цикл кампании (§2.3 task.md).
-
-Роль проверяется раньше состояния: при двойном нарушении ответ — ROLE_FORBIDDEN.
-"""
-
 from dataclasses import dataclass
 from typing import Protocol
 

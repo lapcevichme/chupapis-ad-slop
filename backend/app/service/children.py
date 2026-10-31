@@ -53,11 +53,17 @@ async def _banner_type(session: AsyncSession, banner_type_id: int) -> models.Ban
     return t
 
 
-async def _check_banner_body(session: AsyncSession, body: api.BannerCreate) -> models.BannerType:
+async def _check_banner_body(
+    session: AsyncSession, body: api.BannerCreate, *, media_base_url: str = "/api/media"
+) -> models.BannerType:
     t = await _banner_type(session, body.bannerTypeId)
     raise_if(
         check_banner(
-            body.content, type_code=t.code, title_max=t.title_max_length, text_max=t.text_max_length
+            body.content,
+            type_code=t.code,
+            title_max=t.title_max_length,
+            text_max=t.text_max_length,
+            media_base_url=media_base_url,
         )
     )
     return t
@@ -105,15 +111,16 @@ async def _check_creative(
 
 
 class CreativeService:
-    def __init__(self, uow: UnitOfWork) -> None:
+    def __init__(self, uow: UnitOfWork, *, media_base_url: str = "/api/media") -> None:
         self._uow = uow
+        self._media_base_url = media_base_url
 
     async def create_banner(
         self, campaign_id: int, body: api.BannerCreate, actor: Actor
     ) -> dto.BannerDto:
         session = self._uow.session
         c = await editable_campaign(session, actor, campaign_id)
-        await _check_banner_body(session, body)
+        await _check_banner_body(session, body, media_base_url=self._media_base_url)
         b = models.Banner(
             campaign_id=c.id,
             name=body.name,
@@ -122,7 +129,7 @@ class CreativeService:
         )
         session.add(b)
         mark_edited(c, actor.login)
-        await session.flush()
+        await self._uow.flush()
         _record(session, c, AuditEntity.BANNER, b.id, AuditAction.CREATE, actor)
         return banner(b)
 
@@ -132,7 +139,7 @@ class CreativeService:
         session = self._uow.session
         c = await editable_campaign(session, actor, campaign_id)
         b = await _child(session, models.Banner, c.id, banner_id, "bannerId")
-        t = await _check_banner_body(session, body)
+        t = await _check_banner_body(session, body, media_base_url=self._media_base_url)
         used = (
             await session.scalars(select(models.Creative).where(models.Creative.banner_id == b.id))
         ).all()
@@ -150,7 +157,7 @@ class CreativeService:
         before = snapshot(banner(b))
         b.name, b.banner_type_id, b.content = (body.name, body.bannerTypeId, _banner_json(body))
         mark_edited(c, actor.login)
-        await session.flush()
+        await self._uow.flush()
         await session.refresh(b)
         _record(
             session,
@@ -181,7 +188,7 @@ class CreativeService:
     ) -> dto.ContentDto:
         session = self._uow.session
         c = await editable_campaign(session, actor, campaign_id)
-        raise_if(check_content(body.content))
+        raise_if(check_content(body.content, media_base_url=self._media_base_url))
         x = models.Content(
             campaign_id=c.id,
             name=body.name,
@@ -190,7 +197,7 @@ class CreativeService:
         )
         session.add(x)
         mark_edited(c, actor.login)
-        await session.flush()
+        await self._uow.flush()
         _record(session, c, AuditEntity.CONTENT, x.id, AuditAction.CREATE, actor)
         return content(x)
 
@@ -200,11 +207,11 @@ class CreativeService:
         session = self._uow.session
         c = await editable_campaign(session, actor, campaign_id)
         x = await _child(session, models.Content, c.id, content_id, "contentId")
-        raise_if(check_content(body.content))
+        raise_if(check_content(body.content, media_base_url=self._media_base_url))
         before = snapshot(content(x))
         x.name, x.content_type, x.content = (body.name, body.contentType, _content_json(body))
         mark_edited(c, actor.login)
-        await session.flush()
+        await self._uow.flush()
         _record(
             session,
             c,
@@ -244,7 +251,7 @@ class CreativeService:
         )
         session.add(cr)
         mark_edited(c, actor.login)
-        await session.flush()
+        await self._uow.flush()
         _record(session, c, AuditEntity.CREATIVE, cr.id, AuditAction.CREATE, actor)
         return creative(cr)
 
@@ -263,7 +270,7 @@ class CreativeService:
             body.channelCode,
         )
         mark_edited(c, actor.login)
-        await session.flush()
+        await self._uow.flush()
         _record(
             session,
             c,

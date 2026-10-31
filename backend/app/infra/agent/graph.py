@@ -1,12 +1,3 @@
-"""Граф агента на LangGraph.
-
-    START → agent ⇄ tools → confirm → agent → … → END
-
-- agent: чат-модель с инструментами чтения, `propose_*` и UI-инструментами;
-- tools: выполняет инструменты, копит пакет операций и обновляет превью;
-- confirm: `interrupt()` с пакетом, после «да» выполняет записи в API. Только этот узел пишет в API.
-"""
-
 import json
 from collections.abc import Callable
 from dataclasses import dataclass

@@ -1,8 +1,3 @@
-"""Выгружает OpenAPI в frontend/openapi.json: `uv run python -m app.export_openapi`.
-
-Фронт генерирует типы из этого файла и собирается без запущенного бэкенда.
-"""
-
 import json
 
 from app.core.config import BACKEND_DIR

@@ -1,5 +1,3 @@
-"""Слой над провайдером LLM. Логика агента видит только `BaseChatModel` и `ImageGenerator`."""
-
 import asyncio
 import base64
 import uuid
