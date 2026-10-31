@@ -1,0 +1,3621 @@
+{
+  "chatAgent": [
+    {
+      "type": "function",
+      "function": {
+        "name": "list_topics",
+        "description": "Справочник тематик (фиксированный enum). GET /topics",
+        "parameters": {
+          "properties": {},
+          "title": "NoArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "list_tags",
+        "description": "Справочник тегов. GET /tags",
+        "parameters": {
+          "properties": {},
+          "title": "NoArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "list_channels",
+        "description": "Каналы: iOS, ANDROID, WEB. GET /channels",
+        "parameters": {
+          "properties": {},
+          "title": "NoArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "list_banner_types",
+        "description": "Типы баннеров с лимитами длины и допустимыми каналами. GET /banner-types",
+        "parameters": {
+          "properties": {},
+          "title": "NoArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "list_segment_types",
+        "description": "Типы сегментов. GET /segment-types",
+        "parameters": {
+          "properties": {},
+          "title": "NoArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "list_segments",
+        "description": "Сегменты аудитории: код, название, тип, состояние, число клиентов. GET /segments",
+        "parameters": {
+          "properties": {},
+          "title": "NoArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "list_places",
+        "description": "Места показа: id, код, описание, defaultBanner, состояние. GET /places",
+        "parameters": {
+          "properties": {},
+          "title": "NoArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "list_campaigns",
+        "description": "Список кампаний: id, название, состояние, даты. GET /campaigns",
+        "parameters": {
+          "properties": {},
+          "title": "NoArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "get_campaign",
+        "description": "Кампания целиком: шапка, места, сегменты, баннеры, контент, креативы. GET /campaigns/{campaignId}",
+        "parameters": {
+          "properties": {
+            "campaignId": {
+              "title": "Campaignid",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "campaignId"
+          ],
+          "title": "CampaignIdArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "get_warnings",
+        "description": "Прогон валидации кампании: ошибки и warnings. GET /campaigns/{campaignId}/warnings",
+        "parameters": {
+          "properties": {
+            "campaignId": {
+              "title": "Campaignid",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "campaignId"
+          ],
+          "title": "CampaignIdArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "get_audit",
+        "description": "Журнал аудита: правки и переходы, комментарии модератора. GET /campaigns/{campaignId}/audit",
+        "parameters": {
+          "properties": {
+            "campaignId": {
+              "title": "Campaignid",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "campaignId"
+          ],
+          "title": "CampaignIdArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "propose_create_campaign",
+        "description": "Создать кампанию (DRAFT): кладёт POST /campaigns в пакет на подтверждение",
+        "parameters": {
+          "$defs": {
+            "AudienceType": {
+              "enum": [
+                "ALL_USERS",
+                "SEGMENTED"
+              ],
+              "title": "AudienceType",
+              "type": "string"
+            },
+            "ProposedCampaign": {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "maxLength": 100,
+                  "minLength": 1,
+                  "title": "Name",
+                  "type": "string"
+                },
+                "marketingName": {
+                  "anyOf": [
+                    {
+                      "maxLength": 100,
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Marketingname"
+                },
+                "startDate": {
+                  "format": "date",
+                  "title": "Startdate",
+                  "type": "string"
+                },
+                "startTime": {
+                  "description": "HH:mm, UTC",
+                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                  "title": "Starttime",
+                  "type": "string"
+                },
+                "endDate": {
+                  "anyOf": [
+                    {
+                      "format": "date",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Enddate"
+                },
+                "endTime": {
+                  "anyOf": [
+                    {
+                      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "HH:mm, UTC",
+                  "title": "Endtime"
+                },
+                "topic": {
+                  "$ref": "#/$defs/TopicRef"
+                },
+                "tags": {
+                  "description": "Теги: id из list_tags или tmp-N нового тега",
+                  "items": {
+                    "$ref": "#/$defs/RefItem"
+                  },
+                  "title": "Tags",
+                  "type": "array"
+                },
+                "keywords": {
+                  "anyOf": [
+                    {
+                      "maxLength": 512,
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Через ';'",
+                  "title": "Keywords"
+                },
+                "audienceType": {
+                  "$ref": "#/$defs/AudienceType"
+                },
+                "weight": {
+                  "default": 0.0,
+                  "minimum": 0,
+                  "title": "Weight",
+                  "type": "number"
+                },
+                "initialCtr": {
+                  "default": 15.0,
+                  "maximum": 100,
+                  "minimum": 0,
+                  "title": "Initialctr",
+                  "type": "number"
+                },
+                "places": {
+                  "description": "Места показа: id из list_places или tmp-N нового места",
+                  "items": {
+                    "$ref": "#/$defs/RefItem"
+                  },
+                  "minItems": 1,
+                  "title": "Places",
+                  "type": "array"
+                }
+              },
+              "required": [
+                "name",
+                "startDate",
+                "startTime",
+                "topic",
+                "audienceType",
+                "places"
+              ],
+              "title": "ProposedCampaign",
+              "type": "object"
+            },
+            "RefItem": {
+              "properties": {
+                "value": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ],
+                  "title": "Value"
+                },
+                "label": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Label"
+                }
+              },
+              "required": [
+                "value"
+              ],
+              "title": "RefItem",
+              "type": "object"
+            },
+            "Topic": {
+              "enum": [
+                "EXTRA",
+                "EVENT",
+                "RECOMMENDATION",
+                "SALES",
+                "FINANCIAL_TIPS",
+                "LIFESTYLE",
+                "RETARGET",
+                "ADVICES",
+                "HINTS",
+                "COURSES",
+                "OTHER"
+              ],
+              "title": "Topic",
+              "type": "string"
+            },
+            "TopicRef": {
+              "properties": {
+                "value": {
+                  "$ref": "#/$defs/Topic"
+                },
+                "label": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Label"
+                }
+              },
+              "required": [
+                "value"
+              ],
+              "title": "TopicRef",
+              "type": "object"
+            }
+          },
+          "properties": {
+            "campaign": {
+              "$ref": "#/$defs/ProposedCampaign"
+            }
+          },
+          "required": [
+            "campaign"
+          ],
+          "title": "CreateCampaignArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "propose_update_campaign",
+        "description": "Заменить шапку и места кампании: кладёт PUT /campaigns/{campaignId} в пакет на подтверждение",
+        "parameters": {
+          "$defs": {
+            "AudienceType": {
+              "enum": [
+                "ALL_USERS",
+                "SEGMENTED"
+              ],
+              "title": "AudienceType",
+              "type": "string"
+            },
+            "ProposedCampaign": {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "maxLength": 100,
+                  "minLength": 1,
+                  "title": "Name",
+                  "type": "string"
+                },
+                "marketingName": {
+                  "anyOf": [
+                    {
+                      "maxLength": 100,
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Marketingname"
+                },
+                "startDate": {
+                  "format": "date",
+                  "title": "Startdate",
+                  "type": "string"
+                },
+                "startTime": {
+                  "description": "HH:mm, UTC",
+                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                  "title": "Starttime",
+                  "type": "string"
+                },
+                "endDate": {
+                  "anyOf": [
+                    {
+                      "format": "date",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Enddate"
+                },
+                "endTime": {
+                  "anyOf": [
+                    {
+                      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "HH:mm, UTC",
+                  "title": "Endtime"
+                },
+                "topic": {
+                  "$ref": "#/$defs/TopicRef"
+                },
+                "tags": {
+                  "description": "Теги: id из list_tags или tmp-N нового тега",
+                  "items": {
+                    "$ref": "#/$defs/RefItem"
+                  },
+                  "title": "Tags",
+                  "type": "array"
+                },
+                "keywords": {
+                  "anyOf": [
+                    {
+                      "maxLength": 512,
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Через ';'",
+                  "title": "Keywords"
+                },
+                "audienceType": {
+                  "$ref": "#/$defs/AudienceType"
+                },
+                "weight": {
+                  "default": 0.0,
+                  "minimum": 0,
+                  "title": "Weight",
+                  "type": "number"
+                },
+                "initialCtr": {
+                  "default": 15.0,
+                  "maximum": 100,
+                  "minimum": 0,
+                  "title": "Initialctr",
+                  "type": "number"
+                },
+                "places": {
+                  "description": "Места показа: id из list_places или tmp-N нового места",
+                  "items": {
+                    "$ref": "#/$defs/RefItem"
+                  },
+                  "minItems": 1,
+                  "title": "Places",
+                  "type": "array"
+                }
+              },
+              "required": [
+                "name",
+                "startDate",
+                "startTime",
+                "topic",
+                "audienceType",
+                "places"
+              ],
+              "title": "ProposedCampaign",
+              "type": "object"
+            },
+            "RefItem": {
+              "properties": {
+                "value": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ],
+                  "title": "Value"
+                },
+                "label": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Label"
+                }
+              },
+              "required": [
+                "value"
+              ],
+              "title": "RefItem",
+              "type": "object"
+            },
+            "Topic": {
+              "enum": [
+                "EXTRA",
+                "EVENT",
+                "RECOMMENDATION",
+                "SALES",
+                "FINANCIAL_TIPS",
+                "LIFESTYLE",
+                "RETARGET",
+                "ADVICES",
+                "HINTS",
+                "COURSES",
+                "OTHER"
+              ],
+              "title": "Topic",
+              "type": "string"
+            },
+            "TopicRef": {
+              "properties": {
+                "value": {
+                  "$ref": "#/$defs/Topic"
+                },
+                "label": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Label"
+                }
+              },
+              "required": [
+                "value"
+              ],
+              "title": "TopicRef",
+              "type": "object"
+            }
+          },
+          "properties": {
+            "campaignId": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "id кампании или tmp-N; по умолчанию текущая кампания диалога",
+              "title": "Campaignid"
+            },
+            "campaign": {
+              "$ref": "#/$defs/ProposedCampaign",
+              "description": "Полная шапка: PUT заменяет объект целиком"
+            }
+          },
+          "required": [
+            "campaign"
+          ],
+          "title": "UpdateCampaignArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "propose_delete_campaign",
+        "description": "Удалить кампанию (только DRAFT/NEEDS_WORK без показа): кладёт DELETE /campaigns/{campaignId} в пакет на подтверждение",
+        "parameters": {
+          "properties": {
+            "campaignId": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "id кампании или tmp-N; по умолчанию текущая кампания диалога",
+              "title": "Campaignid"
+            }
+          },
+          "title": "CampaignArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "propose_set_segments",
+        "description": "Задать сегменты включения и исключения: кладёт PUT /campaigns/{campaignId}/segments в пакет на подтверждение",
+        "parameters": {
+          "properties": {
+            "campaignId": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "id кампании или tmp-N; по умолчанию текущая кампания диалога",
+              "title": "Campaignid"
+            },
+            "included": {
+              "description": "Коды сегментов включения (OR)",
+              "items": {
+                "type": "string"
+              },
+              "title": "Included",
+              "type": "array"
+            },
+            "excluded": {
+              "description": "Коды сегментов исключения",
+              "items": {
+                "type": "string"
+              },
+              "title": "Excluded",
+              "type": "array"
+            }
+          },
+          "title": "SegmentsArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "propose_create_banner",
+        "description": "Создать баннер: кладёт POST /campaigns/{campaignId}/banners в пакет на подтверждение",
+        "parameters": {
+          "$defs": {
+            "ActionLink": {
+              "additionalProperties": false,
+              "properties": {
+                "iOS": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Ios"
+                },
+                "android": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Android"
+                },
+                "web": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Web"
+                }
+              },
+              "title": "ActionLink",
+              "type": "object"
+            },
+            "ActionType": {
+              "enum": [
+                "default",
+                "externalLink",
+                "openSmartLink",
+                "closeCampaign",
+                "doneCampaign"
+              ],
+              "title": "ActionType",
+              "type": "string"
+            },
+            "Background": {
+              "additionalProperties": false,
+              "properties": {
+                "color": {
+                  "anyOf": [
+                    {
+                      "pattern": "^#[0-9A-Fa-f]{8}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "#RRGGBBAA",
+                  "title": "Color"
+                }
+              },
+              "title": "Background",
+              "type": "object"
+            },
+            "BannerContent": {
+              "additionalProperties": false,
+              "properties": {
+                "title": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Лимит длины зависит от типа: STORY 100, SMART_BANNER 250",
+                  "title": "Title"
+                },
+                "titleStyle": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/TextStyle"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "text": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Лимит длины зависит от типа: STORY 500, SMART_BANNER 1000",
+                  "title": "Text"
+                },
+                "textStyle": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/TextStyle"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "background": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Background"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "image": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Image"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "buttonName": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Buttonname"
+                },
+                "actionType": {
+                  "$ref": "#/$defs/ActionType"
+                },
+                "link": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ActionLink"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Обязателен при externalLink/openSmartLink, запрещён при closeCampaign/doneCampaign"
+                },
+                "voiceOver": {
+                  "anyOf": [
+                    {
+                      "maxLength": 200,
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Voiceover"
+                }
+              },
+              "required": [
+                "actionType"
+              ],
+              "title": "BannerContent",
+              "type": "object"
+            },
+            "BannerCreate": {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "maxLength": 100,
+                  "minLength": 1,
+                  "title": "Name",
+                  "type": "string"
+                },
+                "bannerTypeId": {
+                  "title": "Bannertypeid",
+                  "type": "integer"
+                },
+                "content": {
+                  "$ref": "#/$defs/BannerContent"
+                }
+              },
+              "required": [
+                "name",
+                "bannerTypeId",
+                "content"
+              ],
+              "title": "BannerCreate",
+              "type": "object"
+            },
+            "FontWeight": {
+              "enum": [
+                "thin",
+                "light",
+                "regular",
+                "medium",
+                "semi-bold",
+                "bold"
+              ],
+              "title": "FontWeight",
+              "type": "string"
+            },
+            "Image": {
+              "additionalProperties": false,
+              "properties": {
+                "url": {
+                  "description": "https-ссылка на изображение",
+                  "title": "Url",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "url"
+              ],
+              "title": "Image",
+              "type": "object"
+            },
+            "TextStyle": {
+              "additionalProperties": false,
+              "properties": {
+                "fontSize": {
+                  "anyOf": [
+                    {
+                      "maximum": 40,
+                      "minimum": 10,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Fontsize"
+                },
+                "fontWeight": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/FontWeight"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "textColor": {
+                  "anyOf": [
+                    {
+                      "pattern": "^#[0-9A-Fa-f]{8}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "#RRGGBBAA",
+                  "title": "Textcolor"
+                }
+              },
+              "title": "TextStyle",
+              "type": "object"
+            }
+          },
+          "properties": {
+            "campaignId": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "id кампании или tmp-N; по умолчанию текущая кампания диалога",
+              "title": "Campaignid"
+            },
+            "banner": {
+              "$ref": "#/$defs/BannerCreate"
+            }
+          },
+          "required": [
+            "banner"
+          ],
+          "title": "CreateBannerArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "propose_update_banner",
+        "description": "Заменить баннер: кладёт PUT /campaigns/{campaignId}/banners/{bannerId} в пакет на подтверждение",
+        "parameters": {
+          "$defs": {
+            "ActionLink": {
+              "additionalProperties": false,
+              "properties": {
+                "iOS": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Ios"
+                },
+                "android": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Android"
+                },
+                "web": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Web"
+                }
+              },
+              "title": "ActionLink",
+              "type": "object"
+            },
+            "ActionType": {
+              "enum": [
+                "default",
+                "externalLink",
+                "openSmartLink",
+                "closeCampaign",
+                "doneCampaign"
+              ],
+              "title": "ActionType",
+              "type": "string"
+            },
+            "Background": {
+              "additionalProperties": false,
+              "properties": {
+                "color": {
+                  "anyOf": [
+                    {
+                      "pattern": "^#[0-9A-Fa-f]{8}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "#RRGGBBAA",
+                  "title": "Color"
+                }
+              },
+              "title": "Background",
+              "type": "object"
+            },
+            "BannerContent": {
+              "additionalProperties": false,
+              "properties": {
+                "title": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Лимит длины зависит от типа: STORY 100, SMART_BANNER 250",
+                  "title": "Title"
+                },
+                "titleStyle": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/TextStyle"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "text": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Лимит длины зависит от типа: STORY 500, SMART_BANNER 1000",
+                  "title": "Text"
+                },
+                "textStyle": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/TextStyle"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "background": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Background"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "image": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Image"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "buttonName": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Buttonname"
+                },
+                "actionType": {
+                  "$ref": "#/$defs/ActionType"
+                },
+                "link": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ActionLink"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Обязателен при externalLink/openSmartLink, запрещён при closeCampaign/doneCampaign"
+                },
+                "voiceOver": {
+                  "anyOf": [
+                    {
+                      "maxLength": 200,
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Voiceover"
+                }
+              },
+              "required": [
+                "actionType"
+              ],
+              "title": "BannerContent",
+              "type": "object"
+            },
+            "BannerCreate": {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "maxLength": 100,
+                  "minLength": 1,
+                  "title": "Name",
+                  "type": "string"
+                },
+                "bannerTypeId": {
+                  "title": "Bannertypeid",
+                  "type": "integer"
+                },
+                "content": {
+                  "$ref": "#/$defs/BannerContent"
+                }
+              },
+              "required": [
+                "name",
+                "bannerTypeId",
+                "content"
+              ],
+              "title": "BannerCreate",
+              "type": "object"
+            },
+            "FontWeight": {
+              "enum": [
+                "thin",
+                "light",
+                "regular",
+                "medium",
+                "semi-bold",
+                "bold"
+              ],
+              "title": "FontWeight",
+              "type": "string"
+            },
+            "Image": {
+              "additionalProperties": false,
+              "properties": {
+                "url": {
+                  "description": "https-ссылка на изображение",
+                  "title": "Url",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "url"
+              ],
+              "title": "Image",
+              "type": "object"
+            },
+            "TextStyle": {
+              "additionalProperties": false,
+              "properties": {
+                "fontSize": {
+                  "anyOf": [
+                    {
+                      "maximum": 40,
+                      "minimum": 10,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Fontsize"
+                },
+                "fontWeight": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/FontWeight"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "textColor": {
+                  "anyOf": [
+                    {
+                      "pattern": "^#[0-9A-Fa-f]{8}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "#RRGGBBAA",
+                  "title": "Textcolor"
+                }
+              },
+              "title": "TextStyle",
+              "type": "object"
+            }
+          },
+          "properties": {
+            "campaignId": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "id кампании или tmp-N; по умолчанию текущая кампания диалога",
+              "title": "Campaignid"
+            },
+            "banner": {
+              "$ref": "#/$defs/BannerCreate"
+            },
+            "bannerId": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "title": "Bannerid"
+            }
+          },
+          "required": [
+            "banner",
+            "bannerId"
+          ],
+          "title": "UpdateBannerArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "propose_delete_banner",
+        "description": "Удалить баннер: кладёт DELETE /campaigns/{campaignId}/banners/{bannerId} в пакет на подтверждение",
+        "parameters": {
+          "properties": {
+            "campaignId": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "id кампании или tmp-N; по умолчанию текущая кампания диалога",
+              "title": "Campaignid"
+            },
+            "bannerId": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "title": "Bannerid"
+            }
+          },
+          "required": [
+            "bannerId"
+          ],
+          "title": "BannerRefArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "propose_create_content",
+        "description": "Создать PROMO-контент: кладёт POST /campaigns/{campaignId}/contents в пакет на подтверждение",
+        "parameters": {
+          "$defs": {
+            "ActionLink": {
+              "additionalProperties": false,
+              "properties": {
+                "iOS": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Ios"
+                },
+                "android": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Android"
+                },
+                "web": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Web"
+                }
+              },
+              "title": "ActionLink",
+              "type": "object"
+            },
+            "ActionType": {
+              "enum": [
+                "default",
+                "externalLink",
+                "openSmartLink",
+                "closeCampaign",
+                "doneCampaign"
+              ],
+              "title": "ActionType",
+              "type": "string"
+            },
+            "ComponentStyle": {
+              "additionalProperties": false,
+              "properties": {
+                "backgroundColor": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Backgroundcolor"
+                }
+              },
+              "title": "ComponentStyle",
+              "type": "object"
+            },
+            "ComponentTextStyle": {
+              "additionalProperties": false,
+              "properties": {
+                "fontSize": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Fontsize"
+                },
+                "fontWeight": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Fontweight"
+                },
+                "textColor": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Textcolor"
+                }
+              },
+              "title": "ComponentTextStyle",
+              "type": "object"
+            },
+            "ContentCreate": {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "maxLength": 100,
+                  "minLength": 1,
+                  "title": "Name",
+                  "type": "string"
+                },
+                "contentType": {
+                  "const": "PROMO",
+                  "default": "PROMO",
+                  "title": "Contenttype",
+                  "type": "string"
+                },
+                "content": {
+                  "$ref": "#/$defs/PromoContent"
+                }
+              },
+              "required": [
+                "name",
+                "content"
+              ],
+              "title": "ContentCreate",
+              "type": "object"
+            },
+            "LinearContainer": {
+              "additionalProperties": false,
+              "properties": {
+                "role": {
+                  "const": "linearContainer",
+                  "title": "Role",
+                  "type": "string"
+                },
+                "axis": {
+                  "const": "v",
+                  "title": "Axis",
+                  "type": "string"
+                },
+                "aligns": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Aligns"
+                },
+                "style": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ComponentStyle"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "components": {
+                  "items": {
+                    "discriminator": {
+                      "mapping": {
+                        "button": "#/$defs/PromoButton",
+                        "image": "#/$defs/PromoImage",
+                        "text": "#/$defs/PromoText"
+                      },
+                      "propertyName": "role"
+                    },
+                    "oneOf": [
+                      {
+                        "$ref": "#/$defs/PromoText"
+                      },
+                      {
+                        "$ref": "#/$defs/PromoImage"
+                      },
+                      {
+                        "$ref": "#/$defs/PromoButton"
+                      }
+                    ]
+                  },
+                  "maxItems": 6,
+                  "minItems": 1,
+                  "title": "Components",
+                  "type": "array"
+                }
+              },
+              "required": [
+                "role",
+                "axis",
+                "components"
+              ],
+              "title": "LinearContainer",
+              "type": "object"
+            },
+            "PromoButton": {
+              "additionalProperties": false,
+              "properties": {
+                "role": {
+                  "const": "button",
+                  "title": "Role",
+                  "type": "string"
+                },
+                "text": {
+                  "title": "Text",
+                  "type": "string"
+                },
+                "actionType": {
+                  "$ref": "#/$defs/ActionType"
+                },
+                "link": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ActionLink"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "textStyle": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ComponentTextStyle"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "style": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ComponentStyle"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "role",
+                "text",
+                "actionType"
+              ],
+              "title": "PromoButton",
+              "type": "object"
+            },
+            "PromoContent": {
+              "additionalProperties": false,
+              "properties": {
+                "role": {
+                  "const": "promo",
+                  "title": "Role",
+                  "type": "string"
+                },
+                "component": {
+                  "$ref": "#/$defs/LinearContainer"
+                }
+              },
+              "required": [
+                "role",
+                "component"
+              ],
+              "title": "PromoContent",
+              "type": "object"
+            },
+            "PromoImage": {
+              "additionalProperties": false,
+              "properties": {
+                "role": {
+                  "const": "image",
+                  "title": "Role",
+                  "type": "string"
+                },
+                "url": {
+                  "title": "Url",
+                  "type": "string"
+                },
+                "aspectRatio": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Aspectratio"
+                }
+              },
+              "required": [
+                "role",
+                "url"
+              ],
+              "title": "PromoImage",
+              "type": "object"
+            },
+            "PromoText": {
+              "additionalProperties": false,
+              "properties": {
+                "role": {
+                  "const": "text",
+                  "title": "Role",
+                  "type": "string"
+                },
+                "format": {
+                  "enum": [
+                    "none",
+                    "html"
+                  ],
+                  "title": "Format",
+                  "type": "string"
+                },
+                "text": {
+                  "title": "Text",
+                  "type": "string"
+                },
+                "textStyle": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ComponentTextStyle"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "role",
+                "format",
+                "text"
+              ],
+              "title": "PromoText",
+              "type": "object"
+            }
+          },
+          "properties": {
+            "campaignId": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "id кампании или tmp-N; по умолчанию текущая кампания диалога",
+              "title": "Campaignid"
+            },
+            "content": {
+              "$ref": "#/$defs/ContentCreate"
+            }
+          },
+          "required": [
+            "content"
+          ],
+          "title": "CreateContentArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "propose_update_content",
+        "description": "Заменить контент: кладёт PUT /campaigns/{campaignId}/contents/{contentId} в пакет на подтверждение",
+        "parameters": {
+          "$defs": {
+            "ActionLink": {
+              "additionalProperties": false,
+              "properties": {
+                "iOS": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Ios"
+                },
+                "android": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Android"
+                },
+                "web": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Web"
+                }
+              },
+              "title": "ActionLink",
+              "type": "object"
+            },
+            "ActionType": {
+              "enum": [
+                "default",
+                "externalLink",
+                "openSmartLink",
+                "closeCampaign",
+                "doneCampaign"
+              ],
+              "title": "ActionType",
+              "type": "string"
+            },
+            "ComponentStyle": {
+              "additionalProperties": false,
+              "properties": {
+                "backgroundColor": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Backgroundcolor"
+                }
+              },
+              "title": "ComponentStyle",
+              "type": "object"
+            },
+            "ComponentTextStyle": {
+              "additionalProperties": false,
+              "properties": {
+                "fontSize": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Fontsize"
+                },
+                "fontWeight": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Fontweight"
+                },
+                "textColor": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Textcolor"
+                }
+              },
+              "title": "ComponentTextStyle",
+              "type": "object"
+            },
+            "ContentCreate": {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "maxLength": 100,
+                  "minLength": 1,
+                  "title": "Name",
+                  "type": "string"
+                },
+                "contentType": {
+                  "const": "PROMO",
+                  "default": "PROMO",
+                  "title": "Contenttype",
+                  "type": "string"
+                },
+                "content": {
+                  "$ref": "#/$defs/PromoContent"
+                }
+              },
+              "required": [
+                "name",
+                "content"
+              ],
+              "title": "ContentCreate",
+              "type": "object"
+            },
+            "LinearContainer": {
+              "additionalProperties": false,
+              "properties": {
+                "role": {
+                  "const": "linearContainer",
+                  "title": "Role",
+                  "type": "string"
+                },
+                "axis": {
+                  "const": "v",
+                  "title": "Axis",
+                  "type": "string"
+                },
+                "aligns": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Aligns"
+                },
+                "style": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ComponentStyle"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "components": {
+                  "items": {
+                    "discriminator": {
+                      "mapping": {
+                        "button": "#/$defs/PromoButton",
+                        "image": "#/$defs/PromoImage",
+                        "text": "#/$defs/PromoText"
+                      },
+                      "propertyName": "role"
+                    },
+                    "oneOf": [
+                      {
+                        "$ref": "#/$defs/PromoText"
+                      },
+                      {
+                        "$ref": "#/$defs/PromoImage"
+                      },
+                      {
+                        "$ref": "#/$defs/PromoButton"
+                      }
+                    ]
+                  },
+                  "maxItems": 6,
+                  "minItems": 1,
+                  "title": "Components",
+                  "type": "array"
+                }
+              },
+              "required": [
+                "role",
+                "axis",
+                "components"
+              ],
+              "title": "LinearContainer",
+              "type": "object"
+            },
+            "PromoButton": {
+              "additionalProperties": false,
+              "properties": {
+                "role": {
+                  "const": "button",
+                  "title": "Role",
+                  "type": "string"
+                },
+                "text": {
+                  "title": "Text",
+                  "type": "string"
+                },
+                "actionType": {
+                  "$ref": "#/$defs/ActionType"
+                },
+                "link": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ActionLink"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "textStyle": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ComponentTextStyle"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "style": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ComponentStyle"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "role",
+                "text",
+                "actionType"
+              ],
+              "title": "PromoButton",
+              "type": "object"
+            },
+            "PromoContent": {
+              "additionalProperties": false,
+              "properties": {
+                "role": {
+                  "const": "promo",
+                  "title": "Role",
+                  "type": "string"
+                },
+                "component": {
+                  "$ref": "#/$defs/LinearContainer"
+                }
+              },
+              "required": [
+                "role",
+                "component"
+              ],
+              "title": "PromoContent",
+              "type": "object"
+            },
+            "PromoImage": {
+              "additionalProperties": false,
+              "properties": {
+                "role": {
+                  "const": "image",
+                  "title": "Role",
+                  "type": "string"
+                },
+                "url": {
+                  "title": "Url",
+                  "type": "string"
+                },
+                "aspectRatio": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Aspectratio"
+                }
+              },
+              "required": [
+                "role",
+                "url"
+              ],
+              "title": "PromoImage",
+              "type": "object"
+            },
+            "PromoText": {
+              "additionalProperties": false,
+              "properties": {
+                "role": {
+                  "const": "text",
+                  "title": "Role",
+                  "type": "string"
+                },
+                "format": {
+                  "enum": [
+                    "none",
+                    "html"
+                  ],
+                  "title": "Format",
+                  "type": "string"
+                },
+                "text": {
+                  "title": "Text",
+                  "type": "string"
+                },
+                "textStyle": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ComponentTextStyle"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "role",
+                "format",
+                "text"
+              ],
+              "title": "PromoText",
+              "type": "object"
+            }
+          },
+          "properties": {
+            "campaignId": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "id кампании или tmp-N; по умолчанию текущая кампания диалога",
+              "title": "Campaignid"
+            },
+            "content": {
+              "$ref": "#/$defs/ContentCreate"
+            },
+            "contentId": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "title": "Contentid"
+            }
+          },
+          "required": [
+            "content",
+            "contentId"
+          ],
+          "title": "UpdateContentArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "propose_delete_content",
+        "description": "Удалить контент: кладёт DELETE /campaigns/{campaignId}/contents/{contentId} в пакет на подтверждение",
+        "parameters": {
+          "properties": {
+            "campaignId": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "id кампании или tmp-N; по умолчанию текущая кампания диалога",
+              "title": "Campaignid"
+            },
+            "contentId": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "title": "Contentid"
+            }
+          },
+          "required": [
+            "contentId"
+          ],
+          "title": "ContentRefArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "propose_create_creative",
+        "description": "Создать креатив: баннер + контент + канал: кладёт POST /campaigns/{campaignId}/creatives в пакет на подтверждение",
+        "parameters": {
+          "$defs": {
+            "ProposedCreative": {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "maxLength": 100,
+                  "minLength": 1,
+                  "title": "Name",
+                  "type": "string"
+                },
+                "bannerId": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ],
+                  "title": "Bannerid"
+                },
+                "contentId": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Contentid"
+                },
+                "channelCode": {
+                  "description": "iOS | ANDROID | WEB, регистр важен",
+                  "title": "Channelcode",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "bannerId",
+                "channelCode"
+              ],
+              "title": "ProposedCreative",
+              "type": "object"
+            }
+          },
+          "properties": {
+            "campaignId": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "id кампании или tmp-N; по умолчанию текущая кампания диалога",
+              "title": "Campaignid"
+            },
+            "creative": {
+              "$ref": "#/$defs/ProposedCreative"
+            }
+          },
+          "required": [
+            "creative"
+          ],
+          "title": "CreateCreativeArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "propose_update_creative",
+        "description": "Заменить креатив: кладёт PUT /campaigns/{campaignId}/creatives/{creativeId} в пакет на подтверждение",
+        "parameters": {
+          "$defs": {
+            "ProposedCreative": {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "maxLength": 100,
+                  "minLength": 1,
+                  "title": "Name",
+                  "type": "string"
+                },
+                "bannerId": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ],
+                  "title": "Bannerid"
+                },
+                "contentId": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Contentid"
+                },
+                "channelCode": {
+                  "description": "iOS | ANDROID | WEB, регистр важен",
+                  "title": "Channelcode",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "bannerId",
+                "channelCode"
+              ],
+              "title": "ProposedCreative",
+              "type": "object"
+            }
+          },
+          "properties": {
+            "campaignId": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "id кампании или tmp-N; по умолчанию текущая кампания диалога",
+              "title": "Campaignid"
+            },
+            "creative": {
+              "$ref": "#/$defs/ProposedCreative"
+            },
+            "creativeId": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "title": "Creativeid"
+            }
+          },
+          "required": [
+            "creative",
+            "creativeId"
+          ],
+          "title": "UpdateCreativeArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "propose_delete_creative",
+        "description": "Удалить креатив: кладёт DELETE /campaigns/{campaignId}/creatives/{creativeId} в пакет на подтверждение",
+        "parameters": {
+          "properties": {
+            "campaignId": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "id кампании или tmp-N; по умолчанию текущая кампания диалога",
+              "title": "Campaignid"
+            },
+            "creativeId": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "title": "Creativeid"
+            }
+          },
+          "required": [
+            "creativeId"
+          ],
+          "title": "CreativeRefArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "propose_create_place",
+        "description": "Создать место показа в справочнике: кладёт POST /places в пакет на подтверждение",
+        "parameters": {
+          "$defs": {
+            "PlaceCreate": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "maxLength": 100,
+                  "minLength": 1,
+                  "title": "Code",
+                  "type": "string"
+                },
+                "description": {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "title": "Description",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "code",
+                "description"
+              ],
+              "title": "PlaceCreate",
+              "type": "object"
+            }
+          },
+          "properties": {
+            "place": {
+              "$ref": "#/$defs/PlaceCreate"
+            }
+          },
+          "required": [
+            "place"
+          ],
+          "title": "CreatePlaceArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "propose_create_tag",
+        "description": "Создать тег в справочнике: кладёт POST /tags в пакет на подтверждение",
+        "parameters": {
+          "$defs": {
+            "TagCreate": {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "maxLength": 100,
+                  "minLength": 1,
+                  "title": "Name",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "title": "TagCreate",
+              "type": "object"
+            }
+          },
+          "properties": {
+            "tag": {
+              "$ref": "#/$defs/TagCreate"
+            }
+          },
+          "required": [
+            "tag"
+          ],
+          "title": "CreateTagArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "propose_to_moderation",
+        "description": "Отправить на модерацию: кладёт POST /campaigns/{campaignId}/to-moderation в пакет на подтверждение",
+        "parameters": {
+          "properties": {
+            "campaignId": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "id кампании или tmp-N; по умолчанию текущая кампания диалога",
+              "title": "Campaignid"
+            }
+          },
+          "title": "CampaignArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "propose_decline",
+        "description": "Отклонить (роль модератора): кладёт POST /campaigns/{campaignId}/decline в пакет на подтверждение",
+        "parameters": {
+          "properties": {
+            "campaignId": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "id кампании или tmp-N; по умолчанию текущая кампания диалога",
+              "title": "Campaignid"
+            },
+            "comment": {
+              "description": "Комментарий модератора, обязателен",
+              "title": "Comment",
+              "type": "string"
+            }
+          },
+          "required": [
+            "comment"
+          ],
+          "title": "DeclineArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "propose_approve",
+        "description": "Одобрить (роль модератора): кладёт POST /campaigns/{campaignId}/approve в пакет на подтверждение",
+        "parameters": {
+          "properties": {
+            "campaignId": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "id кампании или tmp-N; по умолчанию текущая кампания диалога",
+              "title": "Campaignid"
+            }
+          },
+          "title": "CampaignArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "propose_activate",
+        "description": "Активировать одобренную кампанию: кладёт POST /campaigns/{campaignId}/activate в пакет на подтверждение",
+        "parameters": {
+          "properties": {
+            "campaignId": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "id кампании или tmp-N; по умолчанию текущая кампания диалога",
+              "title": "Campaignid"
+            }
+          },
+          "title": "CampaignArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "propose_stop",
+        "description": "Остановить показ: кладёт POST /campaigns/{campaignId}/stop в пакет на подтверждение",
+        "parameters": {
+          "properties": {
+            "campaignId": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "id кампании или tmp-N; по умолчанию текущая кампания диалога",
+              "title": "Campaignid"
+            }
+          },
+          "title": "CampaignArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "warn_user",
+        "description": "Показать пользователю предупреждение о спорном или противоречивом решении. Не отказ: после предупреждения продолжай.",
+        "parameters": {
+          "properties": {
+            "message": {
+              "description": "Что не так и чем это грозит, по-русски",
+              "title": "Message",
+              "type": "string"
+            },
+            "severity": {
+              "default": "warning",
+              "enum": [
+                "info",
+                "warning"
+              ],
+              "title": "Severity",
+              "type": "string"
+            }
+          },
+          "required": [
+            "message"
+          ],
+          "title": "WarnArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "suggest_options",
+        "description": "Показать кнопки-варианты ответа (сегменты, места, даты и т. п.)",
+        "parameters": {
+          "$defs": {
+            "Suggestion": {
+              "properties": {
+                "label": {
+                  "description": "Текст кнопки",
+                  "title": "Label",
+                  "type": "string"
+                },
+                "value": {
+                  "description": "Текст, который уйдёт в чат при нажатии",
+                  "title": "Value",
+                  "type": "string"
+                },
+                "group": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Тема вопроса, например «Дата начала». Нужна, только если за раз спрашиваешь о нескольких темах",
+                  "title": "Group"
+                }
+              },
+              "required": [
+                "label",
+                "value"
+              ],
+              "title": "Suggestion",
+              "type": "object"
+            }
+          },
+          "properties": {
+            "items": {
+              "items": {
+                "$ref": "#/$defs/Suggestion"
+              },
+              "maxItems": 8,
+              "minItems": 1,
+              "title": "Items",
+              "type": "array"
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "title": "SuggestArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "design_creative",
+        "description": "Поручить дизайн-агенту баннер и промо-экран. Кладёт в пакет баннер, контент и креативы по каналам.",
+        "parameters": {
+          "properties": {
+            "brief": {
+              "description": "Задача дизайнеру своими словами: продукт, оффер с цифрами, условия, срок, тон, призыв к действию, ссылки из брифа",
+              "title": "Brief",
+              "type": "string"
+            },
+            "placeId": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Место показа: тип баннера берётся из его defaultBanner",
+              "title": "Placeid"
+            },
+            "bannerType": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "STORY",
+                    "SMART_BANNER"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Явный тип баннера, если место не задано или у него нет defaultBanner",
+              "title": "Bannertype"
+            },
+            "channels": {
+              "anyOf": [
+                {
+                  "items": {
+                    "enum": [
+                      "iOS",
+                      "ANDROID",
+                      "WEB"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Каналы креативов; по умолчанию все допустимые для типа",
+              "title": "Channels"
+            },
+            "withContent": {
+              "default": true,
+              "description": "Нужен ли промо-экран после тапа",
+              "title": "Withcontent",
+              "type": "boolean"
+            },
+            "generateImage": {
+              "default": false,
+              "description": "Сгенерировать картинку; только если пользователь согласился",
+              "title": "Generateimage",
+              "type": "boolean"
+            },
+            "imageUrl": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Картинка пользователя (https), если он её прислал",
+              "title": "Imageurl"
+            },
+            "replaceBannerId": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Правка: id баннера, который нужно переделать, вместо создания нового",
+              "title": "Replacebannerid"
+            },
+            "promoImageOnly": {
+              "default": false,
+              "description": "Правка: нужна только картинка промо-экрана, баннер не менять. Вместе с replaceBannerId и generateImage",
+              "title": "Promoimageonly",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "brief"
+          ],
+          "title": "DesignArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "request_confirmation",
+        "description": "Показать пакет пользователю и попросить подтверждение. Записи выполнятся только после «да».",
+        "parameters": {
+          "properties": {
+            "title": {
+              "description": "Короткий заголовок шага, например «Создать кампанию «Вклад 16%»»",
+              "title": "Title",
+              "type": "string"
+            }
+          },
+          "required": [
+            "title"
+          ],
+          "title": "ConfirmArgs",
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "discard_pending",
+        "description": "Убрать операции из пакета до подтверждения",
+        "parameters": {
+          "properties": {
+            "refs": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Ссылки tmp-N операций, которые убрать; null — очистить весь пакет",
+              "title": "Refs"
+            }
+          },
+          "title": "DiscardArgs",
+          "type": "object"
+        }
+      }
+    }
+  ],
+  "designAgent": [
+    {
+      "type": "function",
+      "function": {
+        "name": "DesignResult",
+        "description": "Готовый креатив. Тексты на русском, JSON строго по схемам.",
+        "parameters": {
+          "$defs": {
+            "ActionLink": {
+              "additionalProperties": false,
+              "properties": {
+                "iOS": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Ios"
+                },
+                "android": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Android"
+                },
+                "web": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Web"
+                }
+              },
+              "title": "ActionLink",
+              "type": "object"
+            },
+            "ActionType": {
+              "enum": [
+                "default",
+                "externalLink",
+                "openSmartLink",
+                "closeCampaign",
+                "doneCampaign"
+              ],
+              "title": "ActionType",
+              "type": "string"
+            },
+            "Background": {
+              "additionalProperties": false,
+              "properties": {
+                "color": {
+                  "anyOf": [
+                    {
+                      "pattern": "^#[0-9A-Fa-f]{8}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "#RRGGBBAA",
+                  "title": "Color"
+                }
+              },
+              "title": "Background",
+              "type": "object"
+            },
+            "BannerContent": {
+              "additionalProperties": false,
+              "properties": {
+                "title": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Лимит длины зависит от типа: STORY 100, SMART_BANNER 250",
+                  "title": "Title"
+                },
+                "titleStyle": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/TextStyle"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "text": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Лимит длины зависит от типа: STORY 500, SMART_BANNER 1000",
+                  "title": "Text"
+                },
+                "textStyle": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/TextStyle"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "background": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Background"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "image": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Image"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "buttonName": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Buttonname"
+                },
+                "actionType": {
+                  "$ref": "#/$defs/ActionType"
+                },
+                "link": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ActionLink"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Обязателен при externalLink/openSmartLink, запрещён при closeCampaign/doneCampaign"
+                },
+                "voiceOver": {
+                  "anyOf": [
+                    {
+                      "maxLength": 200,
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Voiceover"
+                }
+              },
+              "required": [
+                "actionType"
+              ],
+              "title": "BannerContent",
+              "type": "object"
+            },
+            "ComponentStyle": {
+              "additionalProperties": false,
+              "properties": {
+                "backgroundColor": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Backgroundcolor"
+                }
+              },
+              "title": "ComponentStyle",
+              "type": "object"
+            },
+            "ComponentTextStyle": {
+              "additionalProperties": false,
+              "properties": {
+                "fontSize": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Fontsize"
+                },
+                "fontWeight": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Fontweight"
+                },
+                "textColor": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Textcolor"
+                }
+              },
+              "title": "ComponentTextStyle",
+              "type": "object"
+            },
+            "FontWeight": {
+              "enum": [
+                "thin",
+                "light",
+                "regular",
+                "medium",
+                "semi-bold",
+                "bold"
+              ],
+              "title": "FontWeight",
+              "type": "string"
+            },
+            "Image": {
+              "additionalProperties": false,
+              "properties": {
+                "url": {
+                  "description": "https-ссылка на изображение",
+                  "title": "Url",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "url"
+              ],
+              "title": "Image",
+              "type": "object"
+            },
+            "LinearContainer": {
+              "additionalProperties": false,
+              "properties": {
+                "role": {
+                  "const": "linearContainer",
+                  "title": "Role",
+                  "type": "string"
+                },
+                "axis": {
+                  "const": "v",
+                  "title": "Axis",
+                  "type": "string"
+                },
+                "aligns": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Aligns"
+                },
+                "style": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ComponentStyle"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "components": {
+                  "items": {
+                    "discriminator": {
+                      "mapping": {
+                        "button": "#/$defs/PromoButton",
+                        "image": "#/$defs/PromoImage",
+                        "text": "#/$defs/PromoText"
+                      },
+                      "propertyName": "role"
+                    },
+                    "oneOf": [
+                      {
+                        "$ref": "#/$defs/PromoText"
+                      },
+                      {
+                        "$ref": "#/$defs/PromoImage"
+                      },
+                      {
+                        "$ref": "#/$defs/PromoButton"
+                      }
+                    ]
+                  },
+                  "maxItems": 6,
+                  "minItems": 1,
+                  "title": "Components",
+                  "type": "array"
+                }
+              },
+              "required": [
+                "role",
+                "axis",
+                "components"
+              ],
+              "title": "LinearContainer",
+              "type": "object"
+            },
+            "PromoButton": {
+              "additionalProperties": false,
+              "properties": {
+                "role": {
+                  "const": "button",
+                  "title": "Role",
+                  "type": "string"
+                },
+                "text": {
+                  "title": "Text",
+                  "type": "string"
+                },
+                "actionType": {
+                  "$ref": "#/$defs/ActionType"
+                },
+                "link": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ActionLink"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "textStyle": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ComponentTextStyle"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "style": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ComponentStyle"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "role",
+                "text",
+                "actionType"
+              ],
+              "title": "PromoButton",
+              "type": "object"
+            },
+            "PromoContent": {
+              "additionalProperties": false,
+              "properties": {
+                "role": {
+                  "const": "promo",
+                  "title": "Role",
+                  "type": "string"
+                },
+                "component": {
+                  "$ref": "#/$defs/LinearContainer"
+                }
+              },
+              "required": [
+                "role",
+                "component"
+              ],
+              "title": "PromoContent",
+              "type": "object"
+            },
+            "PromoImage": {
+              "additionalProperties": false,
+              "properties": {
+                "role": {
+                  "const": "image",
+                  "title": "Role",
+                  "type": "string"
+                },
+                "url": {
+                  "title": "Url",
+                  "type": "string"
+                },
+                "aspectRatio": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Aspectratio"
+                }
+              },
+              "required": [
+                "role",
+                "url"
+              ],
+              "title": "PromoImage",
+              "type": "object"
+            },
+            "PromoText": {
+              "additionalProperties": false,
+              "properties": {
+                "role": {
+                  "const": "text",
+                  "title": "Role",
+                  "type": "string"
+                },
+                "format": {
+                  "enum": [
+                    "none",
+                    "html"
+                  ],
+                  "title": "Format",
+                  "type": "string"
+                },
+                "text": {
+                  "title": "Text",
+                  "type": "string"
+                },
+                "textStyle": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ComponentTextStyle"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "role",
+                "format",
+                "text"
+              ],
+              "title": "PromoText",
+              "type": "object"
+            },
+            "TextStyle": {
+              "additionalProperties": false,
+              "properties": {
+                "fontSize": {
+                  "anyOf": [
+                    {
+                      "maximum": 40,
+                      "minimum": 10,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Fontsize"
+                },
+                "fontWeight": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/FontWeight"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "textColor": {
+                  "anyOf": [
+                    {
+                      "pattern": "^#[0-9A-Fa-f]{8}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "#RRGGBBAA",
+                  "title": "Textcolor"
+                }
+              },
+              "title": "TextStyle",
+              "type": "object"
+            }
+          },
+          "description": "Готовый креатив. Тексты на русском, JSON строго по схемам.",
+          "properties": {
+            "bannerName": {
+              "description": "Короткое служебное название баннера, до 100 символов",
+              "title": "Bannername",
+              "type": "string"
+            },
+            "banner": {
+              "$ref": "#/$defs/BannerContent"
+            },
+            "contentName": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Название промо-экрана; null, если экран не нужен",
+              "title": "Contentname"
+            },
+            "content": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/PromoContent"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "PROMO-экран после тапа по баннеру; null, если не нужен"
+            },
+            "imagePrompt": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Промпт на английском для генерации картинки баннера: без людей и без текста на картинке",
+              "title": "Imageprompt"
+            },
+            "contentImagePrompt": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Только для STORY с промо-экраном: промпт квадратной картинки промо-экрана, предмет на весь кадр",
+              "title": "Contentimageprompt"
+            }
+          },
+          "required": [
+            "bannerName",
+            "banner"
+          ],
+          "title": "DesignResult",
+          "type": "object"
+        }
+      }
+    }
+  ]
+}

@@ -329,7 +329,7 @@ def test_request_prefix_is_stable_for_prompt_cache(client, chat):
     client.post(f"/chat/{sid}/messages", json={"text": "А сейчас?"}, headers=MANAGER)
     first, second = model.seen
     assert first[0].content == second[0].content and first[0].content[-1]["cache_control"] == CACHE_CONTROL
-    assert "## Контекст" not in _text_of(first[0]) and "## Контекст" in _text_of(second[-1])
+    assert "Сейчас 20" not in _text_of(first[0]) and _text_of(second[-1]).startswith("<context>")
     # Точка кеша на последнем сообщении истории, а не на изменчивой заметке.
     assert second[-2].content[-1]["cache_control"] == CACHE_CONTROL and isinstance(second[-1].content, str)
     assert _text_of(second[1]) == _text_of(first[1]) and _text_of(second[2]) == "Кампания на модерации."

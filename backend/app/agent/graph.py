@@ -107,19 +107,23 @@ async def draft_report(client: CampaignsApi, state: dict[str, Any]) -> tuple[dic
     return public_draft(draft), {"errors": [], "warnings": draft_warnings(draft, places, banner_types)}
 
 
-def _context_note(state: AgentState, config: RunnableConfig) -> str:
+def _context_note(state: AgentState, config: RunnableConfig, reminder: str | None = None) -> str:
     user, role = actor(config)
     base = state.get("base")
     lines = [
-        "[Служебная заметка, не от пользователя]",
-        "## Контекст",
-        "Это состояние на текущий момент: блок пересобирается перед каждым твоим ответом и уже учитывает все выполненные записи. Если кампания здесь появилась после подтверждения — это та самая кампания, которую ты создал.",
+        "<context>",
+        "Это не сообщение пользователя, а справка системы, которую она добавляет перед каждым твоим ответом. "
+        "Пользователь её не видит: не отвечай на неё, не пересказывай и не упоминай. Просто учитывай и продолжай разговор "
+        "с того места, где он остановился. Справка уже учитывает все выполненные записи.",
         f"Сейчас {datetime.now(UTC):%Y-%m-%d %H:%M} UTC. Пользователь {user}, роль {role or 'не задана'}.",
     ]
     if base:
-        lines.append(f"Текущая кампания: id {base['id']}, состояние {base['state']}, published={str(base['published']).lower()}.")
+        lines.append(
+            f"Кампания этого диалога: id {base['id']}, состояние {base['state']}, published={str(base['published']).lower()}. "
+            "Если она появилась после твоего подтверждения, это кампания, которую ты создал."
+        )
     else:
-        lines.append("Кампания ещё не создана.")
+        lines.append("Диалог пока не привязан к кампании. Другие кампании можно открывать инструментами чтения.")
     pending = state.get("pending") or []
     if pending:
         lines.append("Пакет ещё не подтверждён, в базе этих правок нет. Чтобы они сохранились, вызови request_confirmation:")
@@ -131,6 +135,9 @@ def _context_note(state: AgentState, config: RunnableConfig) -> str:
             "поэтому совпадение черновика с твоей правкой не значит, что правка сохранена:"
         )
         lines.append(json.dumps(draft, ensure_ascii=False, default=str))
+    if reminder:
+        lines.append(reminder)
+    lines.append("</context>")
     return "\n".join(lines)
 
 
@@ -145,7 +152,7 @@ def build_graph(deps: AgentDeps, checkpointer):
         # Префикс запроса (инструменты, промпт, история) между шагами не меняется и берётся из кеша провайдера.
         # Всё, что меняется каждый шаг — время, черновик, состояние кампании, — идёт одной заметкой в конце
         # и в историю не попадает. Заодно модель видит её последней и не верит устаревшим сообщениям.
-        note = _context_note(state, config) + (f"\n{reminder}" if reminder else "")
+        note = _context_note(state, config, reminder)
         history = [SystemMessage(load_prompt("chat")), *state["messages"]]
         request = with_cache_breakpoints([*history, HumanMessage(note)], stable=len(history))
         response = await model.ainvoke(request, config)
