@@ -29,12 +29,12 @@
 /* Креатив рисуют те же компоненты, что и превью в панели, в своём размере; масштаб задаёт EntrySphere. */
 .entry-creative{zoom:var(--entry-scale,.85);overflow:hidden;border-radius:16px;box-shadow:0 10px 28px rgb(20 16 12/.22),0 1px 3px rgb(20 16 12/.14)}
 .entry-example[data-kind=story] .entry-creative{width:200px;height:356px}
-.entry-example[data-kind=card] .entry-creative{width:260px}
+.entry-example[data-kind=card] .entry-creative{width:320px}
 .entry-example[data-kind=tile] .entry-creative{width:164px}
 .entry-example[data-kind=strip] .entry-creative{width:310px}
 .entry-example[data-kind=promo] .entry-creative{width:220px}
-/* Текст не заезжает на предмет: он стоит в правой трети картинки. */
-.entry-example[data-kind=card] :is(strong,.wrap-anywhere){display:block;max-width:170px}
+/* Текст не заезжает на предмет: на этой картинке он занимает правую половину. */
+.entry-example[data-kind=card] :is(strong,.wrap-anywhere){display:block;max-width:155px}
 .entry-chip{display:none}
 
 @media (max-width:900px){
