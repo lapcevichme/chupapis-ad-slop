@@ -128,3 +128,33 @@ def test_ai_may_relayout_but_cannot_invent_offer_copy():
     )
     with pytest.raises(Exception, match="несовместимый"):
         asyncio.run(generator.generate(StudioGenerationBody(document=DOCUMENT, prompt="Ярче")))
+
+
+def test_ai_valid_scene_remains_editable():
+    changed = json.loads(json.dumps(DOCUMENT))
+    changed["layers"][0].update(x=30, y=50, fill="#d6f45b")
+    generator = StudioDesigner(
+        ScriptedModel(
+            script=[tool_message(call("StudioGenerationResult", {"variants": [changed]}, 1))]
+        )
+    )
+    result = asyncio.run(
+        generator.generate(StudioGenerationBody(document=DOCUMENT, prompt="Ярче", count=1))
+    )
+    assert result.variants[0].layers[0].x == 30
+    assert result.variants[0].layers[0].text == "Вклад 16%"
+
+
+@pytest.mark.parametrize("patch", [{"hidden": True}, {"opacity": 0}, {"x": 290}, {"role": "body"}])
+def test_ai_cannot_hide_or_crop_offer(patch):
+    changed = json.loads(json.dumps(DOCUMENT))
+    changed["layers"][0].update(patch)
+    generator = StudioDesigner(
+        ScriptedModel(
+            script=[tool_message(call("StudioGenerationResult", {"variants": [changed]}, 1))]
+        )
+    )
+    with pytest.raises(Exception, match="несовместимый"):
+        asyncio.run(
+            generator.generate(StudioGenerationBody(document=DOCUMENT, prompt="Ярче", count=1))
+        )

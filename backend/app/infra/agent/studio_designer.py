@@ -23,7 +23,10 @@ class StudioDesigner:
             )
             call = next(c for c in response.tool_calls if c["name"] == "StudioGenerationResult")
             result = StudioGenerationResult.model_validate(call["args"])
+            if len(result.variants) != body.count:
+                raise ValueError("AI вернул не все варианты")
             original = {x.id: x.text for x in body.document.layers if x.kind == "text"}
+            original_layers = {x.id: x for x in body.document.layers if x.kind == "text"}
             sources = {x.src for x in body.document.layers if x.kind == "image"}
             for document in result.variants:
                 if (document.width, document.height, document.format) != (
@@ -34,6 +37,22 @@ class StudioDesigner:
                     raise ValueError("AI поменял формат")
                 if {x.id: x.text for x in document.layers if x.kind == "text"} != original:
                     raise ValueError("AI поменял текст оффера")
+                for layer in document.layers:
+                    if layer.kind != "text":
+                        continue
+                    source = original_layers[layer.id]
+                    if layer.role != source.role or (
+                        not source.hidden and (layer.hidden or layer.opacity < 0.8)
+                    ):
+                        raise ValueError("AI скрыл текст оффера")
+                    if (
+                        layer.x < 0
+                        or layer.y < 0
+                        or layer.x + layer.width > document.width
+                        or layer.y + layer.height > document.height
+                        or layer.height < layer.fontSize * 1.15
+                    ):
+                        raise ValueError("AI обрезал текстовый блок")
                 if any(x.src not in sources for x in document.layers if x.kind == "image"):
                     raise ValueError("AI придумал ссылку на картинку")
             return result
