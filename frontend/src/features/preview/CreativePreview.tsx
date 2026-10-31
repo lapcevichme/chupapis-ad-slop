@@ -13,7 +13,7 @@ interface CreativePreviewProps {
   content?: Content
 }
 
-function LengthCounter({ label, value, max }: { label: string; value?: string; max: number }) {
+function LengthCounter({ label, value, max }: { label: string; value?: string | null; max: number }) {
   const length = value?.length ?? 0
   const exceeded = length > max
 

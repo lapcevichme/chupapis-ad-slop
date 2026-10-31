@@ -1,6 +1,7 @@
 import { Check, CircleAlert, LoaderCircle, SendHorizontal, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, SyntheticEvent } from 'react'
+import { CHAT_IS_MOCK } from '@/api/chat'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { ChatStep } from '@/types/api'
@@ -137,6 +138,7 @@ export function ChatPanel({ chat }: { chat: ReturnType<typeof useChat> }) {
         )}
       </div>
 
+      {CHAT_IS_MOCK && <p className="m-0 border-t px-3 py-2 text-xs leading-4 text-muted-foreground">Имитация ассистента: идёт по сценарию §9 и не читает бриф, но пишет через настоящий API.</p>}
       <form
         className="flex items-end gap-2 border-t p-3"
         onSubmit={(event) => {

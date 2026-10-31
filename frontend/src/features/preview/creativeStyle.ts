@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import type { FontWeight, TextStyle } from '@/types/api'
+import type { FontWeight, PromoComponent, TextStyle } from '@/types/api'
 
 const FONT_WEIGHTS: Record<FontWeight, number> = {
   thin: 100,
@@ -10,16 +10,23 @@ const FONT_WEIGHTS: Record<FontWeight, number> = {
   bold: 700,
 }
 
-export function textStyleToCss(style?: TextStyle): CSSProperties {
+// В схеме PROMO вес шрифта — произвольная строка, неизвестное значение просто не применяем.
+type AnyTextStyle = TextStyle | Extract<PromoComponent, { role: 'text' }>['textStyle']
+
+export function textStyleToCss(style?: AnyTextStyle): CSSProperties {
   return {
-    fontSize: style?.fontSize,
-    fontWeight: style?.fontWeight ? FONT_WEIGHTS[style.fontWeight] : undefined,
-    color: style?.textColor,
+    fontSize: style?.fontSize ?? undefined,
+    fontWeight: style?.fontWeight ? FONT_WEIGHTS[style.fontWeight as FontWeight] : undefined,
+    color: style?.textColor ?? undefined,
   }
 }
 
-export function isHttpsUrl(url?: string): url is string {
+// Сгенерированные картинки бэкенд раздаёт сам: они идут через тот же прокси /api (docs/ours/chat-api.md, раздел 8).
+const MEDIA_PREFIX = '/api/media/'
+
+export function isImageUrl(url?: string | null): url is string {
   if (!url) return false
+  if (url.startsWith(MEDIA_PREFIX)) return true
   try {
     return new URL(url).protocol === 'https:'
   } catch {

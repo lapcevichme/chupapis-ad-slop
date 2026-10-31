@@ -1,9 +1,9 @@
 import type { ChatEvent, ChatSession, ConfirmationAnswer } from '@/types/api'
-import { mockAnswerConfirmation, mockCreateSession, mockGetSession, mockSendMessage } from './chatMock'
+import { mockAnswerConfirmation, mockCreateSession, mockGetSession, mockRetry, mockSendMessage } from './chatMock'
 import { userHeaders } from './currentUser'
 
 // Контракт: docs/ours/chat-api.md. Пока бэкенда нет, работает имитация потока; VITE_CHAT_MOCK=false включает настоящий API.
-const USE_MOCK = import.meta.env.VITE_CHAT_MOCK !== 'false'
+export const CHAT_IS_MOCK = import.meta.env.VITE_CHAT_MOCK !== 'false'
 
 const SILENCE_TIMEOUT_MS = 90_000
 
@@ -11,13 +11,13 @@ async function postJson(path: string, body: unknown, init?: RequestInit) {
   return fetch(`/api${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...userHeaders() },
-    body: JSON.stringify(body),
+    body: body === undefined ? undefined : JSON.stringify(body),
     ...init,
   })
 }
 
 export async function createChatSession(campaignId?: number): Promise<string> {
-  if (USE_MOCK) return mockCreateSession(campaignId)
+  if (CHAT_IS_MOCK) return mockCreateSession(campaignId)
 
   const response = await postJson('/chat', campaignId === undefined ? {} : { campaignId })
   if (!response.ok) throw new Error(`POST /chat: ${response.status}`)
@@ -27,7 +27,7 @@ export async function createChatSession(campaignId?: number): Promise<string> {
 
 // null значит, что такой сессии на сервере больше нет.
 export async function getChatSession(sessionId: string): Promise<ChatSession | null> {
-  if (USE_MOCK) return mockGetSession(sessionId)
+  if (CHAT_IS_MOCK) return mockGetSession(sessionId)
 
   const response = await fetch(`/api/chat/${sessionId}`, { headers: userHeaders() })
   if (response.status === 404) return null
@@ -46,7 +46,7 @@ function parseEvent(block: string): ChatEvent | null {
   return { event, data: data.length > 0 ? JSON.parse(data.join('\n')) : {} } as ChatEvent
 }
 
-async function* readStream(path: string, body: unknown): AsyncGenerator<ChatEvent> {
+async function* readStream(path: string, body: unknown, onOpen: () => void): AsyncGenerator<ChatEvent> {
   const controller = new AbortController()
   let timer = setTimeout(() => controller.abort(), SILENCE_TIMEOUT_MS)
   const resetTimer = () => {
@@ -57,6 +57,7 @@ async function* readStream(path: string, body: unknown): AsyncGenerator<ChatEven
   try {
     const response = await postJson(path, body, { signal: controller.signal })
     if (!response.ok || !response.body) throw new Error(`POST ${path}: ${response.status}`)
+    onOpen()
 
     const reader = response.body.pipeThrough(new TextDecoderStream()).getReader()
     let buffer = ''
@@ -81,12 +82,17 @@ async function* readStream(path: string, body: unknown): AsyncGenerator<ChatEven
   }
 }
 
-export function sendChatMessage(sessionId: string, text: string): AsyncIterable<ChatEvent> {
-  if (USE_MOCK) return mockSendMessage(sessionId, text)
-  return readStream(`/chat/${sessionId}/messages`, { text })
+export function sendChatMessage(sessionId: string, text: string, onOpen: () => void): AsyncIterable<ChatEvent> {
+  if (CHAT_IS_MOCK) return mockSendMessage(sessionId, text, onOpen)
+  return readStream(`/chat/${sessionId}/messages`, { text }, onOpen)
 }
 
-export function answerChatConfirmation(sessionId: string, confirmationId: string, answer: ConfirmationAnswer): AsyncIterable<ChatEvent> {
-  if (USE_MOCK) return mockAnswerConfirmation(sessionId, confirmationId, answer)
-  return readStream(`/chat/${sessionId}/confirmations/${confirmationId}`, answer)
+export function answerChatConfirmation(sessionId: string, confirmationId: string, answer: ConfirmationAnswer, onOpen: () => void): AsyncIterable<ChatEvent> {
+  if (CHAT_IS_MOCK) return mockAnswerConfirmation(sessionId, confirmationId, answer, onOpen)
+  return readStream(`/chat/${sessionId}/confirmations/${confirmationId}`, answer, onOpen)
+}
+
+export function retryChat(sessionId: string, onOpen: () => void): AsyncIterable<ChatEvent> {
+  if (CHAT_IS_MOCK) return mockRetry(sessionId, onOpen)
+  return readStream(`/chat/${sessionId}/retry`, undefined, onOpen)
 }

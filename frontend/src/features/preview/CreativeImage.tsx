@@ -1,9 +1,9 @@
 import { ImageOff } from 'lucide-react'
 import { useState, type CSSProperties } from 'react'
-import { isHttpsUrl } from './creativeStyle'
+import { isImageUrl } from './creativeStyle'
 
 interface CreativeImageProps {
-  url?: string
+  url?: string | null
   className?: string
   style?: CSSProperties
 }
@@ -12,7 +12,7 @@ interface CreativeImageProps {
 export function CreativeImage({ url, className, style }: CreativeImageProps) {
   const [failedUrl, setFailedUrl] = useState<string>()
 
-  if (!isHttpsUrl(url) || failedUrl === url) {
+  if (!isImageUrl(url) || failedUrl === url) {
     return (
       <div
         role="img"

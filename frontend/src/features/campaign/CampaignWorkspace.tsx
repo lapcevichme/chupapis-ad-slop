@@ -116,7 +116,7 @@ export function CampaignWorkspace() {
         </section>
 
         <div className="min-w-0 flex-[1_1_400px] xl:overflow-y-auto">
-          {failed && <Message>Не удалось загрузить кампанию. Обновите страницу.</Message>}
+          {failed && <Message>Не удалось загрузить данные с сервера. Обновите страницу.</Message>}
           {details && validation && dictionaries.data ? (
             <CampaignPassport
               campaign={details}

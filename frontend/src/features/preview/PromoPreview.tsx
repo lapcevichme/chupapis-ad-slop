@@ -21,7 +21,7 @@ function PromoItem({ item }: { item: PromoComponent }) {
       return (
         <span
           className="flex min-h-11 items-center justify-center rounded-xl px-4 text-center"
-          style={{ ...textStyleToCss(item.textStyle), background: item.style?.backgroundColor }}
+          style={{ ...textStyleToCss(item.textStyle), background: item.style?.backgroundColor ?? undefined }}
         >
           {item.text}
         </span>

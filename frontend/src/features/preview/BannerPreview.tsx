@@ -82,11 +82,11 @@ export function BannerPreview({ content, type, onOpen }: BannerPreviewProps) {
   const className = isStory ? 'flex min-h-full w-full flex-col' : 'block w-full shrink-0 overflow-hidden rounded-2xl shadow-sm'
 
   const banner = onOpen ? (
-    <button type="button" onClick={onOpen} aria-label={content.voiceOver} className={`${className} cursor-pointer`} style={style}>
+    <button type="button" onClick={onOpen} aria-label={content.voiceOver ?? undefined} className={`${className} cursor-pointer`} style={style}>
       <Body content={content} />
     </button>
   ) : (
-    <div aria-label={content.voiceOver} className={className} style={style}>
+    <div aria-label={content.voiceOver ?? undefined} className={className} style={style}>
       <Body content={content} />
     </div>
   )

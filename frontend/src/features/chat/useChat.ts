@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useReducer, useRef } from 'react'
-import { answerChatConfirmation, createChatSession, getChatSession, sendChatMessage } from '@/api/chat'
+import { answerChatConfirmation, createChatSession, getChatSession, retryChat, sendChatMessage } from '@/api/chat'
 import type { CampaignDraft, CampaignValidation, ChatEvent, ChatSession, ChatStep, Confirmation, ConfirmationAnswer, Suggestion } from '@/types/api'
 
 const SESSION_KEY = 'adpilot.chat.session'
@@ -134,6 +134,8 @@ export function useChat() {
   const queryClient = useQueryClient()
   const sessionId = useRef(localStorage.getItem(SESSION_KEY))
   const lastRequest = useRef<() => AsyncIterable<ChatEvent>>(null)
+  // Сервер ответил потоком, значит, сообщение уже в истории: повторять его нельзя, нужен /retry.
+  const streamOpened = useRef(false)
   const [state, dispatch] = useReducer(reducer, null, () => ({ ...EMPTY, busy: localStorage.getItem(SESSION_KEY) !== null }))
 
   useEffect(() => {
@@ -175,35 +177,43 @@ export function useChat() {
     [queryClient],
   )
 
+  const markOpened = useCallback(() => {
+    streamOpened.current = true
+  }, [])
+
   const send = useCallback(
     (text: string) => {
+      streamOpened.current = false
       dispatch({ type: 'start', userText: text })
       return run(async function* () {
         if (!sessionId.current) {
           sessionId.current = await createChatSession()
           localStorage.setItem(SESSION_KEY, sessionId.current)
         }
-        yield* sendChatMessage(sessionId.current, text)
+        yield* sendChatMessage(sessionId.current, text, markOpened)
       })
     },
-    [run],
+    [run, markOpened],
   )
 
   const answer = useCallback(
     (confirmationId: string, value: ConfirmationAnswer) => {
       const id = sessionId.current
       if (!id) return
+      streamOpened.current = false
       dispatch({ type: 'start' })
-      return run(() => answerChatConfirmation(id, confirmationId, value))
+      return run(() => answerChatConfirmation(id, confirmationId, value, markOpened))
     },
-    [run],
+    [run, markOpened],
   )
 
   const retry = useCallback(() => {
-    if (!lastRequest.current) return
+    const id = sessionId.current
+    const request = streamOpened.current && id ? () => retryChat(id, markOpened) : lastRequest.current
+    if (!request) return
     dispatch({ type: 'start', retry: true })
-    return run(lastRequest.current)
-  }, [run])
+    return run(request)
+  }, [run, markOpened])
 
   // Открыть кампанию или, если campaignId === null, начать новый диалог. Сессию новой кампании создаст первое сообщение.
   const open = useCallback(async (campaignId: number | null) => {

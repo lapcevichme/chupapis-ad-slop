@@ -1,181 +1,47 @@
-// Временные типы по §2 и §3 task.md. Заменить сгенерированными из OpenAPI, когда он появится.
+import type { components } from './openapi'
 
-export type FontWeight = 'thin' | 'light' | 'regular' | 'medium' | 'semi-bold' | 'bold'
+// Типы API кампаний генерируются из openapi.json: npm run gen:api. Здесь только короткие имена для них.
+type Schemas = components['schemas']
 
-export type ActionType = 'default' | 'externalLink' | 'openSmartLink' | 'closeCampaign' | 'doneCampaign'
+export type FontWeight = Schemas['FontWeight']
+export type TextStyle = Schemas['TextStyle']
+export type BannerContent = Schemas['BannerContent']
+export type BannerType = Schemas['BannerTypeDto']
+export type PromoContent = Schemas['PromoContent']
+export type PromoComponent = PromoContent['component']['components'][number]
+export type CampaignState = Schemas['CampaignState']
+export type CampaignListItem = Schemas['CampaignListItem']
+type SavedCampaign = Schemas['CampaignDetails']
+export type CampaignInfo = Schemas['CampaignInfo']
+export type BannerCreate = Schemas['BannerCreate']
+export type ContentCreate = Schemas['ContentCreate']
+export type CreativeCreate = Schemas['CreativeCreate']
+export type CampaignRef = Schemas['CampaignRef']
+export type Segments = Schemas['Segments']
+export type ApiError = Schemas['ApiError']
+export type CampaignValidation = Schemas['ValidationReport']
+export type Segment = Schemas['SegmentDto']
+export type Place = Schemas['PlaceDto']
+export type Tag = Schemas['TagDto']
+export type Topic = Schemas['TopicDto']
 
-export interface TextStyle {
-  fontSize?: number
-  fontWeight?: FontWeight
-  textColor?: string
-}
-
-export interface ActionLink {
-  iOS?: string
-  android?: string
-  web?: string
-}
-
-export interface BannerContent {
-  title?: string
-  titleStyle?: TextStyle
-  text?: string
-  textStyle?: TextStyle
-  background?: { color?: string }
-  image?: { url?: string }
-  buttonName?: string
-  actionType: ActionType
-  link?: ActionLink
-  voiceOver?: string
-}
-
-// До сохранения в API id баннеров, контента и креативов временные: "tmp-1".
+// В черновике чата id баннеров, контента и креативов временные: "tmp-1". У сохранённых они числовые.
 export type EntityId = number | string
 
-export interface Banner {
+// В ответах API content описан как произвольный объект: ему соответствуют схемы BannerContent и PromoContent.
+export type Banner = Omit<Schemas['BannerDto'], 'id' | 'campaignId' | 'content'> & { id: EntityId; campaignId?: number; content: BannerContent }
+export type Content = Omit<Schemas['ContentDto'], 'id' | 'campaignId' | 'content'> & { id: EntityId; campaignId?: number; content: PromoContent }
+export type Creative = Omit<Schemas['CreativeDto'], 'id' | 'campaignId' | 'bannerId' | 'contentId'> & {
   id: EntityId
   campaignId?: number
-  name: string
-  bannerTypeId: number
-  content: BannerContent
-}
-
-export interface BannerType {
-  id: number
-  code: 'STORY' | 'SMART_BANNER'
-  description: string
-  titleMaxLength: number
-  textMaxLength: number
-  channels: string[]
-}
-
-export interface PromoText {
-  role: 'text'
-  format: 'none' | 'html'
-  text: string
-  textStyle?: TextStyle
-}
-
-export interface PromoImage {
-  role: 'image'
-  url: string
-  aspectRatio?: number
-}
-
-export interface PromoButton {
-  role: 'button'
-  text: string
-  actionType: ActionType
-  link?: ActionLink
-  textStyle?: TextStyle
-  style?: { backgroundColor?: string }
-}
-
-export type PromoComponent = PromoText | PromoImage | PromoButton
-
-export interface PromoContent {
-  role: 'promo'
-  component: {
-    role: 'linearContainer'
-    axis: 'v'
-    aligns?: string
-    style?: { backgroundColor?: string }
-    components: PromoComponent[]
-  }
-}
-
-export interface Content {
-  id: EntityId
-  campaignId?: number
-  name: string
-  contentType: 'PROMO'
-  content: PromoContent
-}
-
-export interface Creative {
-  id: EntityId
-  campaignId?: number
-  name: string
   bannerId: EntityId
   contentId?: EntityId | null
-  channelCode: string
 }
 
-export type CampaignState =
-  | 'DRAFT'
-  | 'ON_MODERATION'
-  | 'NEEDS_WORK'
-  | 'APPROVED'
-  | 'ACTIVE'
-  | 'ACTIVE_EDITING'
-  | 'STOPPED'
-  | 'ARCHIVED'
-
-export type AudienceType = 'ALL_USERS' | 'SEGMENTED'
-
-export interface Campaign {
-  id: number
-  name: string
-  marketingName?: string
-  startDate: string
-  startTime: string
-  endDate?: string
-  endTime?: string
-  topic: string
-  tags?: number[]
-  keywords?: string
-  state: CampaignState
-  published: boolean
-  audienceType: AudienceType
-  weight: number
-  initialCtr: number
-  author?: string
-  lastEditAuthor?: string
-}
-
-export interface CampaignSegments {
-  included: string[]
-  excluded: string[]
-}
-
-export interface CampaignDetails extends Campaign {
-  places: number[]
-  segments: CampaignSegments
+export type CampaignDetails = Omit<SavedCampaign, 'banners' | 'contents' | 'creatives'> & {
   banners: Banner[]
   contents: Content[]
   creatives: Creative[]
-}
-
-export interface ApiError {
-  code: string
-  message: string
-  field?: string
-}
-
-export interface CampaignValidation {
-  errors: ApiError[]
-  warnings: string[]
-}
-
-export interface Segment {
-  code: string
-  name: string
-  type: string
-  state: 'ACTIVE' | 'NEW'
-  count: number
-}
-
-export interface Place {
-  id: number
-  code: string
-  description: string
-  defaultBanner: BannerType['code']
-  state: 'ACTIVE' | 'INACTIVE'
-}
-
-export interface Tag {
-  id: number
-  name: string
 }
 
 export interface Dictionaries {
@@ -183,6 +49,7 @@ export interface Dictionaries {
   places: Place[]
   tags: Tag[]
   bannerTypes: BannerType[]
+  topics: Topic[]
 }
 
 // Контракт чата: docs/ours/chat-api.md.
@@ -194,8 +61,16 @@ export interface User {
   role: UserRole
 }
 
+// Типы чата написаны руками: схем ChatEvent* в openapi.json пока нет. Появятся — заменяем сгенерированными.
+
 // Пока собирается бриф, части полей ещё нет, поэтому всё необязательно.
-export type CampaignDraft = Partial<Omit<CampaignDetails, 'id' | 'state' | 'published' | 'author' | 'lastEditAuthor'>>
+export type CampaignDraft = Partial<
+  Omit<SavedCampaign, 'id' | 'state' | 'published' | 'author' | 'lastEditAuthor' | 'banners' | 'contents' | 'creatives'>
+> & {
+  banners?: Banner[]
+  contents?: Content[]
+  creatives?: Creative[]
+}
 
 export type OperationKind =
   | 'create_campaign'

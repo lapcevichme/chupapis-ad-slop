@@ -1,52 +1,25 @@
-import bannerTypes from '@/fixtures/banner_types.json'
-import banners from '@/fixtures/campaign_banners.json'
-import contents from '@/fixtures/campaign_contents.json'
-import creatives from '@/fixtures/campaign_creatives.json'
-import campaignPlaces from '@/fixtures/campaign_places.json'
-import campaignSegments from '@/fixtures/campaign_segments.json'
-import campaignWarnings from '@/fixtures/campaign_warnings.json'
-import campaigns from '@/fixtures/campaigns.json'
-import places from '@/fixtures/places.json'
-import segments from '@/fixtures/segments.json'
-import tags from '@/fixtures/tags.json'
-import { getMockCampaign, listMockCampaigns } from './mockStore'
-import type { Banner, BannerType, Campaign, CampaignDetails, CampaignValidation, Content, Creative, Dictionaries, Place, Segment } from '@/types/api'
+import type { BannerType, CampaignDetails, CampaignListItem, CampaignValidation, Dictionaries, Place, Segment, Tag, Topic } from '@/types/api'
+import { apiRequest } from './http'
 
-// Пока бэкенда нет, функции собирают ответы §3 task.md из моков. Когда он появится, тела заменяем
-// на fetch('/api/...'), а сигнатуры оставляем: компоненты и запросы менять не придётся.
-
-export async function listCampaigns(): Promise<Campaign[]> {
-  return [...(campaigns as Campaign[]), ...listMockCampaigns()]
+export function listCampaigns() {
+  return apiRequest<CampaignListItem[]>('/campaigns')
 }
 
-export async function getCampaign(id: number): Promise<CampaignDetails> {
-  const saved = getMockCampaign(id)
-  if (saved) return saved
-
-  const campaign = (campaigns as Campaign[]).find((item) => item.id === id)
-  if (!campaign) throw new Error(`Кампания ${id} не найдена`)
-
-  const segmentLists = campaignSegments.find((item) => item.campaignId === id)
-  return {
-    ...campaign,
-    places: campaignPlaces.find((item) => item.campaignId === id)?.placeIds ?? [],
-    segments: { included: segmentLists?.included ?? [], excluded: segmentLists?.excluded ?? [] },
-    banners: (banners as Banner[]).filter((item) => item.campaignId === id),
-    contents: (contents as Content[]).filter((item) => item.campaignId === id),
-    creatives: (creatives as Creative[]).filter((item) => item.campaignId === id),
-  }
+export function getCampaign(id: number) {
+  return apiRequest<CampaignDetails>(`/campaigns/${id}`)
 }
 
-export async function getCampaignWarnings(id: number): Promise<CampaignValidation> {
-  if (getMockCampaign(id)) return { errors: [], warnings: [] }
-  return { errors: [], warnings: campaignWarnings.find((item) => item.campaignId === id)?.warnings ?? [] }
+export function getCampaignWarnings(id: number) {
+  return apiRequest<CampaignValidation>(`/campaigns/${id}/warnings`)
 }
 
 export async function getDictionaries(): Promise<Dictionaries> {
-  return {
-    segments: segments as Segment[],
-    places: places as Place[],
-    tags,
-    bannerTypes: bannerTypes as BannerType[],
-  }
+  const [segments, places, tags, bannerTypes, topics] = await Promise.all([
+    apiRequest<Segment[]>('/segments'),
+    apiRequest<Place[]>('/places'),
+    apiRequest<Tag[]>('/tags'),
+    apiRequest<BannerType[]>('/banner-types'),
+    apiRequest<Topic[]>('/topics'),
+  ])
+  return { segments, places, tags, bannerTypes, topics }
 }

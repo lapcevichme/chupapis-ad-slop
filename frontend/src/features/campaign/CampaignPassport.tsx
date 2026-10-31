@@ -70,6 +70,7 @@ interface CampaignPassportProps {
 }
 
 export function CampaignPassport({ campaign, validation, dictionaries, selectedBannerId, onSelectBanner }: CampaignPassportProps) {
+  const topic = dictionaries.topics.find((item) => item.value === campaign.topic)
   const places = campaign.places ?? []
   const banners = campaign.banners ?? []
   const creatives = campaign.creatives ?? []
@@ -83,7 +84,7 @@ export function CampaignPassport({ campaign, validation, dictionaries, selectedB
           {campaign.marketingName && <Field label="Маркетинговое название" value={campaign.marketingName} />}
           <Field label="Начало" value={campaign.startDate ? formatDateTime(campaign.startDate, campaign.startTime) : NOT_SET} />
           <Field label="Конец" value={campaign.endDate ? formatDateTime(campaign.endDate, campaign.endTime) : 'Бессрочно'} />
-          <Field label="Тема" value={campaign.topic ? <span className="font-mono text-[13px]">{campaign.topic}</span> : NOT_SET} />
+          <Field label="Тема" value={topic?.label ?? campaign.topic ?? NOT_SET} code={campaign.topic ?? undefined} />
           <Field label="Теги" value={tagNames.length > 0 ? tagNames.join(', ') : 'Не заданы'} />
           {campaign.keywords && <Field label="Ключевые слова" value={campaign.keywords.split(';').join(', ')} />}
         </div>

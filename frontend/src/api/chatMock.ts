@@ -1,12 +1,12 @@
-import type { Banner, CampaignDetails, CampaignDraft, CampaignState, CampaignValidation, ChatEvent, ChatSession, Confirmation, ConfirmationAnswer, Content, Creative, Suggestion } from '@/types/api'
-import { getCurrentUser } from './currentUser'
-import { getMockCampaign, saveMockCampaign } from './mockStore'
+import type { Banner, BannerCreate, CampaignDraft, CampaignInfo, CampaignRef, CampaignValidation, ChatEvent, ChatSession, Confirmation, ConfirmationAnswer, Content, ContentCreate, Creative, CreativeCreate, Segments, Suggestion } from '@/types/api'
+import { getCampaignWarnings } from './campaigns'
+import { apiRequest, ApiRequestError } from './http'
 
-// Имитация агента по сценарию §9 task.md, чтобы писать и проверять чат без бэкенда. Удаляется, когда появится настоящий API.
-// Значения взяты из моков; слово «сбой» в сообщении один раз вызывает событие error.
+// Имитация агента по сценарию §9 task.md, пока в бэкенде нет чата. Диалог заскриптован и бриф не читает, а записи идут
+// через настоящий API кампаний, поэтому переходы, роли и валидацию проверяет бэкенд. Удаляется вместе с появлением агента.
+// Слово «сбой» в сообщении один раз вызывает событие error.
 
 const STORAGE_KEY = 'adpilot.mock.sessions'
-const FIRST_CAMPAIGN_ID = 1001
 
 type Stage = 'brief' | 'tag' | 'create' | 'moderation' | 'sent'
 
@@ -42,6 +42,7 @@ const BANNER: Banner = {
     background: { color: '#123D32FF' },
     buttonName: 'Открыть вклад',
     actionType: 'openSmartLink',
+    link: { iOS: 'mobilebank://products/deposit', android: 'mobilebank://products/deposit' },
     voiceOver: 'История: вклад под 16 процентов годовых',
   },
 }
@@ -60,7 +61,7 @@ const CONTENT: Content = {
       components: [
         { role: 'text', format: 'html', text: '<b>16% годовых</b> на вклад', textStyle: { fontSize: 24, fontWeight: 'semi-bold', textColor: '#000014FF' } },
         { role: 'text', format: 'none', text: 'Откройте вклад в приложении с 5 ноября до 31 декабря', textStyle: { fontSize: 15, fontWeight: 'regular', textColor: '#00001499' } },
-        { role: 'button', text: 'Открыть вклад', actionType: 'openSmartLink', textStyle: { fontSize: 15, fontWeight: 'medium', textColor: '#FFFFFFFF' }, style: { backgroundColor: '#123D32FF' } },
+        { role: 'button', text: 'Открыть вклад', actionType: 'openSmartLink', link: { iOS: 'mobilebank://products/deposit', android: 'mobilebank://products/deposit' }, textStyle: { fontSize: 15, fontWeight: 'medium', textColor: '#FFFFFFFF' }, style: { backgroundColor: '#123D32FF' } },
       ],
     },
   },
@@ -130,28 +131,38 @@ function createConfirmation(draft: CampaignDraft | null): Confirmation {
   }
 }
 
-function saveCampaign(draft: CampaignDraft): number {
-  const id = FIRST_CAMPAIGN_ID + Math.floor(Math.random() * 8000)
-  const { login } = getCurrentUser()
-  const banner = { ...BANNER, id: id * 10 + 1, campaignId: id }
-  const content = { ...CONTENT, id: id * 10 + 2, campaignId: id }
-  saveMockCampaign({
-    ...(draft as CampaignDetails),
-    id,
-    state: 'DRAFT',
-    published: false,
-    author: login,
-    lastEditAuthor: login,
-    banners: [banner],
-    contents: [content],
-    creatives: [{ ...CREATIVE, id: id * 10 + 3, campaignId: id, bannerId: banner.id, contentId: content.id }],
-  })
+function post<T>(path: string, body?: unknown) {
+  return apiRequest<T>(path, { method: 'POST', body })
+}
+
+// Тот же порядок вызовов, что у узла записи в графе: кампания, сегменты, баннер, контент, креатив.
+async function saveCampaign(draft: CampaignDraft): Promise<number> {
+  const info = {
+    // Имена кампаний уникальны, а сценарий имитации повторяется.
+    name: `${draft.name} ${Date.now() % 100000}`,
+    startDate: draft.startDate,
+    startTime: draft.startTime,
+    endDate: draft.endDate,
+    endTime: draft.endTime,
+    topic: { value: draft.topic },
+    tags: draft.tags?.map((value) => ({ value })) ?? [],
+    audienceType: draft.audienceType,
+    weight: draft.weight,
+    initialCtr: draft.initialCtr,
+    places: draft.places?.map((value) => ({ value })),
+  } as CampaignInfo
+  const { id } = await post<CampaignRef>('/campaigns', info)
+
+  await apiRequest(`/campaigns/${id}/segments`, { method: 'PUT', body: draft.segments as Segments })
+  const banner = await post<{ id: number }>(`/campaigns/${id}/banners`, { name: BANNER.name, bannerTypeId: BANNER.bannerTypeId, content: BANNER.content } as BannerCreate)
+  const content = await post<{ id: number }>(`/campaigns/${id}/contents`, { name: CONTENT.name, contentType: CONTENT.contentType, content: CONTENT.content } as ContentCreate)
+  await post(`/campaigns/${id}/creatives`, { name: CREATIVE.name, bannerId: banner.id, contentId: content.id, channelCode: CREATIVE.channelCode } as CreativeCreate)
   return id
 }
 
-function setState(id: number, state: CampaignState) {
-  const campaign = getMockCampaign(id)
-  if (campaign) saveMockCampaign({ ...campaign, state, lastEditAuthor: getCurrentUser().login })
+function describeFailure(error: unknown) {
+  if (error instanceof ApiRequestError) return `API отказал: ${error.errors.map((item) => `${item.message} (${item.code})`).join('; ')}`
+  throw error
 }
 
 async function* say(text: string): AsyncGenerator<ChatEvent> {
@@ -176,9 +187,7 @@ async function* reply(session: MockSession, text: string): AsyncGenerator<ChatEv
   }
 
   if (/одобр/i.test(text)) {
-    if (getCurrentUser().role !== 'campaignModerator') {
-      yield* say('Одобрить кампанию может только модератор: API вернул ROLE_FORBIDDEN. Переключитесь на пользователя с этой ролью или дождитесь решения модератора.')
-    } else if (session.stage === 'sent') {
+    if (session.stage === 'sent') {
       yield* say('Проверьте паспорт и превью справа. Решение за вами.')
       yield { event: 'confirmation_required', data: APPROVE_CONFIRMATION }
     } else {
@@ -204,7 +213,7 @@ async function* reply(session: MockSession, text: string): AsyncGenerator<ChatEv
       yield { event: 'draft_updated', data: { draft: { ...FULL, banners: [banner] }, validation: NO_TAGS } }
       await wait(150)
     }
-    yield* say('Собрала черновик: сторис на главном экране для клиентов 26–45 в Москве и Санкт-Петербурге, без отписавшихся, с 5 ноября до 31 декабря. Время начала в брифе не указано, поставила 10:00.\n\nВ брифе нет тегов, без них будет предупреждение. Добавить тег «Вклад»?')
+    yield* say('Черновик готов: сторис на главном экране для клиентов 26–45 в Москве и Санкт-Петербурге, без отписавшихся, с 5 ноября до 31 декабря. Время начала в брифе не указано, поэтому в черновике 10:00.\n\nВ брифе нет тегов, без них будет предупреждение. Добавить тег «Вклад»?')
     yield { event: 'suggestions', data: { items: TAG_SUGGESTIONS } }
     session.stage = 'tag'
     return
@@ -236,30 +245,33 @@ async function* confirm(session: MockSession, confirmationId: string, answer: Co
     return
   }
 
-  if (confirmationId === 'conf-create' && session.draft) {
-    yield* step('save', 'Создаю кампанию, баннер, контент и креатив', 500)
-    const campaignId = saveCampaign(session.draft)
-    yield { event: 'campaign_updated', data: { campaignId } }
-    session.stage = 'moderation'
-    yield* say(`Кампания ${campaignId} создана, предупреждений нет. Отправляем на модерацию?`)
-    yield { event: 'confirmation_required', data: MODERATION_CONFIRMATION }
-    return
-  }
+  try {
+    if (confirmationId === 'conf-create' && session.draft) {
+      yield* step('save', 'Создаю кампанию, баннер, контент и креатив', 100)
+      const campaignId = await saveCampaign(session.draft)
+      yield { event: 'campaign_updated', data: { campaignId } }
+      session.stage = 'moderation'
+      const { warnings } = await getCampaignWarnings(campaignId)
+      yield* say(`Кампания ${campaignId} создана. ${warnings.length > 0 ? `Предупреждения: ${warnings.join('; ')}.` : 'Предупреждений нет.'} Отправляем на модерацию?`)
+      yield { event: 'confirmation_required', data: MODERATION_CONFIRMATION }
+    }
 
-  if (confirmationId === 'conf-moderation' && session.campaignId) {
-    yield* step('moderation', 'Отправляю на модерацию')
-    setState(session.campaignId, 'ON_MODERATION')
-    yield { event: 'campaign_updated', data: { campaignId: session.campaignId } }
-    session.stage = 'sent'
-    yield* say('Кампания на модерации. Дальше модератор одобрит её или вернёт на правки; после одобрения её можно будет активировать.')
-    return
-  }
+    if (confirmationId === 'conf-moderation' && session.campaignId) {
+      yield* step('moderation', 'Отправляю на модерацию', 100)
+      await post(`/campaigns/${session.campaignId}/to-moderation`)
+      yield { event: 'campaign_updated', data: { campaignId: session.campaignId } }
+      session.stage = 'sent'
+      yield* say('Кампания на модерации. Дальше модератор одобрит её или вернёт на правки; после одобрения её можно будет активировать.')
+    }
 
-  if (confirmationId === 'conf-approve' && session.campaignId) {
-    yield* step('approve', 'Одобряю кампанию')
-    setState(session.campaignId, 'APPROVED')
-    yield { event: 'campaign_updated', data: { campaignId: session.campaignId } }
-    yield* say('Кампания одобрена. Менеджер может её активировать.')
+    if (confirmationId === 'conf-approve' && session.campaignId) {
+      yield* step('approve', 'Одобряю кампанию', 100)
+      await post(`/campaigns/${session.campaignId}/approve`)
+      yield { event: 'campaign_updated', data: { campaignId: session.campaignId } }
+      yield* say('Кампания одобрена. Менеджер может её активировать.')
+    }
+  } catch (error) {
+    yield* say(describeFailure(error))
   }
 }
 
@@ -293,10 +305,21 @@ export async function mockGetSession(sessionId: string): Promise<ChatSession | n
   return readSessions()[sessionId] ?? null
 }
 
-export function mockSendMessage(sessionId: string, text: string) {
+export function mockSendMessage(sessionId: string, text: string, onOpen: () => void) {
+  onOpen()
   return record(sessionId, (session) => reply(session, text), text)
 }
 
-export function mockAnswerConfirmation(sessionId: string, confirmationId: string, answer: ConfirmationAnswer) {
+export function mockAnswerConfirmation(sessionId: string, confirmationId: string, answer: ConfirmationAnswer, onOpen: () => void) {
+  onOpen()
   return record(sessionId, (session) => confirm(session, confirmationId, answer))
+}
+
+export function mockRetry(sessionId: string, onOpen: () => void) {
+  onOpen()
+  const session = readSessions()[sessionId]
+  if (session.messages.at(-1)?.role === 'assistant') session.messages.pop()
+  writeSession(sessionId, session)
+  const text = session.messages.findLast((message) => message.role === 'user')?.text ?? ''
+  return record(sessionId, (current) => reply(current, text))
 }
