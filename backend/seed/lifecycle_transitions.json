@@ -1,0 +1,13 @@
+[
+  {"campaignId": 102, "entity": "CAMPAIGN", "entityId": 102, "action": "CREATE", "changes": null, "at": "2026-10-05T10:00:00", "actor": "ivanov.p", "comment": null},
+  {"campaignId": 102, "entity": "CAMPAIGN", "entityId": 102, "action": "TO_MODERATION", "changes": null, "at": "2026-10-06T10:00:00", "actor": "ivanov.p", "comment": null},
+  {"campaignId": 102, "entity": "CAMPAIGN", "entityId": 102, "action": "DECLINE", "changes": null, "at": "2026-10-07T10:00:00", "actor": "petrova.m", "comment": "Заголовок баннера не отражает суть акции"},
+  {"campaignId": 102, "entity": "CAMPAIGN", "entityId": 102, "action": "TO_MODERATION", "changes": null, "at": "2026-10-08T10:00:00", "actor": "ivanov.p", "comment": null},
+  {"campaignId": 102, "entity": "CAMPAIGN", "entityId": 102, "action": "APPROVE", "changes": null, "at": "2026-10-09T10:00:00", "actor": "petrova.m", "comment": null},
+  {"campaignId": 102, "entity": "CAMPAIGN", "entityId": 102, "action": "ACTIVATE", "changes": null, "at": "2026-10-10T00:00:05", "actor": "ivanov.p", "comment": null},
+  {"campaignId": 104, "entity": "CAMPAIGN", "entityId": 104, "action": "CREATE", "changes": null, "at": "2026-10-20T10:00:00", "actor": "ivanov.p", "comment": null},
+  {"campaignId": 104, "entity": "CAMPAIGN", "entityId": 104, "action": "TO_MODERATION", "changes": null, "at": "2026-10-21T10:00:00", "actor": "ivanov.p", "comment": null},
+  {"campaignId": 104, "entity": "CAMPAIGN", "entityId": 104, "action": "DECLINE", "changes": null, "at": "2026-10-22T16:45:00", "actor": "petrova.m", "comment": "Креативы настроены не для всех мест показа; добавьте теги кампании"},
+  {"campaignId": 114, "entity": "CAMPAIGN", "entityId": 114, "action": "STOP", "changes": null, "at": "2026-10-26T10:00:00", "actor": "ivanov.p", "comment": null},
+  {"campaignId": 115, "entity": "CAMPAIGN", "entityId": 115, "action": "DECLINE", "changes": null, "at": "2026-10-25T10:00:00", "actor": "petrova.m", "comment": "Отклонена по содержанию креатива"}
+]

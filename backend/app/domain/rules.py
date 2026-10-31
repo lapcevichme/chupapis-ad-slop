@@ -1,0 +1,96 @@
+"""Каталог кодов ошибок и warnings (§4 task.md).
+
+Оригинальный `mocks/validation_rules.json` организаторы не выдали, каталог собран из кодов §2–4 и FAQ.
+Коды, названные в задании, сохранены дословно.
+"""
+
+ERRORS: dict[str, str] = {
+    # Общие
+    "ENTITY_NOT_FOUND": "Сущность не найдена",
+    "JSON_INVALID": "Тело запроса не является корректным JSON",
+    "UNKNOWN_FIELD": "Неизвестное поле",
+    "FIELD_INVALID": "Некорректное значение поля",
+    "USER_REQUIRED": "Не передан заголовок X-User",
+    "ROLE_FORBIDDEN": "Действие недоступно для этой роли",
+    # Шапка кампании
+    "NAME_REQUIRED": "Название обязательно",
+    "NAME_TOO_LONG": "Название длиннее 100 символов",
+    "NAME_DUPLICATE": "Кампания с таким названием уже существует",
+    "MARKETING_NAME_TOO_LONG": "Маркетинговое название длиннее 100 символов",
+    "START_DATE_REQUIRED": "Дата начала обязательна",
+    "START_TIME_REQUIRED": "Время начала обязательно",
+    "DATE_FORMAT_INVALID": "Дата должна быть в формате YYYY-MM-DD",
+    "TIME_FORMAT_INVALID": "Время должно быть в формате HH:mm",
+    "END_DATETIME_INCOMPLETE": "Дата и время окончания задаются вместе",
+    "DATE_RANGE_INVALID": "Окончание показа должно быть позже начала",
+    "TOPIC_REQUIRED": "Тематика обязательна",
+    "TOPIC_INVALID": "Тематики нет в справочнике",
+    "TAG_INVALID": "Некорректный тег",
+    "KEYWORDS_TOO_LONG": "Ключевые слова длиннее 512 символов",
+    "AUDIENCE_TYPE_REQUIRED": "Тип аудитории обязателен",
+    "AUDIENCE_TYPE_INVALID": "Тип аудитории должен быть ALL_USERS или SEGMENTED",
+    "WEIGHT_INVALID": "Вес должен быть неотрицательным числом",
+    "INITIAL_CTR_INVALID": "Начальный CTR должен быть от 0 до 100",
+    "PLACES_REQUIRED": "Не задано ни одного места показа",
+    "PLACES_INVALID": "Некорректное место показа",
+    # Аудитория
+    "SEGMENTS_REQUIRED": "Для аудитории SEGMENTED нужен хотя бы один сегмент включения",
+    "SEGMENTS_FORBIDDEN_FOR_ALL_USERS": "Для аудитории ALL_USERS сегменты не задаются",
+    "SEGMENTS_INVALID": "Списки сегментов заданы некорректно",
+    "SEGMENT_NOT_FOUND": "Сегмента нет в справочнике",
+    "SEGMENT_NOT_ACTIVE": "Сегмент не активен, в нём 0 клиентов",
+    "SEGMENT_INCLUDED_AND_EXCLUDED": "Сегмент одновременно включён и исключён",
+    # Баннер
+    "BANNER_TYPE_REQUIRED": "Тип баннера обязателен",
+    "BANNER_TYPE_INVALID": "Некорректный тип баннера",
+    "BANNER_SCHEMA_INVALID": "JSON баннера не соответствует схеме",
+    "BANNER_TITLE_TOO_LONG": "Заголовок баннера длиннее лимита типа",
+    "BANNER_TEXT_TOO_LONG": "Текст баннера длиннее лимита типа",
+    "BANNER_IN_USE": "Баннер используется в креативах, сначала удалите их",
+    "ACTION_TYPE_REQUIRED": "Тип действия обязателен",
+    "ACTION_TYPE_INVALID": "Тип действия должен быть одним из: default, externalLink, openSmartLink, closeCampaign, doneCampaign",
+    "LINK_REQUIRED": "Для этого типа действия нужна ссылка",
+    "LINK_FORBIDDEN": "Для closeCampaign и doneCampaign ссылка запрещена",
+    "FONT_SIZE_INVALID": "Размер шрифта должен быть от 10 до 40",
+    "FONT_WEIGHT_INVALID": "Начертание должно быть одним из: thin, light, regular, medium, semi-bold, bold",
+    "COLOR_INVALID": "Цвет должен быть в формате #RRGGBBAA",
+    "IMAGE_URL_REQUIRED": "Ссылка на изображение обязательна",
+    "IMAGE_URL_INVALID": "Ссылка на изображение должна быть https",
+    "VOICE_OVER_TOO_LONG": "Текст озвучки длиннее 200 символов",
+    # Контент
+    "CONTENT_TYPE_INVALID": "Тип контента должен быть PROMO",
+    "CONTENT_SCHEMA_INVALID": "JSON контента не соответствует схеме PROMO",
+    "CONTENT_ROLE_INVALID": "Компонент должен иметь роль text, image или button",
+    "CONTENT_AXIS_INVALID": "Ось контейнера всегда v",
+    "CONTENT_COMPONENTS_COUNT": "В контейнере должно быть от 1 до 6 компонентов",
+    "TEXT_FORMAT_REQUIRED": "У текстового компонента обязателен format",
+    "TEXT_FORMAT_INVALID": "format должен быть none или html",
+    "CONTENT_IN_USE": "Контент используется в креативах, сначала удалите их",
+    # Креатив
+    "BANNER_REQUIRED": "Баннер креатива обязателен",
+    "CHANNEL_REQUIRED": "Канал креатива обязателен",
+    "CHANNEL_NOT_ALLOWED": "Канал не поддерживается типом баннера",
+    "CREATIVE_DUPLICATE": "Креатив для этого баннера и канала уже есть",
+    # Справочники
+    "PLACE_CODE_REQUIRED": "Код места показа обязателен",
+    "PLACE_CODE_DUPLICATE": "Место показа с таким кодом уже существует",
+    "PLACE_DESCRIPTION_REQUIRED": "Описание места показа обязательно",
+    "TAG_NAME_REQUIRED": "Название тега обязательно",
+    "TAG_NAME_DUPLICATE": "Тег с таким названием уже существует",
+    # Жизненный цикл
+    "UPDATE_NOT_ALLOWED": "Кампанию в этом состоянии нельзя редактировать",
+    "TO_MODERATION_NOT_ALLOWED": "Отправить на модерацию можно только из DRAFT, NEEDS_WORK или ACTIVE_EDITING",
+    "DECLINE_NOT_ALLOWED": "Отклонить можно только кампанию на модерации",
+    "DECLINE_COMMENT_REQUIRED": "Для отклонения нужен комментарий",
+    "APPROVE_NOT_ALLOWED": "Одобрить можно только кампанию на модерации",
+    "ACTIVATE_NOT_ALLOWED": "Активировать можно только одобренную кампанию",
+    "STOP_NOT_ALLOWED": "Остановить можно только кампанию, показ которой идёт",
+    "DELETE_NOT_ALLOWED": "Удалить можно только неопубликованную кампанию в DRAFT или NEEDS_WORK",
+}
+
+# Тексты совпадают с mocks/campaign_warnings.json: GET /warnings отдаёт их строками.
+WARNINGS: dict[str, str] = {
+    "PLACE_NO_CREATIVE": "Не для всех мест показа настроены креативы",
+    "PLACE_INACTIVE": "Некоторые места показа деактивированы",
+    "TAGS_MISSING": "У кампании отсутствуют теги",
+}
