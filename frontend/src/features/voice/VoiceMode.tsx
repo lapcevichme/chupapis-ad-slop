@@ -14,6 +14,7 @@ import type { CampaignState, Dictionaries } from '@/types/api'
 import { Orb } from './Orb'
 import type { OrbMode } from './Orb'
 import { Questionnaire } from './Questionnaire'
+import { VoiceSummary } from './VoiceSummary'
 import { buildPages, discussionMessage, formatAnswers, mergeOptions } from './questionnaire'
 import type { Answers, QuestionPage } from './questionnaire'
 import { spokenText } from './spokenText'
@@ -60,6 +61,11 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview
   const [muted, setMuted] = useState(voiceAudio.muted)
   const [textOnly, setTextOnly] = useState(false)
   const [startState] = useState(campaignState)
+  const [startedFresh] = useState(messages.length === 0)
+  const startedAt = useRef<number | null>(null)
+  const [elapsedMs, setElapsedMs] = useState<number | null>(null)
+  const [questionsAsked, setQuestionsAsked] = useState(0)
+  const [confirmations, setConfirmations] = useState(0)
   // На телефоне лист закрывает макет, а перед подтверждением его нужно видеть целиком.
   const [sheetHidden, setSheetHidden] = useState(false)
   const dark = document.documentElement.classList.contains('dark')
@@ -96,6 +102,8 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview
   useEffect(() => {
     if (suggestions.length === 0 || busy) return
     const group = discussingRef.current
+    // Варианты из обсуждения пункта дополняют уже заданный вопрос.
+    if (group === null) setQuestionsAsked((count) => count + buildPages(suggestions).length)
     setQuestionnaire((current) => {
       if (group === null || !current) return { pages: buildPages(suggestions), answers: {}, page: 0, introPage: 0 }
       // Ход обсуждения касается одного пункта, как бы модель ни назвала тему.
@@ -111,6 +119,12 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview
     })
     if (group !== null) startDiscussion(null)
   }, [suggestions, busy, startDiscussion])
+
+  useEffect(() => {
+    if (campaignState !== 'ON_MODERATION' || startState === 'ON_MODERATION' || startedAt.current === null) return
+    const finishedAt = Date.now()
+    setElapsedMs((current) => current ?? finishedAt - (startedAt.current as number))
+  }, [campaignState, startState])
 
   useEffect(() => {
     // В уже начатом диалоге приветствие не к месту.
@@ -150,6 +164,7 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview
 
   function talk() {
     setSheetHidden(false)
+    startedAt.current ??= Date.now()
     if (dictation.status === 'recording') {
       // Заглушка звучит сразу по нажатию: распознавание и агент займут ещё секунды.
       waitCuePlayed.current = true
@@ -240,7 +255,7 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview
             </p>
             {lastHeard && waiting && <p className="m-0 line-clamp-2 text-[15px] leading-5 text-muted-foreground">«{lastHeard.text}»</p>}
             {onModeration ? (
-              <p className="m-0 text-xl leading-7 font-medium text-balance">Решение примет модератор. Это ещё не показ клиентам.</p>
+              <VoiceSummary elapsedMs={elapsedMs} startedFresh={startedFresh} questions={questionsAsked} confirmations={confirmations} />
             ) : (
               !waiting ? reply && <div className="text-left text-[15px] leading-6"><ChatMarkdown text={reply} /></div> : null
             )}
@@ -345,7 +360,10 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview
               <ConfirmationCard
                 confirmation={confirmation}
                 dictionaries={dictionaries}
-                onApprove={() => void answer(confirmation.id, { approved: true, voice: true })}
+                onApprove={() => {
+                  setConfirmations((count) => count + 1)
+                  void answer(confirmation.id, { approved: true, voice: true })
+                }}
                 onReject={() => void answer(confirmation.id, { approved: false, voice: true })}
                 hideEditHint
               />
