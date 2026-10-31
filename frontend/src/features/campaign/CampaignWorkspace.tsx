@@ -133,7 +133,7 @@ export function CampaignWorkspace() {
               setCurrentUser(next)
               setLogin(next)
               void queryClient.invalidateQueries()
-              // У каждого пользователя свой диалог по кампании: docs/ours/chat-api.md §10.
+              // У каждого пользователя свой диалог по кампании: docs/contracts/chat.md §10.
               openCampaign(campaignId)
             }}
           />

@@ -1,15 +1,32 @@
+x-backend: &backend
+  image: adpilot-backend
+  build: ./backend
+  env_file:
+    - path: .env
+      required: false
+  environment:
+    DATABASE_URL: sqlite:////app/data/adpilot.db
+  volumes:
+    - backend-data:/app/data
+
 services:
+  migrate:
+    <<: *backend
+    command: ["sh", "-c", "alembic upgrade head && python -m app.seed"]
+    restart: "no"
+
   backend:
-    build: ./backend
-    env_file:
-      - path: .env
-        required: false
-    environment:
-      DATABASE_URL: sqlite:////app/data/adpilot.db
+    <<: *backend
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     ports:
       - "8000:8000"
-    volumes:
-      - backend-data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   frontend:
     build: ./frontend
@@ -18,7 +35,8 @@ services:
     ports:
       - "5173:5173"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   backend-data:

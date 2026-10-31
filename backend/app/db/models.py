@@ -218,7 +218,7 @@ class AuditEntry(Base):
 
 
 class ChatSession(Base):
-    """Диалог агента: у каждой пары «кампания + логин» он один (docs/ours/chat-api.md §10).
+    """Диалог агента: у каждой пары «кампания + логин» он один (docs/contracts/chat.md §10).
 
     Само состояние диалога хранит checkpointer LangGraph, здесь только связь. У новой кампании
     campaign_id пустой, пока она не сохранена в API.

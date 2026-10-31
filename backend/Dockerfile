@@ -1,14 +1,22 @@
-FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+FROM ghcr.io/astral-sh/uv:0.11.8-python3.13-trixie-slim AS builder
 
 WORKDIR /app
-ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy PYTHONUNBUFFERED=1
-
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=0
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --no-install-project
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --locked --no-dev --no-install-project
 
-COPY . .
-RUN uv sync --frozen --no-dev
+FROM python:3.13-slim-trixie
 
+RUN groupadd --system --gid 999 app \
+    && useradd --system --gid 999 --uid 999 --no-create-home app
+WORKDIR /app
+COPY --from=builder --chown=app:app /app/.venv /app/.venv
+COPY --chown=app:app app ./app
+COPY --chown=app:app alembic ./alembic
+COPY --chown=app:app seed ./seed
+COPY --chown=app:app alembic.ini ./alembic.ini
+RUN mkdir -p /app/data && chown app:app /app/data
+ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1
+USER app
 EXPOSE 8000
-# Миграции и сид идемпотентны: на заполненной БД ничего не меняют.
-CMD ["sh", "-c", "uv run --no-sync alembic upgrade head && uv run --no-sync python -m app.seed && uv run --no-sync uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000"]
+CMD ["uvicorn", "app.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]

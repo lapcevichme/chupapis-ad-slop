@@ -54,7 +54,7 @@ export interface Dictionaries {
   topics: Topic[]
 }
 
-// Контракт чата: docs/ours/chat-api.md. Схемы событий тоже в openapi.json, руками собираем только их объединение по типу.
+// Контракт чата: docs/contracts/chat.md. Схемы событий тоже в openapi.json, руками собираем только их объединение по типу.
 
 export type UserRole = 'campaignManager' | 'campaignModerator'
 

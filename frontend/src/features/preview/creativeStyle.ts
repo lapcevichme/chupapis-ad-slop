@@ -21,7 +21,7 @@ export function textStyleToCss(style?: AnyTextStyle): CSSProperties {
   }
 }
 
-// Сгенерированные картинки бэкенд раздаёт сам: они идут через тот же прокси /api (docs/ours/chat-api.md, раздел 8).
+// Сгенерированные картинки бэкенд раздаёт сам: они идут через тот же прокси /api (docs/contracts/chat.md, раздел 8).
 const MEDIA_PREFIX = '/api/media/'
 
 export function isImageUrl(url?: string | null): url is string {

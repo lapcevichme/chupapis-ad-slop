@@ -1,7 +1,7 @@
 import type { ChatEvent, ChatSession, ConfirmationAnswer } from '@/types/api'
 import { userHeaders } from './currentUser'
 
-// Контракт: docs/ours/chat-api.md.
+// Контракт: docs/contracts/chat.md.
 const SILENCE_TIMEOUT_MS = 90_000
 
 async function postJson(path: string, body: unknown, init?: RequestInit) {
