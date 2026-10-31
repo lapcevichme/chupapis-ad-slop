@@ -77,7 +77,7 @@ class DesignArgs(BaseModel):
     placeId: Ref | None = Field(None, description="Место показа: тип баннера берётся из его defaultBanner")
     bannerType: Literal["STORY", "SMART_BANNER"] | None = Field(None, description="Явный тип баннера, если место не задано или у него нет defaultBanner")
     channels: list[Literal["iOS", "ANDROID", "WEB"]] | None = Field(None, description="Каналы креативов; по умолчанию все допустимые для типа")
-    withContent: bool = Field(True, description="Нужен ли промо-экран после тапа")
+    withContent: bool = Field(True, description="Нужен ли промо-экран после тапа; у STORY он есть всегда")
     generateImage: bool = Field(False, description="Сгенерировать картинку; только если пользователь согласился")
     imageUrl: str | None = Field(None, description="Картинка пользователя (https), если он её прислал")
     replaceBannerId: Ref | None = Field(None, description="Правка: id баннера, который нужно переделать, вместо создания нового")
@@ -246,7 +246,8 @@ async def _design(ctx: ToolContext, args: DesignArgs, progress: Callable[[str], 
             DesignRequest(
                 brief=args.brief,
                 banner_type=banner_type,
-                with_content=args.withContent and previous is None,
+                # §6.1: сторис всегда идёт с PROMO-экраном, даже если модель попросила без него.
+                with_content=(args.withContent or code == "STORY") and previous is None,
                 generate_image=args.generateImage,
                 image_url=args.imageUrl,
                 previous=previous,

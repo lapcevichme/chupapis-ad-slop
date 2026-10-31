@@ -343,3 +343,19 @@ def test_bad_tool_arguments_go_back_to_model(client, chat):
     reply = events(client.post(f"/chat/{sid}/messages", json={"text": "Вклад"}, headers=MANAGER))
     assert "error" not in [kind for kind, _ in reply]
     assert "Ошибка проверки" in _text_of(next(m for m in reversed(model.seen[-1]) if isinstance(m, ToolMessage)))
+
+
+def test_story_always_gets_promo_screen(client, chat):
+    # Модель просила сторис без промо-экрана, а по §6.1 у сторис он есть всегда.
+    chat(
+        [
+            tool_message(call("design_creative", {"brief": "Ипотека 4,9%", "bannerType": "STORY", "withContent": False}, 1)),
+            AIMessage(content="Готово."),
+        ],
+        [design_reply(BANNER_OK, 1)],
+    )
+    sid = client.post("/chat", json={"campaignId": 104}, headers=MANAGER).json()["sessionId"]
+    reply = events(client.post(f"/chat/{sid}/messages", json={"text": "Сделай сторис"}, headers=MANAGER))
+    conf = next(data for kind, data in reply if kind == "confirmation_required")
+    kinds = [op["kind"] for op in conf["operations"]]
+    assert kinds.count("create_content") == 1 and kinds.count("create_creative") == 2

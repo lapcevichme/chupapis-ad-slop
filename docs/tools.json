@@ -2882,7 +2882,7 @@
             },
             "withContent": {
               "default": true,
-              "description": "Нужен ли промо-экран после тапа",
+              "description": "Нужен ли промо-экран после тапа; у STORY он есть всегда",
               "title": "Withcontent",
               "type": "boolean"
             },
