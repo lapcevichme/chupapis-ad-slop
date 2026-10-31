@@ -227,7 +227,19 @@ async def _design(ctx: ToolContext, args: DesignArgs, progress: Callable[[str], 
 
     banner_body = {"name": outcome.banner_name, "bannerTypeId": banner_type["id"], "content": outcome.banner}
     lines = [f"Баннер {code}: «{outcome.banner.get('title', '')}» — {outcome.banner.get('text', '')}"]
-    if previous:
+    pending_banner = next((op for op in ctx.pending if previous and op["ref"] == args.replaceBannerId), None)
+    if pending_banner is not None:
+        # Баннер ещё не сохранён: правим операцию в пакете, а не добавляем вторую.
+        pending_banner["body"]["content"] = outcome.banner
+        image = outcome.banner.get("image")
+        linked = {op["body"].get("contentId") for op in ctx.pending if op["kind"] == "create_creative" and op["body"].get("bannerId") == pending_banner["ref"]}
+        for op in ctx.pending:
+            components = op["body"]["content"]["component"]["components"] if op["kind"] == "create_content" and op["ref"] in linked else None
+            if image and components is not None and len(components) < 6 and not any(c["role"] == "image" for c in components):
+                components.insert(0, {"role": "image", "url": image["url"], "aspectRatio": 1.5})
+        ctx.draft_changed = True
+        lines.append(f"Операция {pending_banner['ref']} в пакете обновлена, дублей нет.")
+    elif previous:
         result = await _propose(ctx, WRITE_OPS_BY_KIND["update_banner"], {"bannerId": args.replaceBannerId, "banner": banner_body})
         lines.append(result)
     else:
@@ -247,6 +259,8 @@ async def _design(ctx: ToolContext, args: DesignArgs, progress: Callable[[str], 
             for channel in channels:
                 creative = {"name": f"{outcome.banner_name} · {channel}"[:100], "bannerId": banner_ref, "contentId": content_ref, "channelCode": channel}
                 lines.append(await _propose(ctx, WRITE_OPS_BY_KIND["create_creative"], {"creative": creative}))
+    if outcome.banner.get("image"):
+        lines.append(f"Картинка добавлена в баннер и промо-экран: {outcome.banner['image']['url']}")
     lines += outcome.notes
     return "\n".join(lines)
 

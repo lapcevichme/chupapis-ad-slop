@@ -52,9 +52,9 @@ START → agent ⇄ tools → confirm → agent → … → END
 |---|---|---|
 | Чат-агент | `anthropic/claude-haiku-5.5` | Надёжный tool calling на 36 инструментах, быстрый ответ, $0.10/$0.50 за 1M токенов |
 | Дизайн-агент | `anthropic/claude-sonnet-5.5` | Строгое следование JSON-схеме и хорошие тексты на русском; вызывается редко |
-| Картинки | `google/gemini-nano-banana-2.1` | Самая свежая модель OpenRouter с выводом изображений |
+| Картинки | `openai/gpt-5-image-mini` | ~40 секунд и ~$0.04 за картинку. Модели Google (`gemini-*-image`) отвечают 403 «Blocked by Google AI Studio» для нашего аккаунта |
 
-Если чат-агент путается в длинных сценариях, поставьте `CHAT_MODEL=anthropic/claude-sonnet-5.5`. Дешёвая замена картинок — `google/gemini-3.1-flash-image`.
+Если чат-агент путается в длинных сценариях, поставьте `CHAT_MODEL=anthropic/claude-sonnet-5.5`. Качественнее, но дольше и дороже (~85 секунд, ~$0.22) — `openai/gpt-5.4-image-2`.
 
 ### Инструменты
 

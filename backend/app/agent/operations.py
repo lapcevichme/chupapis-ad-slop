@@ -7,15 +7,24 @@
 import re
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, BeforeValidator, Field
 
 from app.agent.api_client import ApiCallError, CampaignsApi
 from app.schemas import api
 
+def _normalize_ref(value: Any) -> Any:
+    # Модели иногда присылают id строкой или в лишних кавычках: '"tmp-2"', "101".
+    if isinstance(value, str):
+        value = value.strip().strip("\"'")
+        if value.isdigit():
+            return int(value)
+    return value
+
+
 # Ссылка на сущность: настоящий id или временный "tmp-N" для того, что создаётся в этом же пакете.
-Ref = int | str
+Ref = Annotated[int | str, BeforeValidator(_normalize_ref)]
 TMP_REF = re.compile(r"^tmp-\d+$")
 
 

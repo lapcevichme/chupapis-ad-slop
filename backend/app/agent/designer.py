@@ -77,7 +77,8 @@ def _validate(args: dict[str, Any], banner_type: dict[str, Any], with_content: b
 
 class Designer:
     def __init__(self, model: BaseChatModel, images: ImageGenerator):
-        self.model = model.bind_tools([DesignResult], tool_choice="DesignResult")
+        # Без принудительного tool_choice: часть моделей (в том числе Claude 5.5) его не поддерживает.
+        self.model = model.bind_tools([DesignResult])
         self.images = images
 
     async def design(self, request: DesignRequest, progress: Callable[[str], None] = lambda _: None) -> DesignOutcome:
@@ -95,9 +96,11 @@ class Designer:
         for attempt in range(1, MAX_ATTEMPTS + 1):
             progress(f"Дизайнер собирает креатив, попытка {attempt}")
             response: AIMessage = await self.model.ainvoke(messages)
-            if not response.tool_calls:
-                raise DesignError("Дизайн-агент не вернул креатив")
-            call = response.tool_calls[0]
+            call = next((c for c in response.tool_calls if c["name"] == "DesignResult"), None)
+            if call is None:
+                problems = ["модель ответила текстом вместо вызова DesignResult"]
+                messages += [response, HumanMessage("Верни результат только вызовом инструмента DesignResult.")]
+                continue
             problems = _validate(call["args"], t, request.with_content)
             if not problems:
                 return await self._finish(call["args"], request, progress)
