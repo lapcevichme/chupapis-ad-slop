@@ -1,5 +1,7 @@
 import { synthesizeSpeech } from '@/api/speech'
 
+// Заготовки и speak — legacy-схема с ходом по нажатию: она только запасной путь, основной голос режима — GPT-Live.
+
 // Заготовки лежат в public/voice, их создаёт backend/app/generate_voice_cues.py: первый звук не должен ждать агента.
 // Вариантов много: фраза не повторится, пока не прозвучат все остальные в этой группе.
 function numbered(name: string, count: number) {

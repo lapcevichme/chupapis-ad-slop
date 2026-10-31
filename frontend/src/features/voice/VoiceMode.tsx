@@ -200,6 +200,7 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, imageUp
       else if (content) liveReport(content)
       return
     }
+    // Legacy: ход по нажатию, заготовки и озвучка. Только запасной путь, новое поведение сюда не добавляем.
     if (busy) {
       if (!waitCuePlayed.current) void voiceAudio.cue('wait')
       waitCuePlayed.current = true

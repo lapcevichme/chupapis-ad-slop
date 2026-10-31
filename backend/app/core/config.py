@@ -50,14 +50,15 @@ class Settings(BaseSettings):
     stt_model: str = "openai/whisper-large-v3"
     # Код языка ISO-639-1. С явным языком Whisper не ошибается в определении на коротких фразах.
     stt_language: str = "ru"
-    # Озвучка через {llm_base_url}/audio/speech. Нужна модель, отдающая MP3. Пустая строка выключает её.
+    # Legacy: озвучка запасного голосового режима через {llm_base_url}/audio/speech.
+    # Нужна модель, отдающая MP3. Пустая строка выключает её.
     tts_model: str = "elevenlabs/eleven-flash-v2.5"
     tts_voice: str = "sarah"
     # Платим за символ, поэтому длину реплики ограничивает сервер.
     tts_max_chars: int = 1000
     speech_timeout_seconds: float = 30.0
     stt_max_audio_bytes: int = 5 * 1024 * 1024
-    # Голосовой режим на GPT-Live. Модели нет в OpenRouter, нужен свой ключ OpenAI; без него режим работает как раньше.
+    # Основной голосовой режим. GPT-Live нет в OpenRouter, нужен свой ключ OpenAI; без него запасная legacy-схема.
     openai_api_key: str = ""
     live_base_url: str = "https://api.openai.com/v1"
     live_model: str = "gpt-live-1"

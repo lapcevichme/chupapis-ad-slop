@@ -4,10 +4,10 @@ import { LiveSession } from './liveSession'
 import type { LiveEvent } from './liveSession'
 import { voiceAudio } from './voiceAudio'
 
-// connecting: ждём соединение; live: говорим с GPT-Live; fallback: работает прежняя схема с ходом по нажатию.
+// connecting: ждём соединение; live: говорим с GPT-Live; fallback: запасная legacy-схема с ходом по нажатию.
 export type LiveStatus = 'connecting' | 'live' | 'fallback'
 
-export const LIVE_ENABLED = import.meta.env.VITE_VOICE_ENGINE !== 'press' && typeof RTCPeerConnection !== 'undefined'
+export const LIVE_ENABLED = import.meta.env.VITE_VOICE_ENGINE !== 'legacy' && typeof RTCPeerConnection !== 'undefined'
 
 // Распознанный текст приходит позже звука, а событие передачи работы его не содержит: ждём затишья в тексте.
 const TRANSCRIPT_SETTLE_MS = 700

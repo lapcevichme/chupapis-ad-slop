@@ -1,3 +1,5 @@
+"""Legacy: заготовки для запасного голосового режима с ходом по нажатию, GPT-Live они не нужны."""
+
 import asyncio
 from pathlib import Path
 
