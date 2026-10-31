@@ -276,7 +276,7 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, imageUp
     : error
       ? error.message
       : connecting
-        ? 'Подключаю голос'
+        ? 'Подключаю голос, разрешите микрофон'
       : recording || (liveListening && !discussing)
         ? discussing
           ? `Слушаю: ${discussing}`
@@ -295,9 +295,9 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, imageUp
                     ? `Обсуждаем: ${discussing}`
                     : live.active
                       ? 'Микрофон выключен'
-                      : 'Можно говорить'
+                      : (live.notice ?? 'Можно говорить')
   const failed = Boolean(dictation.error || error)
-  const pillText = sheet === 'confirm' ? 'Проверьте и подтвердите' : sheet === 'form' ? 'Жду ответы' : 'Можно говорить правки'
+  const pillText = sheet === 'confirm' ? 'Проверьте и подтвердите' : sheet === 'form' ? (live.active ? 'Микрофон выключен, ответьте здесь' : 'Жду ответы') : 'Можно говорить правки'
   const talkLabel = live.active
     ? micOpen ? 'Выключить микрофон' : 'Включить микрофон'
     : connecting ? 'Подключаю' : dictation.status === 'starting' ? 'Включаю микрофон' : recording ? 'Закончить' : waiting ? 'Думаю…' : speaking ? 'Перебить' : 'Говорить'
@@ -338,6 +338,9 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, imageUp
               {failed && <CircleAlert className="size-4 shrink-0" aria-hidden="true" />}
               {status}
             </p>
+            {live.playbackBlocked && <p role="alert" className="m-0 text-sm font-medium text-destructive">Браузер не дал включить звук: нажмите на экран</p>}
+            {live.active && live.transcript.heard && <p aria-hidden="true" className="m-0 line-clamp-2 text-left text-[13px] leading-[18px] text-muted-foreground">Слышу: {live.transcript.heard}</p>}
+            {live.active && live.transcript.said && <p aria-hidden="true" className="m-0 line-clamp-2 text-left text-[13px] leading-[18px] text-muted-foreground">Говорю: {live.transcript.said}</p>}
             {lastHeard && waiting && <p className="m-0 line-clamp-2 text-[15px] leading-5 text-muted-foreground">«{userMessageSummary(lastHeard.text)}»</p>}
             {onModeration ? (
               <VoiceSummary elapsedMs={elapsedMs} startedFresh={startedFresh} questions={questionsAsked} confirmations={confirmations} />

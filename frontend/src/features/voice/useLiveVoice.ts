@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { ApiRequestError } from '@/api/http'
 import { LiveSession } from './liveSession'
 import type { LiveEvent } from './liveSession'
 import { voiceAudio } from './voiceAudio'
@@ -16,6 +17,16 @@ const MAX_SESSION_MS = 20 * 60 * 1000
 
 const NOT_HEARD = 'Запрос не расслышан. Попроси человека повторить.'
 const GREETING = 'Коротко поприветствуй человека и спроси, что будем рекламировать.'
+const TRANSCRIPT_TAIL_CHARS = 160
+const SESSION_LOST = 'Связь с GPT-Live прервалась, дальше по нажатию'
+
+function startFailure(error: unknown): string | null {
+  // Ключ не задан намеренно: прежняя схема здесь не сбой.
+  if (error instanceof ApiRequestError && error.status === 503) return null
+  if (error instanceof DOMException && error.name === 'NotAllowedError') return 'Нет доступа к микрофону: разрешите его в браузере'
+  if (error instanceof DOMException && error.name === 'NotFoundError') return 'Микрофон не найден'
+  return 'GPT-Live не подключился, дальше по нажатию'
+}
 
 interface LiveVoiceOptions {
   // Агент занят: сказанное копим и передадим следующим ходом.
@@ -30,6 +41,11 @@ interface LiveVoiceOptions {
 
 export function useLiveVoice({ busy, acceptsRequests, greet, microphoneEnabled, volume, onRequest }: LiveVoiceOptions) {
   const [status, setStatus] = useState<LiveStatus>(LIVE_ENABLED ? 'connecting' : 'fallback')
+  const [notice, setNotice] = useState<string | null>(null)
+  const [playbackBlocked, setPlaybackBlocked] = useState(false)
+  // Что модель услышала и что сказала: сразу видно, где обрыв, в микрофоне или в звуке.
+  const [transcript, setTranscript] = useState({ heard: '', said: '' })
+  const lastSpeaker = useRef<'heard' | 'said' | null>(null)
   const session = useRef<LiveSession | null>(null)
   const heard = useRef('')
   const delegation = useRef<string | null>(null)
@@ -67,6 +83,15 @@ export function useLiveVoice({ busy, acceptsRequests, greet, microphoneEnabled, 
 
   const handleEvent = useCallback(
     (event: LiveEvent) => {
+      if (event.type === 'error') console.warn('[GPT-Live]', event.error)
+      else if (!event.type.endsWith('transcript.delta')) console.info('[GPT-Live]', event.type, event.type === 'session.closed' ? event.reason : '')
+      if (event.type.endsWith('transcript.delta')) {
+        const speaker = event.type === 'session.input_transcript.delta' ? 'heard' : 'said'
+        const fresh = lastSpeaker.current !== speaker
+        lastSpeaker.current = speaker
+        const delta = String(event.delta ?? '')
+        setTranscript((current) => ({ ...current, [speaker]: `${fresh ? '' : current[speaker]}${delta}`.slice(-TRANSCRIPT_TAIL_CHARS) }))
+      }
       switch (event.type) {
         case 'session.started':
           setStatus('live')
@@ -85,9 +110,6 @@ export function useLiveVoice({ busy, acceptsRequests, greet, microphoneEnabled, 
           settle()
           break
         }
-        case 'error':
-          console.warn('GPT-Live:', event.error)
-          break
       }
     },
     [say, settle],
@@ -97,22 +119,27 @@ export function useLiveVoice({ busy, acceptsRequests, greet, microphoneEnabled, 
     if (!LIVE_ENABLED) return
     const live = new LiveSession({
       onEvent: handleEvent,
-      onLost: () => fallBack(),
+      onLost: () => fallBack(SESSION_LOST),
+      onPlayback: (allowed) => setPlaybackBlocked(!allowed),
       onInputStream: (stream) => voiceAudio.attachMicrophone(stream),
       onOutputStream: (stream) => voiceAudio.attachLiveOutput(stream),
     })
     session.current = live
-    const limit = setTimeout(() => fallBack(), MAX_SESSION_MS)
-    function fallBack() {
+    const limit = setTimeout(() => fallBack(SESSION_LOST), MAX_SESSION_MS)
+    function fallBack(reason: string | null) {
       // Закрытая сессия может упасть уже после открытия новой (StrictMode), на новую это не влияет.
       if (session.current !== live) return
       live.close()
       voiceAudio.detachLive()
       session.current = null
+      setNotice(reason)
       setStatus('fallback')
     }
     // Нет ключа, сбой провайдера или запрет микрофона: режим продолжает работать по прежней схеме.
-    live.start().catch(() => fallBack())
+    live.start().catch((error: unknown) => {
+      console.warn('[GPT-Live] не удалось подключиться', error)
+      fallBack(startFailure(error))
+    })
     return () => {
       clearTimeout(limit)
       clearTimeout(settleTimer.current)
@@ -149,5 +176,5 @@ export function useLiveVoice({ busy, acceptsRequests, greet, microphoneEnabled, 
     if (final) delegation.current = null
   }, [say])
 
-  return { status, active: status === 'live', report }
+  return { status, active: status === 'live', notice, playbackBlocked, transcript, report }
 }

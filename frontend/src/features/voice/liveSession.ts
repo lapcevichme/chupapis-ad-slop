@@ -11,6 +11,7 @@ interface LiveSessionHandlers {
   onLost: () => void
   onOutputStream: (stream: MediaStream) => void
   onInputStream: (stream: MediaStream) => void
+  onPlayback: (allowed: boolean) => void
 }
 
 function iceGathered(connection: RTCPeerConnection) {
@@ -56,7 +57,18 @@ export class LiveSession {
       player.srcObject = stream
       player.volume = this.wantVolume
       this.player = player
-      void player.play().catch(() => undefined)
+      void player.play().then(
+        () => this.handlers.onPlayback(true),
+        () => {
+          // Автовоспроизведение запрещено: повторяем при первом нажатии на экран.
+          this.handlers.onPlayback(false)
+          addEventListener(
+            'pointerdown',
+            () => void player.play().then(() => this.handlers.onPlayback(true), () => undefined),
+            { once: true },
+          )
+        },
+      )
       this.handlers.onOutputStream(stream)
     }
     connection.onconnectionstatechange = () => {
