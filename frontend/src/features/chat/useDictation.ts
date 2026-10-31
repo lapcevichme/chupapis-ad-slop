@@ -25,7 +25,8 @@ function transcriptionError(error: unknown): string {
   return 'Не удалось распознать запись, попробуйте ещё раз.'
 }
 
-export function useDictation(onText: (text: string) => void) {
+// onStream нужен голосовому режиму: сфера реагирует на громкость микрофона.
+export function useDictation(onText: (text: string) => void, onStream?: (stream: MediaStream) => void) {
   const [status, setStatus] = useState<DictationStatus>('idle')
   const [error, setError] = useState<string | null>(null)
   const recorder = useRef<MediaRecorder | null>(null)
@@ -106,6 +107,7 @@ export function useDictation(onText: (text: string) => void) {
       if (mounted.current) void finish(chunks, next.mimeType || (mimeType ?? ''))
     }
     recorder.current = next
+    onStream?.(stream)
     next.start()
     timer.current = setTimeout(() => next.stop(), MAX_RECORDING_MS)
     setStatus('recording')

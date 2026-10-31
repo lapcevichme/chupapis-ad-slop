@@ -21,3 +21,14 @@ export async function transcribeSpeech(audio: Blob): Promise<string> {
   const { text } = (await response.json()) as { text: string }
   return text
 }
+
+export async function synthesizeSpeech(text: string, signal?: AbortSignal): Promise<ArrayBuffer> {
+  const response = await fetch('/api/speech/synthesis', {
+    method: 'POST',
+    headers: { ...userHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+    signal,
+  })
+  if (!response.ok) throw new Error(`POST /speech/synthesis: ${response.status}`)
+  return response.arrayBuffer()
+}
