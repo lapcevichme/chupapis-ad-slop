@@ -74,6 +74,11 @@
 .creative-selector button{font-size:12px;text-align:left;padding:14px 12px;border:1px solid var(--border);border-radius:10px;cursor:pointer;line-height:1.5;background:var(--card)}
 .creative-selector button span{display:block;color:var(--muted-foreground);margin-bottom:10px}
 .creative-selector button[aria-pressed=true]{border-color:var(--primary);background:var(--accent)}
+.voice-creatives{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;max-width:320px}
+.voice-creatives .creative-selector{flex-direction:row;width:100%;overflow-x:auto;padding-bottom:2px}
+.voice-creatives .creative-selector button{flex:0 0 130px;padding:10px 12px;line-height:1.35}
+.voice-creatives .creative-selector button span{display:none}
+@media(min-width:900px){.voice-creatives{max-width:600px}.voice-creatives .creative-selector{flex-wrap:wrap;justify-content:center;overflow:visible}}
 .creative-stage{flex:1;min-width:0;display:flex;justify-content:center;background:var(--muted);border-radius:18px;padding:26px 12px}
 .creative-device{box-shadow:0 16px 35px color-mix(in srgb,var(--foreground) 8%,transparent)}
 .creative-stage>div{max-width:340px}
