@@ -25,6 +25,13 @@ function shuffled(files: readonly string[]) {
   return result
 }
 
+const VOLUME_KEY = 'adpilot.voiceVolume'
+
+function storedVolume() {
+  const value = Number(localStorage.getItem(VOLUME_KEY) ?? 1)
+  return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 1
+}
+
 function createAnalyser(context: AudioContext) {
   const analyser = context.createAnalyser()
   analyser.fftSize = 512
@@ -35,6 +42,8 @@ function createAnalyser(context: AudioContext) {
 class VoiceAudio {
   private context: AudioContext | null = null
   private output: AnalyserNode | null = null
+  private gain: GainNode | null = null
+  private currentVolume = storedVolume()
   private microphone: AnalyserNode | null = null
   private microphoneSource: MediaStreamAudioSourceNode | null = null
   private playing: AudioBufferSourceNode | null = null
@@ -49,7 +58,11 @@ class VoiceAudio {
     if (!this.context) {
       this.context = new AudioContext()
       this.output = createAnalyser(this.context)
-      this.output.connect(this.context.destination)
+      // Анализатор стоит до громкости: сфера реагирует на речь, даже когда звук тихий.
+      this.gain = this.context.createGain()
+      this.gain.gain.value = this.currentVolume
+      this.output.connect(this.gain)
+      this.gain.connect(this.context.destination)
       this.microphone = createAnalyser(this.context)
       // Заранее грузим только следующую фразу каждой группы: все сразу — лишний мегабайт на телефоне.
       for (const cue of CUE_NAMES) void this.loadFile(this.nextFile(cue)).catch(() => undefined)
@@ -89,6 +102,16 @@ class VoiceAudio {
       this.cues.set(file, buffer)
     }
     return buffer
+  }
+
+  get volume() {
+    return this.currentVolume
+  }
+
+  set volume(value: number) {
+    this.currentVolume = value
+    localStorage.setItem(VOLUME_KEY, String(value))
+    if (this.gain && this.context) this.gain.gain.setTargetAtTime(value, this.context.currentTime, 0.02)
   }
 
   get isPlaying() {

@@ -59,6 +59,7 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview
   const { busy, messages, suggestions, confirmation, error, send, answer, retry } = chat
   const [speaking, setSpeaking] = useState(false)
   const [muted, setMuted] = useState(voiceAudio.muted)
+  const [volume, setVolume] = useState(voiceAudio.volume)
   const [textOnly, setTextOnly] = useState(false)
   const [startState] = useState(campaignState)
   const [startedFresh] = useState(messages.length === 0)
@@ -390,20 +391,42 @@ export function VoiceMode({ chat, dictionaries, nextStep, campaignState, preview
           <Button variant="secondary" size="icon" className="rounded-full" aria-label="Выйти из голосового режима" onClick={onClose}>
             <X aria-hidden="true" />
           </Button>
-          <Button
-            variant="secondary"
-            size="icon"
-            className="rounded-full"
-            aria-label="Звук ответов"
-            aria-pressed={!muted}
-            onClick={() => {
-              voiceAudio.muted = !muted
-              if (!muted) voiceAudio.stop()
-              setMuted(!muted)
-            }}
-          >
-            {muted ? <VolumeX aria-hidden="true" /> : <Volume2 aria-hidden="true" />}
-          </Button>
+          <div className="flex items-center gap-1 rounded-full bg-secondary pr-4">
+            <Button
+              variant="secondary"
+              size="icon"
+              className="rounded-full"
+              aria-label="Звук ответов"
+              aria-pressed={!muted}
+              onClick={() => {
+                voiceAudio.muted = !muted
+                if (!muted) voiceAudio.stop()
+                setMuted(!muted)
+              }}
+            >
+              {muted || volume === 0 ? <VolumeX aria-hidden="true" /> : <Volume2 aria-hidden="true" />}
+            </Button>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              aria-label="Громкость ответов"
+              aria-valuetext={`${Math.round(volume * 100)}%`}
+              value={muted ? 0 : Math.round(volume * 100)}
+              onChange={(event) => {
+                const next = Number(event.target.value) / 100
+                voiceAudio.volume = next
+                setVolume(next)
+                // Движение ползунка значит, что звук снова нужен.
+                if (muted && next > 0) {
+                  voiceAudio.muted = false
+                  setMuted(false)
+                }
+              }}
+              className="h-11 w-24 cursor-pointer accent-primary sm:w-32"
+            />
+          </div>
         </div>
       )}
     </div>
