@@ -30,7 +30,7 @@
 
 На каждую запись нужен серверный аудит. Роль проверяется раньше состояния.
 `ON_MODERATION` не равен публикации; `published` меняют только activate/stop.
-Полные правила — [domain.md](domain.md), первичный источник — `case/Кейс1/task.md`.
+Первичный источник правил — `case/Кейс1/task.md`.
 
 ## Чат и SSE
 
@@ -56,7 +56,7 @@
 
 `POST /speech/synthesis` — тело `{"text": "..."}`, ответ `audio/mpeg`. Нужен `X-User`. Ошибки: 400 `SPEECH_TEXT_EMPTY`, `SPEECH_TEXT_TOO_LONG`; 502 `SYNTHESIS_FAILED`; 503 `SYNTHESIS_UNAVAILABLE`.
 
-`POST /speech/live/sessions` — старт основного голосового режима на GPT-Live. Тело `{"sdp": "<предложение браузера>"}`, ответ 201 `{"sessionId": "...", "sdp": "<ответ>"}`. Нужен `X-User`. Ключ OpenAI остаётся на сервере. Ошибки: 502 `LIVE_VOICE_FAILED`; 503 `LIVE_VOICE_UNAVAILABLE`, если нет `OPENAI_API_KEY`: клиент тогда работает по запасной legacy-схеме. Описание — [gpt-live.md](../design/voice/gpt-live.md).
+`POST /speech/live/sessions` — старт основного голосового режима на GPT-Live. Тело `{"sdp": "<предложение браузера>"}`, ответ 201 `{"sessionId": "...", "sdp": "<ответ>"}`. Нужен `X-User`. Ключ OpenAI остаётся на сервере. Ошибки: 502 `LIVE_VOICE_FAILED`; 503 `LIVE_VOICE_UNAVAILABLE`, если нет `OPENAI_API_KEY`: клиент тогда работает по запасной legacy-схеме.
 
 ## Служебное и совместимость данных
 

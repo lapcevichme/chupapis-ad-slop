@@ -15,7 +15,7 @@ interface EntryPageProps {
   onEnter: (login: string, brief?: string) => void
 }
 
-// Настоящей аутентификации в проекте нет (см. docs/PRODUCT.md): вход выбирает, с какой ролью идут запросы.
+// Настоящей аутентификации в проекте нет: вход выбирает, с какой ролью идут запросы.
 export function EntryPage({ onEnter }: EntryPageProps) {
   const [brief, setBrief] = useState('')
   const [missing, setMissing] = useState(false)

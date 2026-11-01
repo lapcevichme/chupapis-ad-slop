@@ -49,7 +49,7 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Visual system: docs/DESIGN.md */
+/* Visual system */
 :root {
     --background: #f3f5fb;
     --foreground: #17223b;

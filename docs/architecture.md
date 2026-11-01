@@ -61,4 +61,4 @@ Outbox/Redis/S3/JWT из шаблона не добавлялись: для ни
 
 Контракт и совместимость — [CONTRACTS.md](CONTRACTS.md), детали SSE —
 [contracts/chat.md](contracts/chat.md), команды — [backend/README.md](../backend/README.md).
-Результаты проверок и ограничения — [STATUS.md](STATUS.md).
+Результаты проверок и ограничения — [release-readiness.md](release-readiness.md).

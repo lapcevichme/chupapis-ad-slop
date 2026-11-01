@@ -1,4 +1,4 @@
-/* Страница входа: docs/DESIGN.md, раздел «Вход». */
+/* Страница входа. */
 .entry-page{min-height:100dvh;overflow-x:clip;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);column-gap:24px;padding:24px;background:var(--background);color:var(--foreground)}
 
 .entry-header{position:relative;z-index:1;grid-column:1/-1;grid-row:1;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:8px 16px}

@@ -36,7 +36,7 @@ make openapi     # OpenAPI, schemas tools и TS-типы
 Сервисы не коммитят: запросный UoW сохраняет изменения и аудит одной транзакцией до ответа.
 Доменные правила без фреймворков; ORM не выходит из db/service. Общие схемы API/tools —
 `app/contracts/`, валидаторы креатива — `app/infra/creative_validation.py`, каталог ошибок —
-`app/core/codes.py`. Правила расширения — [AGENTS.md](AGENTS.md).
+`app/core/codes.py`.
 
 Агент обращается к API кампаний через HTTP (`CAMPAIGNS_API_URL`). Его tools и граф —
 `app/infra/agent/`, промпты — `app/infra/agent/prompts/`, оркестрация чата — `app/service/chat.py`.

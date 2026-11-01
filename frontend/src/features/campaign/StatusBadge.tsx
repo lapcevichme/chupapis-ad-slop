@@ -2,7 +2,7 @@ import { cn } from '@/lib/utils'
 import type { CampaignState } from '@/types/api'
 import { STATE_LABELS } from './format'
 
-// Таблица из docs/ours/design.md. Подпись обязательна: цвет сам по себе статус не передаёт.
+// Подпись обязательна: цвет сам по себе статус не передаёт.
 const STATE_CLASSES: Record<CampaignState, string> = {
   DRAFT: 'bg-muted text-foreground',
   ON_MODERATION: 'bg-info text-info-foreground',
