@@ -77,6 +77,7 @@ export function CreativePreview({ banner, bannerType, content, status, action, o
   const [size, setSize] = useState<SmartBannerSize>('card')
   const view = content ? requestedView : 'banner'
   const [inApp, setInApp] = useState(false)
+  const [zoomOpen, setZoomOpen] = useState(false)
   const source = useMemo(() => view === 'content' && content ? { kind: 'content' as const, item: content } : { kind: 'banner' as const, item: banner, type: bannerType }, [view, content, banner, bannerType])
   const fallback = useMemo(() => importSource(source), [source])
   const imageUrl = source.kind === 'banner' ? source.item.content.image?.url : source.item.content.component.components.find(item => item.role === 'image')?.url
@@ -89,7 +90,10 @@ export function CreativePreview({ banner, bannerType, content, status, action, o
   }, [imageUrl, sourceKey])
   const document = loaded?.key === sourceKey && loaded.document ? loaded.document : fallback
   const loadError = loaded?.key === sourceKey ? loaded.error : undefined
-  const art = <Scene document={document} onSelect={onEdit && !loadError ? id => onEdit(view, document, id) : undefined} />
+  function edit(layerId?: string) { setZoomOpen(false); onEdit?.(view, document, layerId) }
+  const bankButtons = view === 'content' && content ? content.content.component.components.filter(item => item.role === 'button') : []
+  const artHeight = document.height + (bankButtons.length ? 16 + bankButtons.length * 48 : 0)
+  const art = <div style={{ width: document.width, height: artHeight, background: document.background }}><Scene document={document} onSelect={onEdit && !loadError ? edit : undefined} />{bankButtons.length > 0 && <div className="preview-bank-buttons">{bankButtons.map((button, index) => <span key={index} style={{ background: button.style?.backgroundColor ?? '#3155ff', color: button.textStyle?.textColor ?? '#ffffff', fontSize: button.textStyle?.fontSize ?? 16 }}>{button.text}</span>)}</div>}</div>
   const { title, text, actionType, link } = banner.content
   const linkText = link?.iOS ?? link?.android ?? link?.web
   const phone = (
@@ -105,9 +109,9 @@ export function CreativePreview({ banner, bannerType, content, status, action, o
   )
 
   return (
-    <Dialog.Root>
+    <Dialog.Root open={zoomOpen} onOpenChange={setZoomOpen}>
     <div className="creative-preview">
-      <div className="preview-creative-actions">{onEdit && <Button className="preview-edit-button" disabled={Boolean(status) || Boolean(loadError)} onClick={() => onEdit(view, document)}><PencilLine size={17} />{readOnly ? 'Открыть макет' : 'Редактировать'}</Button>}{action}</div>
+      <div className="preview-creative-actions">{onEdit && <Button className="preview-edit-button" disabled={Boolean(status) || Boolean(loadError)} onClick={() => edit()}><PencilLine size={17} />{readOnly ? 'Открыть макет' : 'Редактировать'}</Button>}{action}</div>
       <div className="preview-toolbar">
       <div className="flex min-w-0 flex-1 gap-1" role="group" aria-label="Что показать в креативе">
         <ViewTab selected={view === 'banner'} onClick={() => setRequestedView('banner')}>
@@ -141,7 +145,7 @@ export function CreativePreview({ banner, bannerType, content, status, action, o
       )}
 
       {loadError && <p role="alert" className="preview-load-error">{loadError}</p>}
-      {status ? <GenerationScene label={status} /> : inApp ? <FitPhone>{phone}</FitPhone> : <FitPhone width={document.width} height={document.height} maxScale={2} minScale={.9}><div className="preview-artwork">{art}</div></FitPhone>}
+      {status ? <GenerationScene label={status} /> : inApp ? <FitPhone>{phone}</FitPhone> : <FitPhone width={document.width} height={artHeight} maxScale={2} minScale={.9}><div className="preview-artwork">{art}</div></FitPhone>}
       {onEdit && !inApp && !status && <p className="preview-edit-hint">Нажмите на текст или предмет, чтобы изменить его вручную или с AI</p>}
 
       <details className="preview-inspector">
