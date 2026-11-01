@@ -260,3 +260,6 @@ to{opacity:1;transform:translateY(0)}
 @media(hover:none){.chat-history-action{opacity:1}}
 @media(min-width:901px){.preview-creative-actions>button{height:34px;min-height:34px}.preview-toolbar button{height:32px;min-height:32px}.preview-toolbar>button{width:32px;flex-basis:32px}.creative-preview{gap:6px}}
 .preview-bank-buttons{padding:8px 16px;display:flex;flex-direction:column;gap:8px}.preview-bank-buttons>span{display:flex;align-items:center;justify-content:center;text-align:center;height:40px;flex-shrink:0;border-radius:12px;font-weight:600;line-height:1.2}
+.studio-unavailable{width:min(400px,calc(100vw - 40px));padding:28px;border:1px solid var(--border);border-radius:20px;background:var(--card);text-align:left;box-shadow:0 12px 50px #17223b15}.studio-unavailable h2{font-size:22px;line-height:1.2;font-weight:700;letter-spacing:-.6px}.studio-unavailable p{font-size:13px;line-height:1.7;color:var(--muted-foreground);margin:14px 0 22px}.studio-unavailable>div{display:flex;gap:8px;flex-wrap:wrap}
+
+.studio-opening{position:fixed;inset:0;z-index:69;display:grid;place-items:center;background:var(--background);color:var(--foreground);font-size:14px}

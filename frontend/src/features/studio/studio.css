@@ -155,7 +155,7 @@
 @media(max-width:800px){.studio-comparison-grid{flex:none;min-height:400px}.studio-compare-card{min-height:400px}.studio-zoom-controls button{min-height:38px;min-width:36px}.studio-variants.collapsed .studio-variants-heading{display:flex;min-width:auto}.studio-variants.collapsed .studio-variants-heading>button:last-child{display:none}}
 .studio-review-error{background:#fff0e8;padding:10px;border-radius:8px;color:#973b25!important}
 @media(max-width:800px){.studio-footer[data-important=true]{align-items:flex-start}.studio-footer[data-important=true]>span{display:block;font-size:10px;line-height:1.5}.studio-footer[data-important=true]>button{display:none}}
-.studio-opening{position:fixed;inset:0;z-index:69;display:grid;place-items:center;background:var(--background);color:var(--foreground);font-size:14px}
+
 .dark .creative-studio{--studio-ink:#edf2ff;--studio-muted:#afbfdf;--studio-line:#344768;--studio-paper:#172540;--studio-ground:#1e304e;--studio-blue:#9aafff}
 .dark .studio-layer-row.selected,.dark .studio-variant-tile.active{color:#2946d0}
 .dark .studio-source-switch button[aria-pressed=true]{color:#bacaff}

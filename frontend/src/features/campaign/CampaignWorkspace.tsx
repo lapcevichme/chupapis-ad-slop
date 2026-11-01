@@ -25,7 +25,11 @@ import { ValidationSummary } from './ValidationSummary'
 import { ThemeToggle } from './ThemeToggle'
 import { UserMenu } from './UserMenu'
 
-const CreativeStudio = lazy(() => import('@/features/studio/CreativeStudio').then(module => ({ default: module.CreativeStudio })))
+function StudioUnavailable({ onClose }: { onClose: () => void }) {
+  return <div className="studio-opening" role="alert"><div className="studio-unavailable"><h2>Не удалось открыть студию</h2><p>Проверьте соединение. Если приложение обновилось, перезагрузите страницу — сохранённый диалог и локальные варианты останутся.</p><div><Button variant="outline" onClick={onClose}>К кампании</Button><Button onClick={() => window.location.reload()}>Обновить страницу</Button></div></div></div>
+}
+
+const CreativeStudio = lazy(() => import('@/features/studio/CreativeStudio').then(module => ({ default: module.CreativeStudio })).catch(() => ({ default: StudioUnavailable })))
 
 const NEW_CAMPAIGN = ''
 const VOICE_ENABLED = import.meta.env.VITE_VOICE_MODE !== 'false'
