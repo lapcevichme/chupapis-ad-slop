@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     pattern_model: str = "anthropic/claude-haiku-5.5"
     # mixed — фон сторис и смарт-баннера паттерном, картинка промо-экрана иллюстрацией; ask — агент спрашивает кнопками,
     # что нужно; pattern или illustration — только этот вид.
-    image_mode: Literal["mixed", "ask", "pattern", "illustration"] = "mixed"
+    image_mode: Literal["mixed", "ask", "pattern", "illustration"] = "illustration"
     llm_timeout_seconds: float = 90.0
     # Провайдеры OpenRouter в порядке приоритета, через запятую. Кеш промпта живёт у конкретного провайдера:
     # без фиксации OpenRouter раскидывает запросы по разным и кеш не попадает. Пустая строка — выбор OpenRouter.

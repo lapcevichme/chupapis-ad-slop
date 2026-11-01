@@ -46,7 +46,7 @@
 Общее для всех картинок:
 - **Предмет:** один-два узнаваемых предмета по смыслу оффера (копилка, карта, монеты, самолёт, дом — по теме), без людей, без текста, букв и цифр.
 - **Цвета:** фон картинки — тот же цвет, что `banner.background.color`, назови его хексом без альфа-канала (`#21A038`). Предмет — в 1–2 акцентных цветах, контрастных к цвету текста баннера.
-- **Стиль:** чистая современная 3D- или плоская иллюстрация, мягкий свет, без фактурных столешниц, камней и лишних деталей.
+- **Стиль:** единая предметная 3D-иллюстрация, как миниатюрный студийный продукт: округлые силуэты, матовый пластик или керамика, мягкий рассеянный свет, аккуратная контактная тень. Один сильный предмет крупнее россыпи мелких значков. Для кафе — стаканчик кофе, для автокредита — компактная машина, для путешествий — чемодан; не заменяй смысл оффера абстрактными кругами. Без фактурных столешниц, камней, рамок интерфейса и лишних деталей.
 
 Пример для STORY: `Clean 3D illustration of a small single green piggy bank with a few golden coins. The whole subject fits inside the horizontal band between 55% and 90% of the frame height and takes no more than 35% of the height. The top 55% and the bottom 10% of the frame are completely empty plain background for overlaid text and a button; nothing, including ears, horns or shadows, reaches into them. Solid background color #21A038, soft light, no people, no text, no letters, no numbers. Vertical 2:3 frame.`
 

@@ -140,7 +140,7 @@ export function CreativePreview({ banner, bannerType, content, status, action, o
       )}
 
       {loadError && <p role="alert" className="preview-load-error">{loadError}</p>}
-      {status ? <GenerationScene label={status} /> : inApp ? <FitPhone>{phone}</FitPhone> : <FitPhone width={document.width} height={document.height} maxScale={2} minScale={.72}><div className="preview-artwork">{art}</div></FitPhone>}
+      {status ? <GenerationScene label={status} /> : inApp ? <FitPhone>{phone}</FitPhone> : <FitPhone width={document.width} height={document.height} maxScale={2} minScale={.9}><div className="preview-artwork">{art}</div></FitPhone>}
       {onEdit && !inApp && !status && <p className="preview-edit-hint">Нажмите на текст или предмет, чтобы изменить его вручную или с AI</p>}
 
       <details className="preview-inspector">
