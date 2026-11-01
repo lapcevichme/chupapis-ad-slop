@@ -2,6 +2,7 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import suppress
+from dataclasses import replace
 from typing import Any, cast
 
 import httpx
@@ -11,8 +12,8 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.errors import GraphRecursionError
 from langgraph.types import Command, StateSnapshot
 
-from app.core.errors import not_found
-from app.domain.chat import StreamEvent
+from app.core.errors import ApiError, DomainError, not_found
+from app.domain.chat import ChatSummary, StreamEvent
 from app.infra.agent.graph import AgentGraph, AgentState, draft_report, refresh_campaign
 from app.infra.campaigns_api import ApiFactory
 from app.service.chat_sessions import SessionRegistry
@@ -73,6 +74,7 @@ class ChatService:
         self.graph = graph
         self.api_factory = api_factory
         self.sessions = sessions
+        self.active: set[str] = set()
 
     @staticmethod
     def _config(session_id: str, user: str = "", role: str = "") -> RunnableConfig:
@@ -113,7 +115,8 @@ class ChatService:
         }
         await self.graph.aupdate_state(self._config(session_id), values, as_node="__start__")
 
-    async def _state(self, session_id: str) -> StateSnapshot:
+    async def _state(self, session_id: str, user: str | None = None) -> StateSnapshot:
+        await self.sessions.require(session_id, user)
         snapshot = await self.graph.aget_state(self._config(session_id))
         if not snapshot.values or "pending" not in snapshot.values:
             raise not_found("sessionId", session_id)
@@ -124,7 +127,7 @@ class ChatService:
         return snapshot.interrupts[0].value if snapshot.interrupts else None
 
     async def snapshot(self, session_id: str, user: str, role: str) -> dict[str, Any]:
-        snapshot = await self._state(session_id)
+        snapshot = await self._state(session_id, user)
         values = snapshot.values
         messages = []
         for message in values.get("messages", []):
@@ -150,7 +153,7 @@ class ChatService:
     async def send_message(
         self, session_id: str, text: str, user: str, role: str, *, voice: bool = False
     ) -> AsyncIterator[StreamEvent]:
-        await self._state(session_id)
+        await self._state(session_id, user)
         if await self.pending_confirmation(session_id):
             # Сообщение без ответа на подтверждение = отказ, текст уходит агенту как правка (chat-api.md §2).
             payload: Any = Command(
@@ -159,7 +162,7 @@ class ChatService:
             )
         else:
             payload = {"messages": [HumanMessage(text)], "asked": False, "voice": voice}
-        return self._stream(session_id, payload, user, role)
+        return self._start_stream(session_id, payload, user, role)
 
     async def answer_confirmation(
         self,
@@ -172,20 +175,56 @@ class ChatService:
         *,
         voice: bool = False,
     ) -> AsyncIterator[StreamEvent]:
+        await self.sessions.require(session_id, user)
         pending = await self.pending_confirmation(session_id)
         if pending and pending["id"] == confirmation_id:
-            return self._stream(
+            return self._start_stream(
                 session_id,
                 Command(resume={"approved": approved, "comment": comment}, update={"voice": voice}),
                 user,
                 role,
             )
         # Подтверждение уже выполнено: второй раз не пишем, а продолжаем ход как retry.
-        return self._stream(session_id, None, user, role)
+        return self._start_stream(session_id, None, user, role)
 
     async def retry(self, session_id: str, user: str, role: str) -> AsyncIterator[StreamEvent]:
-        await self._state(session_id)
-        return self._stream(session_id, None, user, role)
+        await self._state(session_id, user)
+        return self._start_stream(session_id, None, user, role)
+
+    async def list_sessions(self, user: str, archived: bool) -> list[ChatSummary]:
+        rows = await self.sessions.list(user, archived)
+        result = []
+        for row in rows:
+            if row.campaign_id is None:
+                state = await self.graph.aget_state(self._config(row.session_id))
+                first = next(
+                    (
+                        _text(m)
+                        for m in state.values.get("messages", [])
+                        if isinstance(m, HumanMessage)
+                    ),
+                    "Новый диалог",
+                )
+                row = replace(row, name=first[:100])
+            result.append(row)
+        return result
+
+    async def archive(self, session_id: str, user: str) -> None:
+        if session_id in self.active:
+            raise DomainError(
+                [ApiError("CHAT_BUSY", "Подождите, пока ассистент закончит ответ.")], 409
+            )
+        await self.sessions.archive(session_id, user)
+
+    def _start_stream(
+        self, session_id: str, payload: Any, user: str, role: str
+    ) -> AsyncIterator[StreamEvent]:
+        if session_id in self.active:
+            raise DomainError(
+                [ApiError("CHAT_BUSY", "Ассистент уже отвечает в этом диалоге.")], 409
+            )
+        self.active.add(session_id)
+        return self._stream(session_id, payload, user, role)
 
     async def _bind_campaign(self, session_id: str) -> None:
         snapshot = await self.graph.aget_state(self._config(session_id))
@@ -232,6 +271,7 @@ class ChatService:
                     await self._bind_campaign(session_id)
                 except Exception:
                     logger.exception("Не удалось привязать сессию %s к кампании", session_id)
+                self.active.discard(session_id)
                 await queue.put(None)
 
         task = asyncio.create_task(produce())

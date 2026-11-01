@@ -1,8 +1,10 @@
+from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.errors import ApiError
+from app.domain.chat import ChatSummary
 
 
 class ChatEventMessageDelta(BaseModel):
@@ -132,3 +134,25 @@ class SessionSnapshot(BaseModel):
     draft: dict[str, Any] | None
     validation: DraftValidation
     pendingConfirmation: ChatEventConfirmationRequired | None
+
+
+class SessionSummary(BaseModel):
+    sessionId: str
+    campaignId: int | None
+    name: str
+    createdAt: datetime
+    archivedAt: datetime | None
+
+    @classmethod
+    def from_domain(cls, value: ChatSummary) -> "SessionSummary":
+        return cls(
+            sessionId=value.session_id,
+            campaignId=value.campaign_id,
+            name=value.name,
+            createdAt=value.created_at,
+            archivedAt=value.archived_at,
+        )
+
+
+class SessionActionResult(BaseModel):
+    sessionId: str

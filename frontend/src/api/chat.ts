@@ -1,5 +1,12 @@
 import type { ChatEvent, ChatSession, ConfirmationAnswer } from '@/types/api'
 import { userHeaders } from './currentUser'
+import { apiRequest } from './http'
+import type { components } from '@/types/openapi'
+
+export type ChatSummary = components['schemas']['SessionSummary']
+export const listChatSessions = (archived = false) => apiRequest<ChatSummary[]>(`/chat?archived=${archived}`)
+export const archiveChatSession = (id: string) => apiRequest(`/chat/${id}`, { method: 'DELETE' })
+export const restoreChatSession = (id: string) => apiRequest(`/chat/${id}/restore`, { method: 'POST' })
 
 // Контракт: docs/contracts/chat.md.
 const SILENCE_TIMEOUT_MS = 90_000

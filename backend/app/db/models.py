@@ -232,3 +232,6 @@ class ChatSession(Base):
     # Без внешнего ключа: кампанию могут удалить, а диалог о ней остаётся.
     campaign_id: Mapped[int | None] = mapped_column(Integer, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime)
+
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime)
+    archived_campaign_id: Mapped[int | None] = mapped_column(Integer)

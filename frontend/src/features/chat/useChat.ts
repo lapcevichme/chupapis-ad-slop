@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useReducer, useRef } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { answerChatConfirmation, createChatSession, getChatSession, retryChat, sendChatMessage } from '@/api/chat'
 import type { CampaignDraft, ChatEvent, ChatSession, ChatStep, ChatWarning, Confirmation, ConfirmationAnswer, DraftValidation, SuggestionQuestion } from '@/types/api'
 
@@ -149,6 +149,7 @@ export function forgetChatSession() {
 export function useChat() {
   const queryClient = useQueryClient()
   const sessionId = useRef(localStorage.getItem(SESSION_KEY))
+  const [currentSessionId, setCurrentSessionId] = useState(() => localStorage.getItem(SESSION_KEY))
   const lastRequest = useRef<() => AsyncIterable<ChatEvent>>(null)
   // Сервер ответил потоком, значит, сообщение уже в истории: повторять его нельзя, нужен /retry.
   const streamOpened = useRef(false)
@@ -165,6 +166,7 @@ export function useChat() {
         if (!session) {
           localStorage.removeItem(SESSION_KEY)
           sessionId.current = null
+          setCurrentSessionId(null)
         }
         dispatch({ type: 'restore', session })
       })
@@ -189,6 +191,8 @@ export function useChat() {
         }
       } catch {
         dispatch({ type: 'fail', error: { message: CONNECTION_ERROR, retryable: true } })
+      } finally {
+        void queryClient.invalidateQueries({ queryKey: ['chats'] })
       }
     },
     [queryClient],
@@ -205,6 +209,7 @@ export function useChat() {
       return run(async function* () {
         if (!sessionId.current) {
           sessionId.current = await createChatSession()
+          setCurrentSessionId(sessionId.current)
           localStorage.setItem(SESSION_KEY, sessionId.current)
         }
         yield* sendChatMessage(sessionId.current, text, voice, markOpened)
@@ -243,6 +248,7 @@ export function useChat() {
       // Пока ждали ответ, пользователь мог выбрать другую кампанию или сменить роль.
       if (request !== openRequest.current) return
       sessionId.current = id
+      setCurrentSessionId(id)
       if (id) localStorage.setItem(SESSION_KEY, id)
       else localStorage.removeItem(SESSION_KEY)
       dispatch(session ? { type: 'restore', session } : { type: 'reset', campaignId })
@@ -252,8 +258,24 @@ export function useChat() {
     }
   }, [])
 
+  const openSession = useCallback(async (id: string) => {
+    lastRequest.current = null
+    const request = ++openRequest.current
+    try {
+      const session = await getChatSession(id)
+      if (request !== openRequest.current) return
+      sessionId.current = session ? id : null
+      setCurrentSessionId(session ? id : null)
+      if (session) localStorage.setItem(SESSION_KEY, id)
+      else localStorage.removeItem(SESSION_KEY)
+      dispatch({ type: 'restore', session })
+    } catch {
+      if (request === openRequest.current) dispatch({ type: 'fail', error: { message: 'Не удалось открыть диалог. Попробуйте ещё раз.', retryable: false } })
+    }
+  }, [])
+
   // Кампанию поправили вручную: снимок в сессии устарел, а источник правды теперь API. Следующий ход агента прочитает её заново.
   const clearDraft = useCallback(() => dispatch({ type: 'clearDraft' }), [])
 
-  return { ...state, send, answer, retry, open, clearDraft }
+  return { ...state, sessionId: currentSessionId, send, answer, retry, open, openSession, clearDraft }
 }

@@ -201,12 +201,13 @@ export function ChatPanel({ chat, dictionaries, awaitsModeration, nextStep, role
           </div>
         )}
         {empty && !moderator && campaignId !== null && (
-          <p className="m-0 animate-rise text-sm leading-5">Что поменять в кампании? Могу поправить поля и креативы, объяснить статус или ошибки проверки.</p>
+          <div className="chat-context-welcome animate-rise"><span className="chat-context-eyebrow">Всё готово к следующей идее</span><h3>Давайте сделаем её точнее.</h3><p>Кампания открыта. Здесь можно обсудить оффер, аудиторию и креативы.</p><div>{['Что можно улучшить в этой кампании?', 'Проверь кампанию и объясни замечания'].map(prompt => <button key={prompt} onClick={() => submit(prompt)}>{prompt}</button>)}</div><small>Чтобы двигать объекты и менять текст вручную, нажмите «Редактировать» рядом с креативом.</small></div>
         )}
         {empty && moderator && campaignId !== null && (
           <p className="m-0 animate-rise text-sm leading-5">Проверьте кампанию в рабочей области и примите решение. Можно спросить меня, что с ней не так.</p>
         )}
         {messages.map((message, index) => (
+          !busy && message.role === 'assistant' && !message.text.trim() && !message.steps.length && !message.warnings.length ? null :
           // Анимируем только новый ход, иначе при открытии истории дёрнется вся лента.
           <div key={index} className={cn('flex flex-col', index >= messages.length - 2 && 'animate-rise')}>
             <Message message={message} thinking={thinking && index === messages.length - 1} active={busy && index === messages.length - 1} />

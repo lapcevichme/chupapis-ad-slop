@@ -7,6 +7,7 @@ import { getCurrentUser, setCurrentUser, USERS } from '@/api/currentUser'
 import { applyStudioToCampaign } from '@/api/studioCampaigns'
 import { Button } from '@/components/ui/button'
 import { ChatPanel } from '@/features/chat/ChatPanel'
+import { ChatHistory } from '@/features/chat/ChatHistory'
 import { useChat } from '@/features/chat/useChat'
 import { dictationSupported } from '@/features/chat/useDictation'
 import { ImageUploadMenu } from '@/features/imageUpload/ImageUploadMenu'
@@ -60,6 +61,7 @@ export function CampaignWorkspace({ initialBrief, onSignOut }: CampaignWorkspace
   const [pane, setPane] = useState<'creative' | 'details' | 'history'>('creative')
   const [mobilePane, setMobilePane] = useState<'dialog' | 'work'>('dialog')
   const [navOpen, setNavOpen] = useState(false)
+  const [navTab, setNavTab] = useState<'campaigns' | 'chats'>('campaigns')
   const campaignId = chat.campaignId
 
   const campaigns = useQuery({ queryKey: ['campaigns'], queryFn: listCampaigns })
@@ -157,13 +159,13 @@ export function CampaignWorkspace({ initialBrief, onSignOut }: CampaignWorkspace
       <aside className="pilot-nav" aria-label="Кампании">
         <div className="pilot-brand">adpilot<span>.</span><button className="mobile-close" aria-label="Закрыть меню" onClick={() => setNavOpen(false)}><X size={20} /></button></div>
         {!moderator && <Button variant="outline" className="new-campaign" disabled={chat.busy} onClick={() => openCampaign(null)}><Plus />Новая кампания</Button>}
-        <div className="nav-section-title">Рабочее пространство</div>
-        <div className="campaign-list">
+        <div className="nav-sections" aria-label="Рабочее пространство"><button aria-pressed={navTab === 'campaigns'} onClick={() => setNavTab('campaigns')}>Кампании</button><button aria-pressed={navTab === 'chats'} onClick={() => setNavTab('chats')}>Диалоги</button></div>
+        {navTab === 'chats' ? <ChatHistory login={login} currentId={chat.sessionId} disabled={chat.busy} onOpen={id => { setNavOpen(false); setMobilePane('dialog'); setRequestedBannerId(undefined); void chat.openSession(id) }} onDeleted={id => { if (id === chat.sessionId) openCampaign(null) }} /> : <div className="campaign-list">
           {campaigns.isPending && <p className="nav-message">Загружаем кампании…</p>}
           {campaigns.isError && <button className="nav-retry" onClick={() => void campaigns.refetch()}>Не удалось загрузить. Повторить</button>}
           {campaigns.data?.map((item) => <button key={item.id} disabled={chat.busy} className={`campaign-link ${item.id === campaignId ? 'selected' : ''}`} onClick={() => openCampaign(item.id)}><span>{item.name}</span><small>{item.state === 'ON_MODERATION' ? 'На модерации' : item.published ? 'Показ идёт' : item.state === 'NEEDS_WORK' ? 'Нужны правки' : ''}</small></button>)}
           {campaigns.data?.length === 0 && <p className="nav-message">Здесь будут ваши кампании.</p>}
-        </div>
+        </div>}
         <div className="nav-bottom"><UserMenu login={login} disabled={chat.busy} onSelect={(next) => {setCurrentUser(next); setLogin(next); void queryClient.invalidateQueries(); openCampaign(campaignId)}} onSignOut={onSignOut} /><ThemeToggle /></div>
       </aside>
       {navOpen && <button className="nav-scrim" aria-label="Закрыть меню кампаний" onClick={() => setNavOpen(false)} />}

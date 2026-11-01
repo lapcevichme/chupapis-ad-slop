@@ -44,6 +44,32 @@ async def create_chat_session(
     return events.SessionCreated(sessionId=session_id)
 
 
+@router.get("", response_model=list[events.SessionSummary])
+async def list_chat_sessions(
+    chat: ChatDep, actor: ActorDep, archived: bool = False
+) -> list[events.SessionSummary]:
+    return [
+        events.SessionSummary.from_domain(row)
+        for row in await chat.list_sessions(actor.login, archived)
+    ]
+
+
+@router.delete("/{session_id}", response_model=events.SessionActionResult)
+async def archive_chat_session(
+    session_id: str, chat: ChatDep, actor: ActorDep
+) -> events.SessionActionResult:
+    await chat.archive(session_id, actor.login)
+    return events.SessionActionResult(sessionId=session_id)
+
+
+@router.post("/{session_id}/restore", response_model=events.SessionActionResult)
+async def restore_chat_session(
+    session_id: str, chat: ChatDep, actor: ActorDep
+) -> events.SessionActionResult:
+    await chat.sessions.restore(session_id, actor.login)
+    return events.SessionActionResult(sessionId=session_id)
+
+
 @router.get("/{session_id}", response_model=events.SessionSnapshot)
 async def get_chat_session(session_id: str, chat: ChatDep, actor: ActorDep) -> dict[str, Any]:
     return await chat.snapshot(session_id, actor.login, actor.role or "")
