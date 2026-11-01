@@ -89,11 +89,12 @@ export function CreativePreview({ banner, bannerType, content, status, action, o
     return () => { active = false }
   }, [imageUrl, sourceKey])
   const document = loaded?.key === sourceKey && loaded.document ? loaded.document : fallback
-  const loadError = loaded?.key === sourceKey ? loaded.error : undefined
+  const ready = loaded?.key === sourceKey
+  const loadError = ready ? loaded.error : undefined
   function edit(layerId?: string) { setZoomOpen(false); onEdit?.(view, document, layerId) }
   const bankButtons = view === 'content' && content ? content.content.component.components.filter(item => item.role === 'button') : []
   const artHeight = document.height + (bankButtons.length ? 16 + bankButtons.length * 48 : 0)
-  const art = <div style={{ width: document.width, height: artHeight, background: document.background }}><Scene document={document} onSelect={onEdit && !loadError ? edit : undefined} />{bankButtons.length > 0 && <div className="preview-bank-buttons">{bankButtons.map((button, index) => <span key={index} style={{ background: button.style?.backgroundColor ?? '#3155ff', color: button.textStyle?.textColor ?? '#ffffff', fontSize: button.textStyle?.fontSize ?? 16 }}>{button.text}</span>)}</div>}</div>
+  const art = <div style={{ width: document.width, height: artHeight, background: document.background }}><Scene document={document} onSelect={onEdit && ready && !loadError ? edit : undefined} />{bankButtons.length > 0 && <div className="preview-bank-buttons">{bankButtons.map((button, index) => <span key={index} style={{ background: button.style?.backgroundColor ?? '#3155ff', color: button.textStyle?.textColor ?? '#ffffff', fontSize: button.textStyle?.fontSize ?? 16 }}>{button.text}</span>)}</div>}</div>
   const { title, text, actionType, link } = banner.content
   const linkText = link?.iOS ?? link?.android ?? link?.web
   const phone = (
@@ -111,7 +112,7 @@ export function CreativePreview({ banner, bannerType, content, status, action, o
   return (
     <Dialog.Root open={zoomOpen} onOpenChange={setZoomOpen}>
     <div className="creative-preview">
-      <div className="preview-creative-actions">{onEdit && <Button className="preview-edit-button" disabled={Boolean(status) || Boolean(loadError)} onClick={() => edit()}><PencilLine size={17} />{readOnly ? 'Открыть макет' : 'Редактировать'}</Button>}{action}</div>
+      <div className="preview-creative-actions">{onEdit && <Button className="preview-edit-button" disabled={Boolean(status) || !ready || Boolean(loadError)} title={!ready ? 'Загружаем слои макета…' : undefined} onClick={() => edit()}><PencilLine size={17} />{readOnly ? 'Открыть макет' : 'Редактировать'}</Button>}{action}</div>
       <div className="preview-toolbar">
       <div className="flex min-w-0 flex-1 gap-1" role="group" aria-label="Что показать в креативе">
         <ViewTab selected={view === 'banner'} onClick={() => setRequestedView('banner')}>
