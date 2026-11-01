@@ -22,7 +22,7 @@ function stack(layers: StudioLayer[], x: number, y: number, width: number, avail
 export function makeLayoutVariants(base: StudioDocument): StudioDocument[] {
   const { width: w, height: h } = base
   const tall = h > 300, pad = tall ? 24 : 16
-  const images = base.layers.filter(x => x.kind === 'image')
+  const images = base.layers.filter(x => x.kind === 'image' || x.kind === 'illustration')
   const text = base.layers.filter(x => x.kind === 'text' && x.role !== 'button')
   const buttons = base.layers.filter(x => x.kind === 'text' && x.role === 'button')
   return ['Плакат', 'Редакционный', 'Контраст'].map((name, index) => {

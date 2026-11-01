@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { buttonActionLabel, contrastingText, importSource, makeLayoutVariants, newLayer, validateDocument } from './model'
 import type { PromoButton, StudioSource } from './model'
 import { downloadBlob, renderDocument } from './render'
+import { StudioTour } from './StudioTour'
 import { StudioElements } from './StudioElements'
 import { ILLUSTRATIONS } from './illustrations'
 import { StudioCanvas } from './StudioCanvas'
@@ -57,6 +58,7 @@ function StudioEditor({ source, initial, campaignId, editable, applyReason, noti
   const [selected, setSelected] = useState<string | null>(initialSelection ?? null)
   const layer = document.layers.find(x => x.id === selected)
   const [compare, setCompare] = useState(false)
+  const [tour, setTour] = useState<number | null>(null)
   const [variantsCollapsed, setVariantsCollapsed] = useState(true)
   const [compared, setCompared] = useState<string[]>([project.active.id])
   const [panel, setPanel] = useState<'layers' | 'properties' | null>(initialSelection ? 'properties' : null)
@@ -126,8 +128,9 @@ function StudioEditor({ source, initial, campaignId, editable, applyReason, noti
     return () => window.removeEventListener('keydown', keyboard)
   })
 
-  return <div className={`studio-shell ${compare ? 'is-comparing' : ''}`} data-panel={panel ?? ''} data-working={busy.startsWith('AI')}>
+  return <div className={`studio-shell ${compare ? 'is-comparing' : ''}`} data-panel={panel ?? ''} data-working={busy.startsWith('AI')} data-tour={tour ?? ''}>
     <header className="studio-topbar"><button type="button" className="studio-back" disabled={busy === 'Применяю макет'} onClick={onClose} aria-label="Закрыть студию"><ArrowLeft size={19} /></button><div className="studio-wordmark">adpilot<span>studio</span></div><div className="studio-project-name"><strong>{source.item.name}</strong><span>{project.storageError ? 'Черновик не сохранён — скачайте PNG' : 'Варианты на этом устройстве'}</span></div>
+      <StudioTour step={tour} onStep={step => { setTour(step); if (step !== null) { setCompare(false); setVariantsCollapsed(true); setPanel(null) } }} />
       <div className="studio-history"><button type="button" title="Отменить" aria-label="Отменить правку" disabled={!mutable || !project.canUndo} onClick={project.undo}><Undo2 size={18} /></button><button type="button" title="Повторить" aria-label="Повторить правку" disabled={!mutable || !project.canRedo} onClick={project.redo}><Redo2 size={18} /></button></div>
       <button type="button" className={`studio-outline-button ${compare ? 'selected' : ''}`} aria-label={compare ? 'К редактору' : 'Сравнить'} disabled={Boolean(busy)} onClick={() => { if (!compare) setVariantsCollapsed(true); if (!compare && compared.length < 2) setCompared(project.variants.slice(-3).map(v => v.id)); setCompare(!compare) }}><Columns2 size={17} /><span>{compare ? 'К редактору' : 'Сравнить'}</span></button>
       <button type="button" className="studio-outline-button" aria-label="Скачать PNG" disabled={Boolean(busy)} onClick={() => void run('Собираю PNG', async () => downloadBlob(await renderDocument(document), `${document.name}.png`))}><Download size={17} /><span>PNG</span></button>

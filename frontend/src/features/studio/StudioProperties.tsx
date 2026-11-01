@@ -25,7 +25,7 @@ function Numeric({ label, value, onChange, min = -2400, max = 2400 }: { label: s
 
 export function StudioProperties({ document, layer, editable, patch, onDocument, onDuplicate, onDelete, onOrder, onReplace, buttons, onButtons, isPromo }: Props) {
   return <aside className="studio-properties" aria-label="Свойства объекта">
-    <div className="studio-panel-title"><strong>{layer ? 'Объект' : 'Макет'}</strong><span>{layer?.kind === 'text' ? 'Текст' : layer?.kind === 'image' ? 'Изображение' : layer ? 'Фигура' : document.format}</span></div>
+    <div className="studio-panel-title"><strong>{layer ? 'Объект' : 'Макет'}</strong><span>{layer?.kind === 'text' ? 'Текст' : layer?.kind === 'illustration' ? 'Предмет' : layer?.kind === 'image' ? 'Изображение' : layer ? 'Фигура' : document.format}</span></div>
     <fieldset disabled={!editable} className="studio-property-fields">
       {layer ? <>
         <label className="studio-field">Название<input value={layer.name} maxLength={100} onChange={e => patch({ name: e.target.value })} /></label>
@@ -46,7 +46,7 @@ export function StudioProperties({ document, layer, editable, patch, onDocument,
           {layer.shape === 'rect' && <Numeric label="Скругление" min={0} max={600} value={layer.radius} onChange={radius => patch({ radius })} />}
         </>}
         {layer.kind === 'illustration' && <label className="studio-field">Предмет<select value={layer.symbol} onChange={event => patch({ symbol: event.target.value as StudioLayer['symbol'] })}>{ILLUSTRATIONS.map(item => <option key={item.symbol} value={item.symbol}>{item.label}</option>)}</select></label>}
-        {(layer.kind === 'image' || layer.kind === 'illustration') && <><button type="button" className="studio-soft-button" onClick={onReplace}><ImagePlus size={16} />Заменить изображение</button><label className="studio-field">В кадре<select value={layer.fit} onChange={e => patch({ fit: e.target.value as StudioLayer['fit'] })}><option value="cover">Заполнить</option><option value="contain">Вписать целиком</option></select></label></>}
+        {(layer.kind === 'image' || layer.kind === 'illustration') && <><button type="button" className="studio-soft-button" onClick={onReplace}><ImagePlus size={16} />Заменить изображение</button>{layer.kind === 'image' && <label className="studio-field">В кадре<select value={layer.fit} onChange={e => patch({ fit: e.target.value as StudioLayer['fit'] })}><option value="cover">Заполнить</option><option value="contain">Вписать целиком</option></select></label>}</>}
         <label className="studio-field">Прозрачность · {Math.round(layer.opacity * 100)}%<input type="range" min={0} max={100} value={layer.opacity * 100} onChange={e => patch({ opacity: Number(e.target.value) / 100 })} /></label>
         <div className="studio-object-actions"><button type="button" onClick={() => onOrder(1)} title="На слой выше" aria-label="На слой выше"><ArrowUp size={17} /></button><button type="button" onClick={() => onOrder(-1)} title="На слой ниже" aria-label="На слой ниже"><ArrowDown size={17} /></button><button type="button" onClick={onDuplicate} title="Дублировать слой" aria-label="Дублировать слой"><Copy size={17} /></button><button type="button" onClick={onDelete} title="Удалить слой" aria-label="Удалить слой"><Trash2 size={17} /></button></div>
       </> : <>

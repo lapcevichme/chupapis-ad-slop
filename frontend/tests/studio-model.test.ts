@@ -40,3 +40,14 @@ test('PROMO import retains text while bank buttons stay separate', () => {
   assert.deepEqual(document.layers.filter(x => x.kind === 'text').map(x => [x.text, x.role]), [['Вклад 16%', 'title'], ['До конца ноября', 'body']])
   assert.equal(document.format, 'PROMO')
 })
+
+
+test('layout alternatives retain independent subject illustration layers', () => {
+  const document = { version: 1 as const, name: 'Кофе', format: 'STORY' as const, width: 300, height: 600, background: '#ffffff', layers: [newLayer('text', { role: 'title', text: 'Кэшбэк 10% в кафе' }), newLayer('illustration', { id: 'coffee', symbol: 'coffee', width: 180, height: 180, fit: 'contain' })] }
+  for (const variant of makeLayoutVariants(document)) {
+    const coffee = variant.layers.find(x => x.id === 'coffee')!
+    assert.equal(coffee.kind, 'illustration')
+    assert.equal(coffee.symbol, 'coffee')
+    assert.ok(coffee.width > 0 && coffee.height > 0)
+  }
+})
