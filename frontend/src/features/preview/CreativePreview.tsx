@@ -26,6 +26,7 @@ interface CreativePreviewProps {
   status?: string
   // Действие над макетом, например своё фото.
   action?: ReactNode
+  readOnly?: boolean
   onEdit?: (kind: View, document: StudioDocument, layerId?: string) => void
 }
 
@@ -71,7 +72,7 @@ function LengthCounter({ label, value, max }: { label: string; value?: string | 
   )
 }
 
-export function CreativePreview({ banner, bannerType, content, status, action, onEdit }: CreativePreviewProps) {
+export function CreativePreview({ banner, bannerType, content, status, action, onEdit, readOnly }: CreativePreviewProps) {
   const [requestedView, setRequestedView] = useState<View>('banner')
   const [size, setSize] = useState<SmartBannerSize>('card')
   const view = content ? requestedView : 'banner'
@@ -106,7 +107,7 @@ export function CreativePreview({ banner, bannerType, content, status, action, o
   return (
     <Dialog.Root>
     <div className="creative-preview">
-      <div className="preview-creative-actions">{onEdit && <Button className="preview-edit-button" disabled={Boolean(status) || Boolean(loadError)} onClick={() => onEdit(view, document)}><PencilLine size={17} />Редактировать</Button>}{action}</div>
+      <div className="preview-creative-actions">{onEdit && <Button className="preview-edit-button" disabled={Boolean(status) || Boolean(loadError)} onClick={() => onEdit(view, document)}><PencilLine size={17} />{readOnly ? 'Открыть макет' : 'Редактировать'}</Button>}{action}</div>
       <div className="preview-toolbar">
       <div className="flex min-w-0 flex-1 gap-1" role="group" aria-label="Что показать в креативе">
         <ViewTab selected={view === 'banner'} onClick={() => setRequestedView('banner')}>
