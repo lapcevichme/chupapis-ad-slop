@@ -149,8 +149,9 @@ export function CreativePreview({ banner, bannerType, content, status, action, o
       {onEdit && !inApp && !status && <p className="preview-edit-hint">Нажмите на текст или предмет, чтобы изменить его вручную или с AI</p>}
 
       <details className="preview-inspector">
-      <summary>О креативе<span>{bannerType.description}</span><ChevronDown size={14} aria-hidden="true" /></summary>
+      <summary>О креативе<span>{view === 'content' ? 'Промо-экран' : bannerType.description}</span><ChevronDown size={14} aria-hidden="true" /></summary>
       <dl className="m-0 flex w-full flex-col gap-1 text-[13px] leading-[18px]">
+        {view === 'content' ? <><div className="flex justify-between gap-4"><dt className="text-muted-foreground">Формат</dt><dd className="m-0">Промо-экран</dd></div><div className="flex justify-between gap-4"><dt className="text-muted-foreground">Банковские кнопки</dt><dd className="m-0">{bankButtons.length}</dd></div></> : <>
         <div className="flex justify-between gap-4">
           <dt className="text-muted-foreground">Формат</dt>
           <dd className="m-0">{bannerType.description}</dd>
@@ -167,6 +168,7 @@ export function CreativePreview({ banner, bannerType, content, status, action, o
             <dd className="m-0 min-w-0 text-right font-mono text-xs wrap-anywhere">{linkText}</dd>
           </div>
         )}
+        </>}
       </dl>
       </details>
     </div>
