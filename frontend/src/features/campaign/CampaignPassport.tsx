@@ -13,18 +13,19 @@ const NOT_SET = 'Не задано'
 
 interface SectionProps {
   title: string
+  area: string
   edit?: PassportEdit
   form?: (onClose: () => void) => ReactNode
   children: ReactNode
 }
 
-function Section({ title, edit, form, children }: SectionProps) {
+function Section({ title, area, edit, form, children }: SectionProps) {
   const [editing, setEditing] = useState(false)
   const canEdit = edit && form
 
   return (
-    <section className="flex flex-col gap-3 rounded-lg border bg-card p-4 text-card-foreground">
-      <div className="flex items-center justify-between gap-3">
+    <section style={{ gridArea: area }} className="passport-section flex flex-col gap-3 rounded-lg border bg-card p-4 text-card-foreground">
+      <div className="passport-section-heading flex items-center gap-3">
         <h2 className="m-0 text-sm leading-5 font-semibold">{title}</h2>
         {canEdit && !editing && (
           <Button
@@ -47,7 +48,7 @@ function Section({ title, edit, form, children }: SectionProps) {
 
 function Field({ label, value, code, flash, hint }: { label: string; value: ReactNode; code?: string; flash?: string; hint?: string }) {
   return (
-    <div className="flex min-w-0 flex-col gap-0.5">
+    <div className="passport-field">
       <span className="text-xs leading-4 text-muted-foreground">{label}</span>
       <Flash value={flash ?? String(value)}>
         <span className="text-sm leading-5 font-medium wrap-anywhere">{value}</span>
@@ -60,7 +61,7 @@ function Field({ label, value, code, flash, hint }: { label: string; value: Reac
 
 function Row({ name, code, aside, notice }: { name: string; code: string; aside?: string; notice?: string }) {
   return (
-    <li className="flex animate-rise items-center justify-between gap-3 border-t py-2 first:border-t-0 first:pt-0 last:pb-0">
+    <li className="passport-row flex animate-rise items-center gap-3 border-t py-2 first:border-t-0 first:pt-0 last:pb-0">
       <div className="flex min-w-0 flex-col gap-0.5">
         <span className="text-sm leading-5 font-medium wrap-anywhere">{name}</span>
         <span className="font-mono text-xs leading-4 wrap-anywhere text-muted-foreground">{code}</span>
@@ -111,9 +112,9 @@ export function CampaignPassport({ campaign, dictionaries, selectedBannerId, onS
   const tagNames = (campaign.tags ?? []).map((id) => dictionaries.tags.find((tag) => tag.id === id)?.name ?? `Тег ${id}`)
 
   return (
-    <div className="flex animate-stagger flex-col gap-3">
-      <Section title="Основное" edit={edit} form={formProps && ((onClose) => <MainForm {...formProps} onClose={onClose} />)}>
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3.5">
+    <div className="campaign-passport flex animate-stagger flex-col gap-3">
+      <Section title="Основное" area="main" edit={edit} form={formProps && ((onClose) => <MainForm {...formProps} onClose={onClose} />)}>
+        <div className="passport-fields">
           <Field label="Название" value={campaign.name ?? NOT_SET} />
           {campaign.marketingName && <Field label="Маркетинговое название" value={campaign.marketingName} />}
           <Field label="Начало, UTC" value={campaign.startDate ? formatDateTime(campaign.startDate, campaign.startTime) : NOT_SET} />
@@ -124,7 +125,7 @@ export function CampaignPassport({ campaign, dictionaries, selectedBannerId, onS
         </div>
       </Section>
 
-      <Section title="Аудитория" edit={edit} form={formProps && ((onClose) => <AudienceForm {...formProps} onClose={onClose} />)}>
+      <Section title="Аудитория" area="audience" edit={edit} form={formProps && ((onClose) => <AudienceForm {...formProps} onClose={onClose} />)}>
         <Flash value={JSON.stringify([campaign.audienceType, campaign.segments])} className="flex flex-col gap-3">
           {campaign.audienceType === 'ALL_USERS' && <Field label="Кому показываем" value="Все пользователи" code="ALL_USERS" />}
           {campaign.audienceType === 'SEGMENTED' && (
@@ -137,7 +138,7 @@ export function CampaignPassport({ campaign, dictionaries, selectedBannerId, onS
         </Flash>
       </Section>
 
-      <Section title="Места показа" edit={edit} form={formProps && ((onClose) => <PlacesForm {...formProps} onClose={onClose} />)}>
+      <Section title="Места показа" area="places" edit={edit} form={formProps && ((onClose) => <PlacesForm {...formProps} onClose={onClose} />)}>
         <Flash value={places.join()}>
           {places.length > 0 ? (
             <ul className="m-0 flex list-none flex-col p-0">
@@ -159,8 +160,8 @@ export function CampaignPassport({ campaign, dictionaries, selectedBannerId, onS
         </Flash>
       </Section>
 
-      <Section title="Правила показа" edit={edit} form={formProps && ((onClose) => <RulesForm {...formProps} onClose={onClose} />)}>
-        <div className="grid grid-cols-2 gap-3.5">
+      <Section title="Правила показа" area="rules" edit={edit} form={formProps && ((onClose) => <RulesForm {...formProps} onClose={onClose} />)}>
+        <div className="passport-fields">
           <Field
             label="Вес"
             hint="Приоритет среди кампаний в одном месте показа"
@@ -176,7 +177,7 @@ export function CampaignPassport({ campaign, dictionaries, selectedBannerId, onS
         </div>
       </Section>
 
-      <Section title="Креативы">
+      <Section title="Креативы" area="creatives">
         <Flash value={JSON.stringify([banners.map((banner) => banner.name), creatives.map((creative) => creative.channelCode)])}>
           {banners.length > 0 ? (
             <ul className="m-0 flex list-none flex-col gap-1 p-0">

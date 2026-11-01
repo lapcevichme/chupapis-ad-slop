@@ -41,6 +41,10 @@ const EDIT_NOTICES: Partial<Record<CampaignState, string>> = {
   ACTIVE: 'Показ продолжится по одобренной версии, а правки вступят в силу после новой модерации.',
 }
 
+function CampaignStatus({ state, published, proposed, fallback }: { state?: CampaignState; published?: boolean; proposed: boolean; fallback: string }) {
+  return <div className="canvas-status" role="status" aria-label="Статус кампании" aria-atomic="true"><span className="campaign-status-label">Статус</span>{state ? <StatusBadge state={state} /> : <span className="campaign-unsaved-status">{fallback}</span>}{published && <span className="campaign-published">Показ идёт</span>}{proposed && <span className="unsaved-label" aria-label="Предложенные изменения ещё не подтверждены" title="Предложенные изменения ещё не подтверждены">Есть правки</span>}</div>
+}
+
 interface CampaignWorkspaceProps {
   initialBrief?: string
   onSignOut: () => void
@@ -141,6 +145,7 @@ export function CampaignWorkspace({ initialBrief, onSignOut }: CampaignWorkspace
     void chat.open(id)
   }
 
+  const currentStatus = <CampaignStatus state={saved?.state} published={saved?.published} proposed={Boolean(chat.confirmation)} fallback={campaignId === null ? 'Не сохранена' : campaign.isPending ? 'Загружаем статус' : 'Статус недоступен'} />
   const hasResult = Boolean(details)
   const imageAction = (voice: boolean) =>
     edit ? <ImageUploadMenu banner={banner} disabled={chat.busy} onSend={(message) => void chat.send(message, voice)} /> : undefined
@@ -176,13 +181,13 @@ export function CampaignWorkspace({ initialBrief, onSignOut }: CampaignWorkspace
       <div className="pilot-workspace">
         <header className="pilot-topbar">
           <button className="mobile-menu" aria-label="Открыть меню кампаний" onClick={() => setNavOpen(true)}><Menu size={21} /></button>
-          <span className="mobile-workspace-label">adpilot.</span>
+          {hasResult ? <div className="mobile-campaign-status">{currentStatus}</div> : <span className="mobile-workspace-label">adpilot.</span>}
 
         </header>
         <div className="pilot-stage">
           {hasResult && <main className="campaign-canvas" data-pane={pane} aria-label="Рабочая область кампании">
-            <div className="canvas-heading"><div><div className="canvas-status">{saved && <StatusBadge state={saved.state} />}{chat.confirmation && <span className="unsaved-label">Предложенные изменения</span>}</div><h1 title={details?.name}>{details?.name ?? 'Собираем кампанию'}</h1>{(pane !== 'creative' || chat.confirmation) && <p className="canvas-description">{chat.confirmation ? 'Проверьте результат и состав изменений перед подтверждением.' : 'Ваш оффер, аудитория и креативы — в одном месте.'}</p>}</div></div>
-            <nav className="canvas-tabs" aria-label="Разделы кампании">{([['creative','Креативы'],['details','Параметры'],['history','Проверка и история']] as const).map(([id,label]) => <button key={id} aria-pressed={pane === id} onClick={() => setPane(id)}>{label}{id === 'creative' && banners.length > 0 && <span>{banners.length}</span>}</button>)}</nav>
+            <div className="canvas-header"><div className="canvas-heading"><div>{currentStatus}<h1 title={details?.name}>{details?.name ?? 'Собираем кампанию'}</h1></div></div>
+            <nav className="canvas-tabs" aria-label="Разделы кампании">{([['creative','Креативы'],['details','Параметры'],['history','Проверка и история']] as const).map(([id,label]) => <button key={id} aria-pressed={pane === id} onClick={() => setPane(id)}>{label}{id === 'creative' && banners.length > 0 && <span>{banners.length}</span>}</button>)}</nav></div>
             <div className="canvas-content">
               {failed && <div role="alert" className="workspace-error"><p>Не удалось загрузить часть данных.</p><Button variant="outline" onClick={() => {void campaign.refetch(); void warnings.refetch(); void dictionaries.refetch()}}>Повторить загрузку</Button></div>}
               {pane === 'creative' && <><div className="creative-gallery">
