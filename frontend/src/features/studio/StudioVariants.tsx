@@ -22,7 +22,7 @@ function ComparisonArt({ document }: { document: StudioDocument }) {
   useLayoutEffect(() => {
     const element = viewport.current
     if (!element) return
-    const observer = new ResizeObserver(([entry]) => setScale(Math.max(.1, Math.min((entry.contentRect.width - 24) / document.width, (entry.contentRect.height - 24) / document.height, 1.5))))
+    const observer = new ResizeObserver(([entry]) => setScale(Math.max(.1, Math.min(entry.contentRect.width / document.width, entry.contentRect.height / document.height, 1.5))))
     observer.observe(element)
     return () => observer.disconnect()
   }, [document.width, document.height])

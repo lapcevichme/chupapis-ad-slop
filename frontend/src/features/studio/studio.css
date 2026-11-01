@@ -186,3 +186,5 @@
 @media(max-width:1000px){.studio-tour{left:20px;bottom:98px;width:280px}}
 @media(max-width:600px){.studio-tour{left:12px;right:12px;width:auto;bottom:90px;padding:18px}.studio-tour h3{font-size:21px}.studio-tour-trigger{width:28px}.studio-tour-bottom{margin-top:12px}}
 @media(prefers-reduced-motion:reduce){.studio-tour{animation:none}}
+.studio-comparison-grid{flex:none}.studio-compare-art{flex:none;height:clamp(380px,calc(100dvh - 350px),650px);min-height:380px}.dark .studio-compare-card.active>header>span{background:var(--studio-blue);color:#102523}
+@media(max-width:800px){.studio-compare-art{height:420px;min-height:300px}}
