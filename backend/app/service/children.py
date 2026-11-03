@@ -8,12 +8,12 @@ from app.core.errors import api_error, fail, not_found, raise_if
 from app.db import models
 from app.db.uow import UnitOfWork
 from app.domain import views as dto
-from app.domain.actors import Actor
-from app.domain.enums import AuditAction, AuditEntity
+from app.domain.enums import AuditAction, AuditEntity, ContentType
 from app.domain.lifecycle import mark_edited
+from app.domain.users import CurrentUser
 from app.infra.creative_validation import check_banner, check_content
 from app.service import audit
-from app.service.common import editable_campaign
+from app.service.common import editable_campaign, user_row
 from app.service.mappers import banner, content, creative, snapshot
 
 
@@ -32,7 +32,7 @@ def _record(
     entity: AuditEntity,
     entity_id: int,
     action: AuditAction,
-    actor: Actor,
+    actor: CurrentUser,
     changes: dict[str, Any] | None = None,
 ) -> None:
     audit.record(
@@ -41,7 +41,7 @@ def _record(
         entity=entity,
         entity_id=entity_id,
         action=action,
-        actor=actor.login,
+        actor_id=actor.id,
         changes=changes,
     )
 
@@ -116,7 +116,7 @@ class CreativeService:
         self._media_base_url = media_base_url
 
     async def create_banner(
-        self, campaign_id: int, body: api.BannerCreate, actor: Actor
+        self, campaign_id: int, body: api.BannerCreate, actor: CurrentUser
     ) -> dto.BannerDto:
         session = self._uow.session
         c = await editable_campaign(session, actor, campaign_id)
@@ -128,13 +128,13 @@ class CreativeService:
             content=_banner_json(body),
         )
         session.add(b)
-        mark_edited(c, actor.login)
+        mark_edited(c, await user_row(session, actor))
         await self._uow.flush()
         _record(session, c, AuditEntity.BANNER, b.id, AuditAction.CREATE, actor)
         return banner(b)
 
     async def update_banner(
-        self, campaign_id: int, banner_id: int, body: api.BannerCreate, actor: Actor
+        self, campaign_id: int, banner_id: int, body: api.BannerCreate, actor: CurrentUser
     ) -> dto.BannerDto:
         session = self._uow.session
         c = await editable_campaign(session, actor, campaign_id)
@@ -156,7 +156,7 @@ class CreativeService:
         )
         before = snapshot(banner(b))
         b.name, b.banner_type_id, b.content = (body.name, body.bannerTypeId, _banner_json(body))
-        mark_edited(c, actor.login)
+        mark_edited(c, await user_row(session, actor))
         await self._uow.flush()
         await session.refresh(b)
         _record(
@@ -170,7 +170,7 @@ class CreativeService:
         )
         return banner(b)
 
-    async def delete_banner(self, campaign_id: int, banner_id: int, actor: Actor) -> None:
+    async def delete_banner(self, campaign_id: int, banner_id: int, actor: CurrentUser) -> None:
         session = self._uow.session
         c = await editable_campaign(session, actor, campaign_id)
         b = await _child(session, models.Banner, c.id, banner_id, "bannerId")
@@ -179,12 +179,12 @@ class CreativeService:
         ):
             raise fail("BANNER_IN_USE", "bannerId")
         c.banners.remove(b)
-        mark_edited(c, actor.login)
+        mark_edited(c, await user_row(session, actor))
         _record(session, c, AuditEntity.BANNER, banner_id, AuditAction.DELETE, actor)
         return None
 
     async def create_content(
-        self, campaign_id: int, body: api.ContentCreate, actor: Actor
+        self, campaign_id: int, body: api.ContentCreate, actor: CurrentUser
     ) -> dto.ContentDto:
         session = self._uow.session
         c = await editable_campaign(session, actor, campaign_id)
@@ -196,21 +196,25 @@ class CreativeService:
             content=_content_json(body),
         )
         session.add(x)
-        mark_edited(c, actor.login)
+        mark_edited(c, await user_row(session, actor))
         await self._uow.flush()
         _record(session, c, AuditEntity.CONTENT, x.id, AuditAction.CREATE, actor)
         return content(x)
 
     async def update_content(
-        self, campaign_id: int, content_id: int, body: api.ContentCreate, actor: Actor
+        self, campaign_id: int, content_id: int, body: api.ContentCreate, actor: CurrentUser
     ) -> dto.ContentDto:
         session = self._uow.session
         c = await editable_campaign(session, actor, campaign_id)
         x = await _child(session, models.Content, c.id, content_id, "contentId")
         raise_if(check_content(body.content, media_base_url=self._media_base_url))
         before = snapshot(content(x))
-        x.name, x.content_type, x.content = (body.name, body.contentType, _content_json(body))
-        mark_edited(c, actor.login)
+        x.name, x.content_type, x.content = (
+            body.name,
+            ContentType(body.contentType),
+            _content_json(body),
+        )
+        mark_edited(c, await user_row(session, actor))
         await self._uow.flush()
         _record(
             session,
@@ -223,7 +227,7 @@ class CreativeService:
         )
         return content(x)
 
-    async def delete_content(self, campaign_id: int, content_id: int, actor: Actor) -> None:
+    async def delete_content(self, campaign_id: int, content_id: int, actor: CurrentUser) -> None:
         session = self._uow.session
         c = await editable_campaign(session, actor, campaign_id)
         x = await _child(session, models.Content, c.id, content_id, "contentId")
@@ -232,12 +236,12 @@ class CreativeService:
         ):
             raise fail("CONTENT_IN_USE", "contentId")
         c.contents.remove(x)
-        mark_edited(c, actor.login)
+        mark_edited(c, await user_row(session, actor))
         _record(session, c, AuditEntity.CONTENT, content_id, AuditAction.DELETE, actor)
         return None
 
     async def create_creative(
-        self, campaign_id: int, body: api.CreativeCreate, actor: Actor
+        self, campaign_id: int, body: api.CreativeCreate, actor: CurrentUser
     ) -> dto.CreativeDto:
         session = self._uow.session
         c = await editable_campaign(session, actor, campaign_id)
@@ -250,13 +254,13 @@ class CreativeService:
             channel_code=body.channelCode,
         )
         session.add(cr)
-        mark_edited(c, actor.login)
+        mark_edited(c, await user_row(session, actor))
         await self._uow.flush()
         _record(session, c, AuditEntity.CREATIVE, cr.id, AuditAction.CREATE, actor)
         return creative(cr)
 
     async def update_creative(
-        self, campaign_id: int, creative_id: int, body: api.CreativeCreate, actor: Actor
+        self, campaign_id: int, creative_id: int, body: api.CreativeCreate, actor: CurrentUser
     ) -> dto.CreativeDto:
         session = self._uow.session
         c = await editable_campaign(session, actor, campaign_id)
@@ -269,7 +273,7 @@ class CreativeService:
             body.contentId,
             body.channelCode,
         )
-        mark_edited(c, actor.login)
+        mark_edited(c, await user_row(session, actor))
         await self._uow.flush()
         _record(
             session,
@@ -282,11 +286,11 @@ class CreativeService:
         )
         return creative(cr)
 
-    async def delete_creative(self, campaign_id: int, creative_id: int, actor: Actor) -> None:
+    async def delete_creative(self, campaign_id: int, creative_id: int, actor: CurrentUser) -> None:
         session = self._uow.session
         c = await editable_campaign(session, actor, campaign_id)
         cr = await _child(session, models.Creative, c.id, creative_id, "creativeId")
         c.creatives.remove(cr)
-        mark_edited(c, actor.login)
+        mark_edited(c, await user_row(session, actor))
         _record(session, c, AuditEntity.CREATIVE, creative_id, AuditAction.DELETE, actor)
         return None

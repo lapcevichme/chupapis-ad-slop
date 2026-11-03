@@ -3,9 +3,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.codes import WARNINGS
 from app.core.errors import ApiError, api_error
 from app.db import models
-from app.domain.enums import AudienceType, PlaceState, SegmentState
+from app.domain.enums import AudienceType, PlaceState, SegmentKind, SegmentState
 from app.infra.creative_validation import validate_banner_json, validate_content_json
 from app.infra.schedule_validation import check_schedule
+from app.service.mappers import split_moment
 
 
 async def check_segment_codes(
@@ -34,8 +35,14 @@ async def check_segment_codes(
 async def campaign_errors(
     session: AsyncSession, c: models.Campaign, *, media_base_url: str = "/api/media"
 ) -> list[ApiError]:
-    errors = check_schedule(c.start_date, c.start_time, c.end_date, c.end_time)
-    included, excluded = (c.segment_codes("included"), c.segment_codes("excluded"))
+    start_date, start_time = split_moment(c.start_at)
+    end_date, end_time = split_moment(c.end_at)
+    assert start_date is not None and start_time is not None
+    errors = check_schedule(start_date, start_time, end_date, end_time)
+    included, excluded = (
+        c.segment_codes(SegmentKind.INCLUDED),
+        c.segment_codes(SegmentKind.EXCLUDED),
+    )
     if c.audience_type == AudienceType.SEGMENTED and (not included):
         errors.append(api_error("SEGMENTS_REQUIRED", "segments.included"))
     if c.audience_type == AudienceType.ALL_USERS and (included or excluded):

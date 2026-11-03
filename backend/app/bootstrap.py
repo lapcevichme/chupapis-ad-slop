@@ -11,6 +11,7 @@ from app.infra.agent.studio_designer import StudioDesigner
 from app.infra.campaigns_api import ApiFactory, CampaignsApi
 from app.infra.live import live_sessions
 from app.infra.llm import ImageGenerator, chat_model, image_generator
+from app.infra.media import MediaSink
 from app.infra.speech import speech_synthesizer, speech_transcriber
 from app.service.chat import ChatService
 from app.service.chat_sessions import SessionRegistry
@@ -40,28 +41,28 @@ def build_chat_service(
     settings: Settings,
     sessions: SessionRegistry,
     *,
+    media: MediaSink,
     chat: BaseChatModel | None = None,
     design: BaseChatModel | None = None,
     images: ImageGenerator | None = None,
     patterns: SvgPatternGenerator | None = None,
     api_factory: ApiFactory | None = None,
 ) -> ChatService:
-    def default_factory(user: str, role: str) -> CampaignsApi:
-        return CampaignsApi(user, role, base_url=settings.campaigns_api_url)
+    def default_factory(token: str) -> CampaignsApi:
+        return CampaignsApi(token, base_url=settings.campaigns_api_url)
 
     resolved_factory = api_factory or default_factory
     deps = AgentDeps(
         chat_model=chat or chat_model(settings, settings.chat_model),
         designer=Designer(
             design or chat_model(settings, settings.design_model, temperature=0.7),
-            images or image_generator(settings),
+            images or image_generator(settings, media),
             # Без ключа паттерны не нужны: тесты подставляют свой генератор или работают без него.
             patterns
             or (
                 SvgPatternGenerator(
                     chat_model(settings, settings.pattern_model, temperature=0.8, max_tokens=2000),
-                    media_dir=settings.media_dir,
-                    media_base_url=settings.media_base_url,
+                    media=media,
                 )
                 if settings.llm_api_key
                 else None

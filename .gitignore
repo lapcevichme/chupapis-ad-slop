@@ -4,3 +4,6 @@
 !.env.example
 .DS_Store
 .playwright-mcp/
+
+# Ключи JWT: make keys
+backend/secrets/

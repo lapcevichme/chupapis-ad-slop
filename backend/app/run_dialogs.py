@@ -1,17 +1,24 @@
 import asyncio
 import json
 import sys
-import tempfile
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 import httpx
+from alembic.config import Config
 from langgraph.checkpoint.memory import InMemorySaver
+from sqlalchemy import select, text
+from sqlalchemy.engine import make_url
+from sqlalchemy.ext.asyncio import create_async_engine
 
+from alembic import command
 from app.bootstrap import build_chat_service
-from app.core.config import BACKEND_DIR, Settings
-from app.db.base import Base
+from app.core.config import BACKEND_DIR, Settings, get_settings
+from app.db.models import User
 from app.db.seed import seed
 from app.infra.campaigns_api import CampaignsApi
 from app.main import create_app
@@ -87,30 +94,59 @@ def _render_turn(
     return [line for item in out for line in (item, "")][:-1], confirmation
 
 
+@asynccontextmanager
+async def scratch_database(base_url: str) -> AsyncIterator[str]:
+    """Одноразовая база на том же сервере Postgres, чтобы прогон не трогал рабочие данные."""
+    url = make_url(base_url)
+    name = f"adpilot_dialogs_{uuid4().hex[:8]}"
+    admin = create_async_engine(url.set(database="postgres"), isolation_level="AUTOCOMMIT")
+    async with admin.connect() as connection:
+        await connection.execute(text(f'CREATE DATABASE "{name}"'))
+    scratch = url.set(database=name).render_as_string(hide_password=False)
+    try:
+        yield scratch
+    finally:
+        async with admin.connect() as connection:
+            await connection.execute(text(f'DROP DATABASE "{name}" WITH (FORCE)'))
+        await admin.dispose()
+
+
 async def run_dialog(path: Path) -> Path:
-    settings = Settings(
-        database_url=f"sqlite:///{Path(tempfile.mkdtemp()) / 'dialogs.db'}",
-        checkpoint_db=Path(tempfile.mkdtemp()) / "checkpoints.db",
-    )
-    app = create_app(settings)
-    async with app.router.lifespan_context(app):
-        async with app.state.db.engine.begin() as connection:
-            await connection.run_sync(Base.metadata.create_all)
-        async with app.state.db.unit_of_work() as uow:
-            await uow.session.run_sync(seed, settings.seed_dir)
-        transport = httpx.ASGITransport(app=app)
-        app.state.chat = build_chat_service(
-            InMemorySaver(),
-            settings,
-            SessionRegistry(app.state.db),
-            api_factory=lambda user, role: CampaignsApi(
-                user, role, base_url="http://api", transport=transport
-            ),
-        )
-        return await _run_dialog(path, settings, transport)
+    base = get_settings()
+    async with scratch_database(base.database_url) as database_url:
+        config = Config(str(BACKEND_DIR / "alembic.ini"))
+        config.set_main_option("script_location", str(BACKEND_DIR / "alembic"))
+        config.attributes["database_url"] = database_url
+        config.attributes["configure_logger"] = False
+        await asyncio.to_thread(command.upgrade, config, "head")
+
+        settings = base.model_copy(update={"database_url": database_url})
+        app = create_app(settings)
+        async with app.router.lifespan_context(app):
+            async with app.state.db.unit_of_work() as uow:
+                await seed(uow.session, settings.seed_dir, demo_password=uuid4().hex)
+            transport = httpx.ASGITransport(app=app)
+            app.state.chat = build_chat_service(
+                InMemorySaver(),
+                settings,
+                SessionRegistry(app.state.db),
+                media=app.state.media_store,
+                api_factory=lambda token: CampaignsApi(
+                    token, base_url="http://api", transport=transport
+                ),
+            )
+            tokens: dict[str, str] = {}
+            async with app.state.db.unit_of_work() as uow:
+                for user in await uow.session.scalars(select(User)):
+                    tokens[user.username] = app.state.token_codec.issue_access(
+                        user_id=user.id, session_id=uuid4(), auth_version=user.auth_version
+                    )
+            return await _run_dialog(path, settings, transport, tokens)
 
 
-async def _run_dialog(path: Path, settings: Settings, transport: httpx.ASGITransport) -> Path:
+async def _run_dialog(
+    path: Path, settings: Settings, transport: httpx.ASGITransport, tokens: dict[str, str]
+) -> Path:
     scenario = json.loads(path.read_text(encoding="utf-8"))
     lines = [
         f"# {scenario['title']}",
@@ -126,7 +162,7 @@ async def _run_dialog(path: Path, settings: Settings, transport: httpx.ASGITrans
     async with httpx.AsyncClient(transport=transport, base_url="http://api", timeout=600) as client:
         for number, step in enumerate(scenario["steps"], 1):
             user, role = step.get("as", scenario["user"]), step.get("role", scenario["role"])
-            headers = {"X-User": user, "X-Role": role}
+            headers = {"Authorization": f"Bearer {tokens[user]}"}
             if user not in sessions:
                 body = {"campaignId": scenario["campaignId"]} if scenario.get("campaignId") else {}
                 sessions[user] = (await client.post("/chat", json=body, headers=headers)).json()[
@@ -160,12 +196,18 @@ async def _run_dialog(path: Path, settings: Settings, transport: httpx.ASGITrans
 
         snapshot = (
             await client.get(
-                f"/chat/{sessions[scenario['user']]}", headers={"X-User": scenario["user"]}
+                f"/chat/{sessions[scenario['user']]}",
+                headers={"Authorization": f"Bearer {tokens[scenario['user']]}"},
             )
         ).json()
         if snapshot.get("campaignId"):
-            campaign = (await client.get(f"/campaigns/{snapshot['campaignId']}")).json()
-            audit = (await client.get(f"/campaigns/{snapshot['campaignId']}/audit")).json()
+            reader = {"Authorization": f"Bearer {tokens[scenario['user']]}"}
+            campaign = (
+                await client.get(f"/campaigns/{snapshot['campaignId']}", headers=reader)
+            ).json()
+            audit = (
+                await client.get(f"/campaigns/{snapshot['campaignId']}/audit", headers=reader)
+            ).json()
             lines += [
                 "## Итог",
                 "",

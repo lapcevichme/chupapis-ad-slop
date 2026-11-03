@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response, UploadFile
 
-from app.api.deps import ERROR_RESPONSES, ActorDep
+from app.api.deps import ERROR_RESPONSES, CurrentUserDep
 from app.contracts.errors import ErrorResponse
 from app.contracts.speech import LiveSessionBody, LiveSessionStart, SynthesisBody, Transcription
 from app.core.errors import fail
@@ -36,7 +36,9 @@ SpeechDep = Annotated[SpeechService, Depends(get_speech)]
 
 
 @router.post("/transcriptions", response_model=Transcription)
-async def transcribe_speech(file: UploadFile, speech: SpeechDep, _actor: ActorDep) -> Transcription:
+async def transcribe_speech(
+    file: UploadFile, speech: SpeechDep, _actor: CurrentUserDep
+) -> Transcription:
     # Размер проверяем до чтения в память: распознавание платное, а тело присылает клиент.
     if file.size is not None and file.size > speech.max_audio_bytes:
         raise fail("AUDIO_TOO_LARGE", "file")
@@ -48,13 +50,15 @@ async def transcribe_speech(file: UploadFile, speech: SpeechDep, _actor: ActorDe
     response_class=Response,
     responses={200: {"content": {"audio/mpeg": {}}, "description": "Озвученный текст, MP3"}},
 )
-async def synthesize_speech(body: SynthesisBody, speech: SpeechDep, _actor: ActorDep) -> Response:
+async def synthesize_speech(
+    body: SynthesisBody, speech: SpeechDep, _actor: CurrentUserDep
+) -> Response:
     return Response(await speech.synthesize(body.text), media_type="audio/mpeg")
 
 
 @router.post("/live/sessions", response_model=LiveSessionStart, status_code=201)
 async def start_live_session(
-    body: LiveSessionBody, speech: SpeechDep, _actor: ActorDep
+    body: LiveSessionBody, speech: SpeechDep, _actor: CurrentUserDep
 ) -> LiveSessionStart:
     started = await speech.start_live_session(body.sdp)
     return LiveSessionStart(sessionId=started.session_id, sdp=started.answer_sdp)

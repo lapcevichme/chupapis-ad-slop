@@ -6,8 +6,14 @@ from app.core.errors import api_error, fail, not_found, raise_if
 from app.db import models
 from app.db.uow import UnitOfWork
 from app.domain import views as dto
-from app.domain.actors import Actor, require_role
-from app.domain.enums import AudienceType, AuditAction, AuditEntity, CampaignState, Role
+from app.domain.enums import (
+    AudienceType,
+    AuditAction,
+    AuditEntity,
+    CampaignState,
+    SegmentKind,
+)
+from app.domain.events import Topic
 from app.domain.lifecycle import (
     TRANSITIONS,
     ensure_deletable,
@@ -15,15 +21,16 @@ from app.domain.lifecycle import (
     ensure_transition,
     mark_edited,
 )
-from app.infra.cbro import export_campaign
+from app.domain.users import CurrentUser, Permission, ensure_can
 from app.infra.schedule_validation import check_schedule
 from app.service import audit
-from app.service.common import editable_campaign, get_campaign, info_snapshot
+from app.service.common import editable_campaign, get_campaign, info_snapshot, user_row
 from app.service.mappers import (
     audit_record,
     campaign_details,
     campaign_list_item,
     campaign_ref,
+    join_moment,
     segments,
     snapshot,
 )
@@ -68,8 +75,12 @@ async def _apply_info(session: AsyncSession, c: models.Campaign, body: api.Campa
     raise_if(errors)
     c.name = body.name
     c.marketing_name = body.marketingName
-    c.start_date, c.start_time = (body.startDate, body.startTime)
-    c.end_date, c.end_time = (body.endDate, body.endTime)
+    c.start_at = join_moment(body.startDate, body.startTime)
+    c.end_at = (
+        join_moment(body.endDate, body.endTime)
+        if body.endDate is not None and body.endTime is not None
+        else None
+    )
     c.topic = body.topic.value
     c.keywords = body.keywords
     c.audience_type = body.audienceType
@@ -85,16 +96,25 @@ async def _apply_info(session: AsyncSession, c: models.Campaign, body: api.Campa
     ]
 
 
+_TRANSITION_EVENTS: dict[AuditAction, Topic] = {
+    AuditAction.TO_MODERATION: Topic.CAMPAIGN_SENT_TO_MODERATION,
+    AuditAction.DECLINE: Topic.CAMPAIGN_REVIEWED,
+    AuditAction.APPROVE: Topic.CAMPAIGN_REVIEWED,
+    AuditAction.ACTIVATE: Topic.CAMPAIGN_ACTIVATED,
+}
+
+
 async def _transition(
-    session: AsyncSession,
-    actor: Actor,
+    uow: UnitOfWork,
+    actor: CurrentUser,
     campaign_id: int,
     action: AuditAction,
     comment: str | None = None,
     *,
     media_base_url: str = "/api/media",
 ) -> models.Campaign:
-    require_role(actor, TRANSITIONS[action].role)
+    session = uow.session
+    ensure_can(actor, TRANSITIONS[action].permission)
     c = await get_campaign(session, campaign_id)
     transition = ensure_transition(c, action)
     if action == AuditAction.DECLINE and (not (comment or "").strip()):
@@ -102,7 +122,6 @@ async def _transition(
     if action == AuditAction.TO_MODERATION:
         raise_if(await campaign_errors(session, c, media_base_url=media_base_url))
     if action == AuditAction.ACTIVATE:
-        export_campaign(c.id)
         c.published = True
     c.state = transition.to_state
     audit.record(
@@ -111,8 +130,18 @@ async def _transition(
         entity=AuditEntity.CAMPAIGN,
         entity_id=c.id,
         action=action,
-        actor=actor.login,
+        actor_id=actor.id,
         comment=comment,
+    )
+    uow.outbox.add(
+        _TRANSITION_EVENTS[action],
+        {
+            "campaign_id": c.id,
+            "campaign_name": c.name,
+            "action": action.value,
+            "actor": actor.username,
+            "comment": comment,
+        },
     )
     return c
 
@@ -129,14 +158,15 @@ class CampaignService:
         session = self._uow.session
         return campaign_details(await get_campaign(session, campaign_id))
 
-    async def create_campaign(self, body: api.CampaignInfo, actor: Actor) -> dto.CampaignRef:
+    async def create_campaign(self, body: api.CampaignInfo, actor: CurrentUser) -> dto.CampaignRef:
         session = self._uow.session
-        require_role(actor, Role.MANAGER)
+        ensure_can(actor, Permission.CAMPAIGNS_WRITE)
+        author = await user_row(session, actor)
         c = models.Campaign(
             state=CampaignState.DRAFT,
             published=False,
-            author=actor.login,
-            last_edit_author=actor.login,
+            author=author,
+            last_editor=author,
             tag_links=[],
             place_links=[],
             segment_links=[],
@@ -153,18 +183,18 @@ class CampaignService:
             entity=AuditEntity.CAMPAIGN,
             entity_id=c.id,
             action=AuditAction.CREATE,
-            actor=actor.login,
+            actor_id=actor.id,
         )
         return campaign_ref(c)
 
     async def update_campaign(
-        self, campaign_id: int, body: api.CampaignInfo, actor: Actor
+        self, campaign_id: int, body: api.CampaignInfo, actor: CurrentUser
     ) -> dto.CampaignRef:
         session = self._uow.session
         c = await editable_campaign(session, actor, campaign_id)
         before = info_snapshot(c)
         await _apply_info(session, c, body)
-        mark_edited(c, actor.login)
+        mark_edited(c, await user_row(session, actor))
         await self._uow.flush()
         audit.record(
             session,
@@ -172,14 +202,14 @@ class CampaignService:
             entity=AuditEntity.CAMPAIGN,
             entity_id=c.id,
             action=AuditAction.UPDATE,
-            actor=actor.login,
+            actor_id=actor.id,
             changes=audit.diff(before, info_snapshot(c)),
         )
         return campaign_ref(c)
 
-    async def delete_campaign(self, campaign_id: int, actor: Actor) -> None:
+    async def delete_campaign(self, campaign_id: int, actor: CurrentUser) -> None:
         session = self._uow.session
-        require_role(actor, Role.MANAGER)
+        ensure_can(actor, Permission.CAMPAIGNS_WRITE)
         c = await get_campaign(session, campaign_id)
         ensure_deletable(c)
         audit.record(
@@ -188,13 +218,13 @@ class CampaignService:
             entity=AuditEntity.CAMPAIGN,
             entity_id=c.id,
             action=AuditAction.DELETE,
-            actor=actor.login,
+            actor_id=actor.id,
         )
         await session.delete(c)
         return None
 
     async def set_segments(
-        self, campaign_id: int, body: api.Segments, actor: Actor
+        self, campaign_id: int, body: api.Segments, actor: CurrentUser
     ) -> dto.Segments:
         session = self._uow.session
         c = await editable_campaign(session, actor, campaign_id)
@@ -220,10 +250,13 @@ class CampaignService:
         before = snapshot(segments(c))
         c.segment_links = [
             models.CampaignSegment(segment_code=code, kind=kind, position=i)
-            for kind, codes in (("included", included), ("excluded", excluded))
+            for kind, codes in (
+                (SegmentKind.INCLUDED, included),
+                (SegmentKind.EXCLUDED, excluded),
+            )
             for i, code in enumerate(codes)
         ]
-        mark_edited(c, actor.login)
+        mark_edited(c, await user_row(session, actor))
         await self._uow.flush()
         after = snapshot(segments(c))
         audit.record(
@@ -232,7 +265,7 @@ class CampaignService:
             entity=AuditEntity.SEGMENTS,
             entity_id=c.id,
             action=AuditAction.UPDATE,
-            actor=actor.login,
+            actor_id=actor.id,
             changes=audit.diff(before, after),
         )
         return segments(c)
@@ -255,11 +288,10 @@ class CampaignService:
         )
         return [audit_record(e) for e in rows]
 
-    async def send_to_moderation(self, campaign_id: int, actor: Actor) -> dto.CampaignRef:
-        session = self._uow.session
+    async def send_to_moderation(self, campaign_id: int, actor: CurrentUser) -> dto.CampaignRef:
         return campaign_ref(
             await _transition(
-                session,
+                self._uow,
                 actor,
                 campaign_id,
                 AuditAction.TO_MODERATION,
@@ -268,12 +300,11 @@ class CampaignService:
         )
 
     async def decline_campaign(
-        self, campaign_id: int, body: api.DeclineBody, actor: Actor
+        self, campaign_id: int, body: api.DeclineBody, actor: CurrentUser
     ) -> dto.CampaignRef:
-        session = self._uow.session
         return campaign_ref(
             await _transition(
-                session,
+                self._uow,
                 actor,
                 campaign_id,
                 AuditAction.DECLINE,
@@ -282,11 +313,10 @@ class CampaignService:
             )
         )
 
-    async def approve_campaign(self, campaign_id: int, actor: Actor) -> dto.CampaignRef:
-        session = self._uow.session
+    async def approve_campaign(self, campaign_id: int, actor: CurrentUser) -> dto.CampaignRef:
         return campaign_ref(
             await _transition(
-                session,
+                self._uow,
                 actor,
                 campaign_id,
                 AuditAction.APPROVE,
@@ -294,11 +324,10 @@ class CampaignService:
             )
         )
 
-    async def activate_campaign(self, campaign_id: int, actor: Actor) -> dto.CampaignRef:
-        session = self._uow.session
+    async def activate_campaign(self, campaign_id: int, actor: CurrentUser) -> dto.CampaignRef:
         return campaign_ref(
             await _transition(
-                session,
+                self._uow,
                 actor,
                 campaign_id,
                 AuditAction.ACTIVATE,
@@ -306,9 +335,9 @@ class CampaignService:
             )
         )
 
-    async def stop_campaign(self, campaign_id: int, actor: Actor) -> dto.CampaignRef:
+    async def stop_campaign(self, campaign_id: int, actor: CurrentUser) -> dto.CampaignRef:
         session = self._uow.session
-        require_role(actor, Role.MANAGER)
+        ensure_can(actor, Permission.CAMPAIGNS_WRITE)
         c = await get_campaign(session, campaign_id)
         ensure_stoppable(c)
         c.state = CampaignState.STOPPED
@@ -319,6 +348,6 @@ class CampaignService:
             entity=AuditEntity.CAMPAIGN,
             entity_id=c.id,
             action=AuditAction.STOP,
-            actor=actor.login,
+            actor_id=actor.id,
         )
         return campaign_ref(c)

@@ -1,4 +1,4 @@
-from tests.conftest import MANAGER, MODERATOR, codes
+from tests.conftest import ANONYMOUS, MANAGER, MODERATOR, codes
 
 
 def _put_same(client, campaign_id, headers=MANAGER):
@@ -35,7 +35,7 @@ def test_role_checked_before_state(client):
     assert codes(client.post("/campaigns/101/activate", headers=MANAGER)) == [
         "ACTIVATE_NOT_ALLOWED"
     ]
-    assert codes(client.post("/campaigns", json={}, headers={})) == ["USER_REQUIRED"]
+    assert codes(client.post("/campaigns", json={}, headers=ANONYMOUS)) == ["NOT_AUTHENTICATED"]
 
 
 def test_moderation_cycle(client):

@@ -1,10 +1,24 @@
 from dataclasses import asdict
-from datetime import date, datetime
+from datetime import UTC, date, datetime, time
 from typing import Any, cast
 
 from app.db import models
 from app.domain import views as api
-from app.domain.enums import CampaignState, PlaceState, Topic
+from app.domain.enums import CampaignState, PlaceState, SegmentKind, Topic
+from app.domain.users import UserProfile
+
+
+def split_moment(moment: datetime | None) -> tuple[date | None, str | None]:
+    """Момент в UTC → пара «дата, HH:mm», как её отдаёт и принимает API кампаний."""
+    if moment is None:
+        return None, None
+    utc = moment.astimezone(UTC)
+    return utc.date(), utc.strftime("%H:%M")
+
+
+def join_moment(day: date, hhmm: str) -> datetime:
+    hours, minutes = hhmm.split(":")
+    return datetime.combine(day, time(int(hours), int(minutes)), tzinfo=UTC)
 
 
 def campaign_ref(c: models.Campaign) -> api.CampaignRef:
@@ -12,34 +26,39 @@ def campaign_ref(c: models.Campaign) -> api.CampaignRef:
         id=c.id,
         state=CampaignState(c.state),
         published=c.published,
-        author=c.author,
-        lastEditAuthor=c.last_edit_author,
+        author=c.author.username,
+        lastEditAuthor=c.last_editor.username,
     )
 
 
 def campaign_list_item(c: models.Campaign) -> api.CampaignListItem:
+    start_date, start_time = split_moment(c.start_at)
+    end_date, end_time = split_moment(c.end_at)
+    assert start_date is not None and start_time is not None
     return api.CampaignListItem(
         id=c.id,
         name=c.name,
         state=CampaignState(c.state),
         published=c.published,
         topic=Topic(c.topic),
-        startDate=c.start_date,
-        startTime=c.start_time,
-        endDate=c.end_date,
-        endTime=c.end_time,
+        startDate=start_date,
+        startTime=start_time,
+        endDate=end_date,
+        endTime=end_time,
     )
 
 
 def campaign_header(c: models.Campaign) -> dict[str, Any]:
+    start_date, start_time = split_moment(c.start_at)
+    end_date, end_time = split_moment(c.end_at)
     return dict(
         id=c.id,
         name=c.name,
         marketingName=c.marketing_name,
-        startDate=c.start_date,
-        startTime=c.start_time,
-        endDate=c.end_date,
-        endTime=c.end_time,
+        startDate=start_date,
+        startTime=start_time,
+        endDate=end_date,
+        endTime=end_time,
         topic=Topic(c.topic),
         tags=c.tag_ids,
         keywords=c.keywords,
@@ -48,8 +67,8 @@ def campaign_header(c: models.Campaign) -> dict[str, Any]:
         audienceType=c.audience_type,
         weight=c.weight,
         initialCtr=c.initial_ctr,
-        author=c.author,
-        lastEditAuthor=c.last_edit_author,
+        author=c.author.username,
+        lastEditAuthor=c.last_editor.username,
     )
 
 
@@ -85,7 +104,10 @@ def creative(c: models.Creative) -> api.CreativeDto:
 
 
 def segments(c: models.Campaign) -> api.Segments:
-    return api.Segments(included=c.segment_codes("included"), excluded=c.segment_codes("excluded"))
+    return api.Segments(
+        included=c.segment_codes(SegmentKind.INCLUDED),
+        excluded=c.segment_codes(SegmentKind.EXCLUDED),
+    )
 
 
 def campaign_details(c: models.Campaign) -> api.CampaignDetails:
@@ -106,7 +128,7 @@ def audit_record(e: models.AuditEntry) -> api.AuditRecord:
         action=e.action,
         changes=e.changes,
         at=e.at,
-        actor=e.actor,
+        actor=e.actor.username,
         comment=e.comment,
     )
 
@@ -144,3 +166,15 @@ def snapshot(value: Any) -> dict[str, Any]:
         return item
 
     return cast(dict[str, Any], json_value(asdict(value)))
+
+
+def to_profile(user: models.User) -> UserProfile:
+    return UserProfile(
+        id=user.id,
+        email=user.email,
+        username=user.username,
+        role=user.role,
+        is_banned=user.banned_at is not None,
+        created_at=user.created_at,
+        updated_at=user.updated_at,
+    )

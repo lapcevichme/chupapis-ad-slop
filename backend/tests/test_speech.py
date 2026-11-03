@@ -19,7 +19,7 @@ from app.infra.live import (
 )
 from app.infra.speech import OpenRouterSynthesizer, OpenRouterTranscriber, SpeechFailed
 from app.service.speech import SpeechService
-from tests.conftest import MANAGER, codes
+from tests.conftest import ANONYMOUS, MANAGER, codes
 
 
 class FakeTranscriber:
@@ -121,7 +121,7 @@ def test_safari_recording_is_sent_as_m4a(client):
 
 def test_endpoint_requires_user(client):
     use(client, FakeTranscriber())
-    assert codes(post(client, headers={})) == ["USER_REQUIRED"]
+    assert codes(post(client, headers=ANONYMOUS)) == ["NOT_AUTHENTICATED"]
 
 
 @pytest.mark.parametrize(
@@ -219,7 +219,7 @@ def test_synthesis_endpoint_returns_mp3(client):
 
 def test_synthesis_requires_user(client):
     use_synthesizer(client, FakeSynthesizer())
-    assert codes(say(client, headers={})) == ["USER_REQUIRED"]
+    assert codes(say(client, headers=ANONYMOUS)) == ["NOT_AUTHENTICATED"]
 
 
 @pytest.mark.parametrize(
@@ -329,7 +329,7 @@ def test_live_endpoint_returns_answer(client):
 def test_live_endpoint_requires_user(client):
     fake = FakeLiveSessions()
     use_live(client, fake)
-    assert codes(post_live(client, headers={})) == ["USER_REQUIRED"]
+    assert codes(post_live(client, headers=ANONYMOUS)) == ["NOT_AUTHENTICATED"]
     assert fake.offers == []
 
 

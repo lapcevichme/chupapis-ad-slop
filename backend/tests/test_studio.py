@@ -69,11 +69,13 @@ def test_scene_survives_reload_without_changing_campaign(client):
 def test_save_retry_is_content_addressed_and_does_not_use_quota_twice(client):
     first = save(client).json()
     settings = client.app.state.settings
-    used = sum(p.stat().st_size for p in settings.media_dir.glob("upload-*"))
-    settings.media_upload_max_total_bytes = used
+    png_size = len(png())
+    settings.media_upload_max_total_bytes = png_size
     second = save(client)
     assert second.status_code == 201 and first == second.json()
-    assert len(list(settings.media_dir.glob("upload-studio-*"))) == 2
+    # Новый макет уже не влезает в квоту, а повтор прежнего проходит без неё.
+    other = DOCUMENT | {"name": "Другой макет"}
+    assert codes(save(client, document=other)) == ["MEDIA_STORAGE_FULL"]
 
 
 def test_moderator_cannot_save_or_generate(client):

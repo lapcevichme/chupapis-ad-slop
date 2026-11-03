@@ -1,3 +1,4 @@
+# Весь стек: `docker compose up --build`. Образ бэкенда общий для migrate (разово), backend и worker.
 x-backend: &backend
   image: adpilot-backend
   build: ./backend
@@ -5,30 +6,53 @@ x-backend: &backend
     - path: .env
       required: false
   environment:
-    DATABASE_URL: sqlite:////app/data/adpilot.db
-    # Миграции делает сервис migrate, entrypoint их повторять не должен.
-    RUN_MIGRATIONS: "false"
+    DATABASE_URL: postgresql+asyncpg://adpilot:adpilot@db:5432/adpilot
+    REDIS_URL: redis://redis:6379/0
+    STORAGE_ENDPOINT: http://s3:9000
+    STORAGE_ACCESS_KEY: rustfsadmin
+    STORAGE_SECRET_KEY: rustfsadmin
+    STORAGE_AUTO_CREATE_BUCKET: "true"
+    CAMPAIGNS_API_URL: http://backend:8000
+    JWT_PRIVATE_KEY_PATH: /run/secrets/jwt_private_key.pem
+    JWT_PUBLIC_KEY_PATH: /run/secrets/jwt_public_key.pem
+    # Демо-стенд: менеджер ivanov.p@adpilot.local и модератор petrova.m@adpilot.local с этим паролем.
+    DEMO_USERS_PASSWORD: ${DEMO_USERS_PASSWORD:-adpilot-demo}
   volumes:
-    - backend-data:/app/data
+    - ./backend/secrets:/run/secrets:ro
+  restart: unless-stopped
 
 services:
   migrate:
     <<: *backend
-    command: ["sh", "-c", "alembic upgrade head && python -m app.seed"]
+    command: ["sh", "-c", "alembic upgrade head && python -m app.cli setup-checkpointer && python -m app.seed"]
     restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
 
   backend:
     <<: *backend
+    ports:
+      - "8000:8000"
     depends_on:
       migrate:
         condition: service_completed_successfully
-    ports:
-      - "8000:8000"
+      redis:
+        condition: service_healthy
+      s3:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  worker:
+    <<: *backend
+    command: ["python", "-m", "app.worker"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
 
   frontend:
     build: ./frontend
@@ -40,5 +64,53 @@ services:
       backend:
         condition: service_healthy
 
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: adpilot
+      POSTGRES_PASSWORD: adpilot
+      POSTGRES_DB: adpilot
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U adpilot -d adpilot"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:8-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  s3:
+    image: rustfs/rustfs:1.0.4
+    environment:
+      RUSTFS_ACCESS_KEY: rustfsadmin
+      RUSTFS_SECRET_KEY: rustfsadmin
+    ports:
+      - "9000:9000"
+    volumes:
+      - s3-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/health"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
 volumes:
-  backend-data:
+  postgres-data:
+  redis-data:
+  s3-data:

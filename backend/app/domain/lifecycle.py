@@ -1,15 +1,21 @@
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol
+from uuid import UUID
 
 from app.core.codes import ERRORS
 from app.core.errors import fail
-from app.domain.enums import AuditAction, CampaignState, Role
+from app.domain.enums import AuditAction, CampaignState
+from app.domain.users import Permission
+
+
+class Editor(Protocol):
+    id: UUID
 
 
 class Campaign(Protocol):
-    state: str
+    state: CampaignState
     published: bool
-    last_edit_author: str
+    last_editor: Any
 
 
 S = CampaignState
@@ -26,19 +32,19 @@ def ensure_editable(campaign: Campaign) -> None:
         )
 
 
-def mark_edited(campaign: Campaign, login: str) -> None:
+def mark_edited(campaign: Campaign, editor: Editor) -> None:
     """Правка снимает одобрение (APPROVED → DRAFT), а у живой кампании открывает ACTIVE_EDITING."""
     if campaign.state == S.APPROVED:
         campaign.state = S.DRAFT
     elif campaign.state in {S.ACTIVE, S.ACTIVE_EDITING}:
         campaign.state = S.ACTIVE_EDITING
-    campaign.last_edit_author = login
+    campaign.last_editor = editor
 
 
 @dataclass(frozen=True)
 class Transition:
     action: AuditAction
-    role: Role
+    permission: Permission
     from_states: frozenset[CampaignState]
     to_state: CampaignState
     error_code: str
@@ -49,28 +55,28 @@ TRANSITIONS: dict[AuditAction, Transition] = {
     for t in [
         Transition(
             AuditAction.TO_MODERATION,
-            Role.MANAGER,
+            Permission.CAMPAIGNS_WRITE,
             frozenset({S.DRAFT, S.NEEDS_WORK, S.ACTIVE_EDITING}),
             S.ON_MODERATION,
             "TO_MODERATION_NOT_ALLOWED",
         ),
         Transition(
             AuditAction.DECLINE,
-            Role.MODERATOR,
+            Permission.CAMPAIGNS_MODERATE,
             frozenset({S.ON_MODERATION}),
             S.NEEDS_WORK,
             "DECLINE_NOT_ALLOWED",
         ),
         Transition(
             AuditAction.APPROVE,
-            Role.MODERATOR,
+            Permission.CAMPAIGNS_MODERATE,
             frozenset({S.ON_MODERATION}),
             S.APPROVED,
             "APPROVE_NOT_ALLOWED",
         ),
         Transition(
             AuditAction.ACTIVATE,
-            Role.MANAGER,
+            Permission.CAMPAIGNS_WRITE,
             frozenset({S.APPROVED}),
             S.ACTIVE,
             "ACTIVATE_NOT_ALLOWED",

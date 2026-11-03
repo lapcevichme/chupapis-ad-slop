@@ -34,6 +34,16 @@ class Topic(StrEnum):
 class Role(StrEnum):
     MANAGER = "campaignManager"
     MODERATOR = "campaignModerator"
+    ADMIN = "admin"
+
+
+class ContentType(StrEnum):
+    PROMO = "PROMO"
+
+
+class SegmentKind(StrEnum):
+    INCLUDED = "included"
+    EXCLUDED = "excluded"
 
 
 class ActionType(StrEnum):

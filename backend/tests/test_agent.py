@@ -3,7 +3,6 @@
 import json
 from typing import Any
 
-import httpx
 import pytest
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, ToolMessage
@@ -11,11 +10,8 @@ from langchain_core.outputs import ChatGeneration, ChatResult
 from langgraph.checkpoint.memory import InMemorySaver
 from pydantic import Field
 
-from app.bootstrap import build_chat_service
-from app.infra.campaigns_api import CampaignsApi
 from app.infra.llm import CACHE_CONTROL, NoImageGenerator, _text_of
-from app.service.chat_sessions import SessionRegistry
-from tests.conftest import MANAGER, MODERATOR
+from tests.conftest import MANAGER, MODERATOR, install_chat
 from tests.test_scenario import CAMPAIGN
 
 
@@ -90,23 +86,16 @@ def events(response) -> list[tuple[str, dict]]:
 
 @pytest.fixture
 def chat(client):
-    def api_factory(user, role):
-        return CampaignsApi(
-            user, role, base_url="http://api", transport=httpx.ASGITransport(app=client.app)
-        )
-
     def install(
         chat_script: list[AIMessage], design_script: list[AIMessage] | None = None, images=None
     ):
         model = ScriptedModel(script=chat_script)
-        client.app.state.chat = build_chat_service(
-            InMemorySaver(),
-            client.app.state.settings,
-            SessionRegistry(client.app.state.db),
+        install_chat(
+            client.app,
+            checkpointer=InMemorySaver(),
             chat=model,
             design=ScriptedModel(script=design_script or []),
             images=images or NoImageGenerator(),
-            api_factory=api_factory,
         )
         return model
 
@@ -380,16 +369,12 @@ def test_model_failure_is_human_readable(client, chat):
                 body=None,
             )
 
-    client.app.state.chat = build_chat_service(
-        InMemorySaver(),
-        client.app.state.settings,
-        SessionRegistry(client.app.state.db),
+    install_chat(
+        client.app,
+        checkpointer=InMemorySaver(),
         chat=Failing(script=[]),
         design=ScriptedModel(script=[]),
         images=NoImageGenerator(),
-        api_factory=lambda u, r: CampaignsApi(
-            u, r, base_url="http://api", transport=httpx.ASGITransport(app=client.app)
-        ),
     )
     sid = client.post("/chat", json={}, headers=MANAGER).json()["sessionId"]
     error = next(

@@ -7,6 +7,7 @@ from langchain_core.messages import AIMessage
 
 from app.infra.agent.designer import Designer, DesignRequest
 from app.infra.agent.patterns import SvgPatternGenerator, SvgRejected, clean_svg
+from tests.conftest import FakeMedia
 from tests.test_agent import BANNER_OK, PROMO_OK, ScriptedModel, call, tool_message
 from tests.test_designer import STORY, FakeImages
 
@@ -41,11 +42,11 @@ def test_clean_svg_rejects_unsafe_or_broken(bad):
         clean_svg(bad, 1080, 1920)
 
 
-def test_generator_retries_broken_svg(tmp_path):
-    media = tmp_path
+def test_generator_retries_broken_svg():
+    media = FakeMedia()
     model = ScriptedModel(script=[AIMessage(content=GOOD[:-6]), AIMessage(content=GOOD)])
     url = asyncio.run(
-        SvgPatternGenerator(model, media_dir=media).generate(
+        SvgPatternGenerator(model, media=media).generate(
             theme="Вклад",
             kind="STORY",
             base_color="#1F5E3B",
@@ -54,7 +55,7 @@ def test_generator_retries_broken_svg(tmp_path):
         )
     )
     assert url.startswith("/api/media/") and url.endswith(".svg")
-    assert (media / url.rsplit("/", 1)[-1]).read_text(encoding="utf-8").startswith("<svg")
+    assert media.saved[0][1].decode().startswith("<svg")
     assert "SVG rejected" in model.seen[-1][-1].content
 
 

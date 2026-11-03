@@ -1,9 +1,14 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
-from app.api.deps import ERROR_RESPONSES, ActorDep, DictionaryServiceDep
+from app.api.deps import ERROR_RESPONSES, CurrentUserDep, DictionaryServiceDep, current_user
 from app.contracts import campaigns as api
 
-router = APIRouter(prefix="", tags=["dictionaries"], responses=ERROR_RESPONSES)
+router = APIRouter(
+    prefix="",
+    tags=["dictionaries"],
+    responses=ERROR_RESPONSES,
+    dependencies=[Depends(current_user)],
+)
 
 
 @router.get("/topics", response_model=list[api.TopicDto])
@@ -43,13 +48,13 @@ async def list_places(service: DictionaryServiceDep) -> list[api.PlaceDto]:
 
 @router.post("/places", response_model=api.PlaceDto, status_code=201)
 async def create_place(
-    body: api.PlaceCreate, actor: ActorDep, service: DictionaryServiceDep
+    body: api.PlaceCreate, actor: CurrentUserDep, service: DictionaryServiceDep
 ) -> api.PlaceDto:
     return api.PlaceDto.from_domain(await service.create_place(body, actor))
 
 
 @router.post("/tags", response_model=api.TagDto, status_code=201)
 async def create_tag(
-    body: api.TagCreate, actor: ActorDep, service: DictionaryServiceDep
+    body: api.TagCreate, actor: CurrentUserDep, service: DictionaryServiceDep
 ) -> api.TagDto:
     return api.TagDto.from_domain(await service.create_tag(body, actor))

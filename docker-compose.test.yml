@@ -1,0 +1,41 @@
+# Одноразовые зависимости для тестов: `make test` поднимает их, гоняет pytest и оставляет до `make test-down`.
+# Порты отличаются от docker-compose.yml, поэтому тесты идут рядом с рабочим стеком.
+services:
+  postgres-test:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: adpilot
+      POSTGRES_PASSWORD: adpilot
+      POSTGRES_DB: adpilot_test
+    ports:
+      - "5439:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U adpilot -d adpilot_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  redis-test:
+    image: redis:8-alpine
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  s3-test:
+    image: rustfs/rustfs:1.0.4
+    environment:
+      RUSTFS_ACCESS_KEY: rustfsadmin
+      RUSTFS_SECRET_KEY: rustfsadmin
+    ports:
+      - "9002:9000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/health"]
+      interval: 2s
+      timeout: 3s
+      retries: 30

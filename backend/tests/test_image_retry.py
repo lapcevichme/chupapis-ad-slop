@@ -8,6 +8,7 @@ import pytest
 
 from app.core.config import Settings
 from app.infra import llm
+from tests.conftest import FakeMedia
 
 PNG = base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"0" * 16).decode()
 
@@ -17,7 +18,7 @@ def no_delays(monkeypatch):
     monkeypatch.setattr(llm, "IMAGE_RETRY_DELAYS", (0, 0, 0))
 
 
-def generator(responses: list, tmp_path):
+def generator(responses: list, media):
     calls = []
 
     def handler(request):
@@ -29,12 +30,13 @@ def generator(responses: list, tmp_path):
 
     return llm.OpenRouterImageGenerator(
         "test/model",
-        Settings(_env_file=None, media_dir=tmp_path),
+        Settings(_env_file=None),
+        media,
         transport=httpx.MockTransport(handler),
     ), calls
 
 
-def test_retries_until_success(tmp_path):
+def test_retries_until_success():
     gen, calls = generator(
         [
             httpx.ReadError("connection reset"),
@@ -42,21 +44,21 @@ def test_retries_until_success(tmp_path):
             httpx.Response(429),
             httpx.Response(200, json={"data": [{"b64_json": PNG}]}),
         ],
-        tmp_path,
+        FakeMedia(),
     )
     url = asyncio.run(gen.generate("coins", "1024x1536"))
     assert url.endswith(".png") and len(calls) == 4
 
 
-def test_gives_up_after_four_attempts(tmp_path):
-    gen, calls = generator([httpx.Response(503)] * 4, tmp_path)
+def test_gives_up_after_four_attempts():
+    gen, calls = generator([httpx.Response(503)] * 4, FakeMedia())
     with pytest.raises(httpx.HTTPStatusError):
         asyncio.run(gen.generate("coins"))
     assert len(calls) == 4
 
 
-def test_client_error_is_not_retried(tmp_path):
-    gen, calls = generator([httpx.Response(400, json={"error": "bad prompt"})], tmp_path)
+def test_client_error_is_not_retried():
+    gen, calls = generator([httpx.Response(400, json={"error": "bad prompt"})], FakeMedia())
     with pytest.raises(httpx.HTTPStatusError):
         asyncio.run(gen.generate("coins"))
     assert len(calls) == 1

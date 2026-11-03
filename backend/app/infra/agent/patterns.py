@@ -6,15 +6,15 @@
 
 import json
 import re
-import uuid
 import xml.etree.ElementTree as ET
-from pathlib import Path
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 
+from app.domain.media import MediaKind
 from app.infra.agent.prompts import load_prompt
 from app.infra.llm import _text_of, with_cache_breakpoints
+from app.infra.media import MediaSink
 
 MAX_ATTEMPTS = 3
 SVG_NS = "http://www.w3.org/2000/svg"
@@ -77,13 +77,11 @@ class SvgPatternGenerator:
         self,
         model: BaseChatModel,
         *,
-        media_dir: Path,
-        media_base_url: str = "/api/media",
+        media: MediaSink,
         cache_enabled: bool = True,
     ):
         self.model = model
-        self.media_dir = media_dir
-        self.media_base_url = media_base_url
+        self.media = media
         self.cache_enabled = cache_enabled
 
     async def generate(
@@ -114,8 +112,10 @@ class SvgPatternGenerator:
                     HumanMessage(f"SVG rejected: {exc}. Return the full corrected SVG."),
                 ]
                 continue
-            name = f"{uuid.uuid4().hex}.svg"
-            self.media_dir.mkdir(parents=True, exist_ok=True)
-            (self.media_dir / name).write_text(svg, encoding="utf-8")
-            return f"{self.media_base_url}/{name}"
+            return await self.media.save(
+                svg.encode(),
+                kind=MediaKind.PATTERN,
+                extension="svg",
+                content_type="image/svg+xml",
+            )
         return None

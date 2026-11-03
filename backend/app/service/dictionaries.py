@@ -5,8 +5,8 @@ from app.core.errors import fail
 from app.db import models
 from app.db.uow import UnitOfWork
 from app.domain import views as dto
-from app.domain.actors import Actor, require_role
-from app.domain.enums import AuditAction, AuditEntity, PlaceState, Role, SegmentState, Topic
+from app.domain.enums import AuditAction, AuditEntity, PlaceState, SegmentState, Topic
+from app.domain.users import CurrentUser, Permission, ensure_can
 from app.service import audit
 from app.service.mappers import banner_type, place
 
@@ -64,9 +64,9 @@ class DictionaryService:
             place(p) for p in await session.scalars(select(models.Place).order_by(models.Place.id))
         ]
 
-    async def create_place(self, body: api.PlaceCreate, actor: Actor) -> dto.PlaceDto:
+    async def create_place(self, body: api.PlaceCreate, actor: CurrentUser) -> dto.PlaceDto:
         session = self._uow.session
-        require_role(actor, Role.MANAGER)
+        ensure_can(actor, Permission.DICTIONARIES_WRITE)
         if await session.scalar(select(models.Place).where(models.Place.code == body.code)):
             raise fail("PLACE_CODE_DUPLICATE", "code")
         p = models.Place(
@@ -83,13 +83,13 @@ class DictionaryService:
             entity=AuditEntity.PLACE,
             entity_id=p.id,
             action=AuditAction.CREATE,
-            actor=actor.login,
+            actor_id=actor.id,
         )
         return place(p)
 
-    async def create_tag(self, body: api.TagCreate, actor: Actor) -> dto.TagDto:
+    async def create_tag(self, body: api.TagCreate, actor: CurrentUser) -> dto.TagDto:
         session = self._uow.session
-        require_role(actor, Role.MANAGER)
+        ensure_can(actor, Permission.DICTIONARIES_WRITE)
         if await session.scalar(select(models.Tag).where(models.Tag.name == body.name)):
             raise fail("TAG_NAME_DUPLICATE", "name")
         t = models.Tag(name=body.name)
@@ -101,6 +101,6 @@ class DictionaryService:
             entity=AuditEntity.TAG,
             entity_id=t.id,
             action=AuditAction.CREATE,
-            actor=actor.login,
+            actor_id=actor.id,
         )
         return dto.TagDto(id=t.id, name=t.name)

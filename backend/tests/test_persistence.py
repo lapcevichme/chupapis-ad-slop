@@ -1,42 +1,26 @@
-import httpx
 from fastapi.testclient import TestClient
 from langchain_core.messages import AIMessage
 
-from app.bootstrap import build_chat_service
-from app.core.config import Settings
-from app.infra.campaigns_api import CampaignsApi
 from app.infra.llm import NoImageGenerator
 from app.main import create_app
-from app.service.chat_sessions import SessionRegistry
-from tests.conftest import MANAGER, initialize_database
+from tests.conftest import MANAGER, build_settings, initialize_database, install_chat
 from tests.test_agent import ScriptedModel, call, events, tool_message
 from tests.test_scenario import CAMPAIGN
 
 
 def install(client, script):
-    app = client.app
-    app.state.chat = build_chat_service(
-        app.state.checkpointer,
-        app.state.settings,
-        SessionRegistry(app.state.db),
+    install_chat(
+        client.app,
         chat=ScriptedModel(script=script),
         design=ScriptedModel(script=[]),
         images=NoImageGenerator(),
-        api_factory=lambda user, role: CampaignsApi(
-            user, role, base_url="http://api", transport=httpx.ASGITransport(app=app)
-        ),
     )
 
 
-def test_pending_confirmation_survives_application_restart(tmp_path):
-    settings = Settings(
-        _env_file=None,
-        database_url=f"sqlite:///{tmp_path / 'data.db'}",
-        checkpoint_db=tmp_path / "checkpoints.db",
-        media_dir=tmp_path / "media",
-        llm_api_key="",
-    )
+def test_pending_confirmation_survives_application_restart():
+    settings = build_settings()
     with TestClient(create_app(settings)) as client:
+        client.headers.update(MANAGER)
         client.portal.call(initialize_database, client.app)
         install(
             client,
@@ -55,6 +39,7 @@ def test_pending_confirmation_survives_application_restart(tmp_path):
         assert all(row["name"] != CAMPAIGN["name"] for row in client.get("/campaigns").json())
 
     with TestClient(create_app(settings)) as client:
+        client.headers.update(MANAGER)
         install(client, [AIMessage(content="Кампания сохранена")])
         snapshot = client.get(f"/chat/{sid}", headers=MANAGER).json()
         assert snapshot["messages"][0]["text"] == "Создай"

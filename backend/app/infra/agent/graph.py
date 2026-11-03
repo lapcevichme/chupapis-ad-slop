@@ -57,7 +57,7 @@ class AgentState(TypedDict, total=False):
 class AgentDeps:
     chat_model: BaseChatModel
     designer: Designer
-    api_factory: Callable[[str, str], CampaignsApi]
+    api_factory: Callable[[str], CampaignsApi]
     cache_enabled: bool = True
     image_mode: Literal["mixed", "ask", "pattern", "illustration"] = "mixed"
 
@@ -65,6 +65,10 @@ class AgentDeps:
 def actor(config: RunnableConfig) -> tuple[str, str]:
     configurable = config.get("configurable", {})
     return configurable.get("user", ""), configurable.get("role", "")
+
+
+def api_token(config: RunnableConfig) -> str:
+    return str(config.get("configurable", {}).get("__api_token", ""))
 
 
 async def refresh_campaign(client: CampaignsApi, campaign_id: int | None) -> dict[str, Any]:
@@ -192,8 +196,7 @@ AgentGraph = CompiledStateGraph[AgentState, None, AgentState, AgentState]
 
 def build_graph(deps: AgentDeps, checkpointer: BaseCheckpointSaver[Any]) -> AgentGraph:
     async def agent_node(state: AgentState, config: RunnableConfig) -> dict[str, Any]:
-        user, role = actor(config)
-        async with deps.api_factory(user, role) as client:
+        async with deps.api_factory(api_token(config)) as client:
             fresh = await refresh_campaign(client, state.get("campaign_id"))
         reminder = _state_reminder(state.get("base"), fresh.get("base"))
         state = cast(AgentState, {**state, **fresh})
@@ -212,8 +215,7 @@ def build_graph(deps: AgentDeps, checkpointer: BaseCheckpointSaver[Any]) -> Agen
     async def tools_node(state: AgentState, config: RunnableConfig) -> dict[str, Any]:
         writer = get_stream_writer()
         call_message = cast(AIMessage, state["messages"][-1])
-        user, role = actor(config)
-        async with deps.api_factory(user, role) as client:
+        async with deps.api_factory(api_token(config)) as client:
             ctx = ToolContext(
                 client=client,
                 designer=deps.designer,
@@ -349,14 +351,13 @@ def build_graph(deps: AgentDeps, checkpointer: BaseCheckpointSaver[Any]) -> Agen
                 messages.append(HumanMessage(comment))
             return update | {"messages": messages}
 
-        user, role = actor(config)
         writer(
             {
                 "event": "step",
                 "data": {"id": awaiting["id"], "label": "Сохраняю изменения", "status": "running"},
             }
         )
-        async with deps.api_factory(user, role) as client:
+        async with deps.api_factory(api_token(config)) as client:
             result = await execute(
                 state.get("pending") or [],
                 client,

@@ -4,7 +4,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 
-from app.api.deps import ERROR_RESPONSES, ActorDep
+from app.api.deps import ERROR_RESPONSES, CurrentUserDep, TokenDep
 from app.api.sse import encode_events
 from app.contracts import chat as events
 from app.domain.chat import StreamEvent
@@ -38,52 +38,53 @@ def _stream(iterator: AsyncIterator[StreamEvent]) -> StreamingResponse:
 
 @router.post("", response_model=events.SessionCreated, status_code=201)
 async def create_chat_session(
-    body: events.CreateSessionBody, chat: ChatDep, actor: ActorDep
+    body: events.CreateSessionBody, chat: ChatDep, actor: CurrentUserDep, token: TokenDep
 ) -> events.SessionCreated:
-    session_id = await chat.create_session(body.campaignId, actor.login, actor.role or "")
+    session_id = await chat.create_session(body.campaignId, actor, token)
     return events.SessionCreated(sessionId=session_id)
 
 
 @router.get("", response_model=list[events.SessionSummary])
 async def list_chat_sessions(
-    chat: ChatDep, actor: ActorDep, archived: bool = False
+    chat: ChatDep, actor: CurrentUserDep, archived: bool = False
 ) -> list[events.SessionSummary]:
     return [
-        events.SessionSummary.from_domain(row)
-        for row in await chat.list_sessions(actor.login, archived)
+        events.SessionSummary.from_domain(row) for row in await chat.list_sessions(actor, archived)
     ]
 
 
 @router.delete("/{session_id}", response_model=events.SessionActionResult)
 async def archive_chat_session(
-    session_id: str, chat: ChatDep, actor: ActorDep
+    session_id: str, chat: ChatDep, actor: CurrentUserDep
 ) -> events.SessionActionResult:
-    await chat.archive(session_id, actor.login)
+    await chat.archive(session_id, actor)
     return events.SessionActionResult(sessionId=session_id)
 
 
 @router.post("/{session_id}/restore", response_model=events.SessionActionResult)
 async def restore_chat_session(
-    session_id: str, chat: ChatDep, actor: ActorDep
+    session_id: str, chat: ChatDep, actor: CurrentUserDep
 ) -> events.SessionActionResult:
-    await chat.sessions.restore(session_id, actor.login)
+    await chat.sessions.restore(session_id, actor.id)
     return events.SessionActionResult(sessionId=session_id)
 
 
 @router.get("/{session_id}", response_model=events.SessionSnapshot)
-async def get_chat_session(session_id: str, chat: ChatDep, actor: ActorDep) -> dict[str, Any]:
-    return await chat.snapshot(session_id, actor.login, actor.role or "")
+async def get_chat_session(
+    session_id: str, chat: ChatDep, actor: CurrentUserDep, token: TokenDep
+) -> dict[str, Any]:
+    return await chat.snapshot(session_id, actor, token)
 
 
 @router.post("/{session_id}/messages", responses=SSE_RESPONSE, response_class=StreamingResponse)
 async def send_chat_message(
-    session_id: str, body: events.MessageBody, chat: ChatDep, actor: ActorDep
+    session_id: str,
+    body: events.MessageBody,
+    chat: ChatDep,
+    actor: CurrentUserDep,
+    token: TokenDep,
 ) -> StreamingResponse:
-    return _stream(
-        await chat.send_message(
-            session_id, body.text, actor.login, actor.role or "", voice=body.voice
-        )
-    )
+    return _stream(await chat.send_message(session_id, body.text, actor, token, voice=body.voice))
 
 
 @router.post(
@@ -96,7 +97,8 @@ async def answer_chat_confirmation(
     confirmation_id: str,
     body: events.ConfirmationBody,
     chat: ChatDep,
-    actor: ActorDep,
+    actor: CurrentUserDep,
+    token: TokenDep,
 ) -> StreamingResponse:
     return _stream(
         await chat.answer_confirmation(
@@ -104,13 +106,15 @@ async def answer_chat_confirmation(
             confirmation_id,
             body.approved,
             body.comment,
-            actor.login,
-            actor.role or "",
+            actor,
+            token,
             voice=body.voice,
         )
     )
 
 
 @router.post("/{session_id}/retry", responses=SSE_RESPONSE, response_class=StreamingResponse)
-async def retry_chat_turn(session_id: str, chat: ChatDep, actor: ActorDep) -> StreamingResponse:
-    return _stream(await chat.retry(session_id, actor.login, actor.role or ""))
+async def retry_chat_turn(
+    session_id: str, chat: ChatDep, actor: CurrentUserDep, token: TokenDep
+) -> StreamingResponse:
+    return _stream(await chat.retry(session_id, actor, token))

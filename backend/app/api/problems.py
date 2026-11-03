@@ -11,9 +11,12 @@ from app.infra.pydantic_errors import map_pydantic_errors
 def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(DomainError)
     async def domain_error(_request: Request, exc: DomainError) -> JSONResponse:
-        return JSONResponse(
+        response = JSONResponse(
             status_code=exc.status_code, content={"errors": [asdict(error) for error in exc.errors]}
         )
+        for name, value in exc.headers:
+            response.headers.append(name, value)
+        return response
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(_request: Request, exc: RequestValidationError) -> JSONResponse:

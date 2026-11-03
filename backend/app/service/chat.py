@@ -14,6 +14,7 @@ from langgraph.types import Command, StateSnapshot
 
 from app.core.errors import ApiError, DomainError, not_found
 from app.domain.chat import ChatSummary, StreamEvent
+from app.domain.users import CurrentUser
 from app.infra.agent.graph import AgentGraph, AgentState, draft_report, refresh_campaign
 from app.infra.campaigns_api import ApiFactory
 from app.service.chat_sessions import SessionRegistry
@@ -77,27 +78,35 @@ class ChatService:
         self.active: set[str] = set()
 
     @staticmethod
-    def _config(session_id: str, user: str = "", role: str = "") -> RunnableConfig:
+    def _config(
+        session_id: str, user: CurrentUser | None = None, token: str = ""
+    ) -> RunnableConfig:
+        # Ключи с «__» LangGraph не записывает в метаданные чекпоинта: токен не должен попасть в БД.
         return {
-            "configurable": {"thread_id": session_id, "user": user, "role": role},
+            "configurable": {
+                "thread_id": session_id,
+                "user": user.username if user else "",
+                "role": user.role.value if user else "",
+                "__api_token": token,
+            },
             "recursion_limit": 60,
         }
 
-    async def create_session(self, campaign_id: int | None, user: str, role: str) -> str:
+    async def create_session(self, campaign_id: int | None, user: CurrentUser, token: str) -> str:
         """У пары «кампания + логин» один диалог: повторный вызов возвращает существующий."""
         base = None
         if campaign_id is not None:
-            async with self.api_factory(user, role) as client:
+            async with self.api_factory(token) as client:
                 base = await client.get(f"/campaigns/{campaign_id}")
-            existing = await self.sessions.find(campaign_id, user)
+            existing = await self.sessions.find(campaign_id, user.id)
             if existing is not None:
                 snapshot = await self.graph.aget_state(self._config(existing))
                 if snapshot.values and "pending" in snapshot.values:
                     return existing
-                # Связь есть, а состояние диалога потеряно (например, удалили checkpoints.db): начинаем заново под тем же id.
+                # Связь есть, а состояние диалога потеряно (например, очистили таблицы чекпоинтов): начинаем заново под тем же id.
                 await self._init_state(existing, campaign_id, base)
                 return existing
-        session_id = await self.sessions.create(campaign_id, user)
+        session_id = await self.sessions.create(campaign_id, user.id)
         await self._init_state(session_id, campaign_id, base)
         return session_id
 
@@ -115,8 +124,8 @@ class ChatService:
         }
         await self.graph.aupdate_state(self._config(session_id), values, as_node="__start__")
 
-    async def _state(self, session_id: str, user: str | None = None) -> StateSnapshot:
-        await self.sessions.require(session_id, user)
+    async def _state(self, session_id: str, user: CurrentUser | None = None) -> StateSnapshot:
+        await self.sessions.require(session_id, user.id if user else None)
         snapshot = await self.graph.aget_state(self._config(session_id))
         if not snapshot.values or "pending" not in snapshot.values:
             raise not_found("sessionId", session_id)
@@ -126,7 +135,7 @@ class ChatService:
         snapshot = await self._state(session_id)
         return snapshot.interrupts[0].value if snapshot.interrupts else None
 
-    async def snapshot(self, session_id: str, user: str, role: str) -> dict[str, Any]:
+    async def snapshot(self, session_id: str, user: CurrentUser, token: str) -> dict[str, Any]:
         snapshot = await self._state(session_id, user)
         values = snapshot.values
         messages = []
@@ -136,7 +145,7 @@ class ChatService:
                 messages.append({"role": "user", "text": text})
             elif isinstance(message, AIMessage) and text:
                 messages.append({"role": "assistant", "text": text})
-        async with self.api_factory(user, role) as client:
+        async with self.api_factory(token) as client:
             # Кампанию могли изменить из другого диалога (решение модератора), поэтому берём её из API.
             values = values | await refresh_campaign(client, values.get("campaign_id"))
             draft, validation = await draft_report(client, values)
@@ -151,7 +160,7 @@ class ChatService:
     # --- Поток
 
     async def send_message(
-        self, session_id: str, text: str, user: str, role: str, *, voice: bool = False
+        self, session_id: str, text: str, user: CurrentUser, token: str, *, voice: bool = False
     ) -> AsyncIterator[StreamEvent]:
         await self._state(session_id, user)
         if await self.pending_confirmation(session_id):
@@ -162,7 +171,7 @@ class ChatService:
             )
         else:
             payload = {"messages": [HumanMessage(text)], "asked": False, "voice": voice}
-        return self._start_stream(session_id, payload, user, role)
+        return self._start_stream(session_id, payload, user, token)
 
     async def answer_confirmation(
         self,
@@ -170,29 +179,31 @@ class ChatService:
         confirmation_id: str,
         approved: bool,
         comment: str | None,
-        user: str,
-        role: str,
+        user: CurrentUser,
+        token: str,
         *,
         voice: bool = False,
     ) -> AsyncIterator[StreamEvent]:
-        await self.sessions.require(session_id, user)
+        await self.sessions.require(session_id, user.id)
         pending = await self.pending_confirmation(session_id)
         if pending and pending["id"] == confirmation_id:
             return self._start_stream(
                 session_id,
                 Command(resume={"approved": approved, "comment": comment}, update={"voice": voice}),
                 user,
-                role,
+                token,
             )
         # Подтверждение уже выполнено: второй раз не пишем, а продолжаем ход как retry.
-        return self._start_stream(session_id, None, user, role)
+        return self._start_stream(session_id, None, user, token)
 
-    async def retry(self, session_id: str, user: str, role: str) -> AsyncIterator[StreamEvent]:
+    async def retry(
+        self, session_id: str, user: CurrentUser, token: str
+    ) -> AsyncIterator[StreamEvent]:
         await self._state(session_id, user)
-        return self._start_stream(session_id, None, user, role)
+        return self._start_stream(session_id, None, user, token)
 
-    async def list_sessions(self, user: str, archived: bool) -> list[ChatSummary]:
-        rows = await self.sessions.list(user, archived)
+    async def list_sessions(self, user: CurrentUser, archived: bool) -> list[ChatSummary]:
+        rows = await self.sessions.list(user.id, archived)
         result = []
         for row in rows:
             if row.campaign_id is None:
@@ -209,32 +220,32 @@ class ChatService:
             result.append(row)
         return result
 
-    async def archive(self, session_id: str, user: str) -> None:
+    async def archive(self, session_id: str, user: CurrentUser) -> None:
         if session_id in self.active:
             raise DomainError(
                 [ApiError("CHAT_BUSY", "Подождите, пока ассистент закончит ответ.")], 409
             )
-        await self.sessions.archive(session_id, user)
+        await self.sessions.archive(session_id, user.id)
 
     def _start_stream(
-        self, session_id: str, payload: Any, user: str, role: str
+        self, session_id: str, payload: Any, user: CurrentUser, token: str
     ) -> AsyncIterator[StreamEvent]:
         if session_id in self.active:
             raise DomainError(
                 [ApiError("CHAT_BUSY", "Ассистент уже отвечает в этом диалоге.")], 409
             )
         self.active.add(session_id)
-        return self._stream(session_id, payload, user, role)
+        return self._stream(session_id, payload, user, token)
 
     async def _bind_campaign(self, session_id: str) -> None:
         snapshot = await self.graph.aget_state(self._config(session_id))
         await self.sessions.bind(session_id, (snapshot.values or {}).get("campaign_id"))
 
     async def _stream(
-        self, session_id: str, payload: Any, user: str, role: str
+        self, session_id: str, payload: Any, user: CurrentUser, token: str
     ) -> AsyncIterator[StreamEvent]:
         queue: asyncio.Queue[StreamEvent | None] = asyncio.Queue()
-        config = self._config(session_id, user, role)
+        config = self._config(session_id, user, token)
 
         async def produce() -> None:
             try:

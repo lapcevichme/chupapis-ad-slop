@@ -14,15 +14,14 @@ class ApiCallError(Exception):
 class CampaignsApi:
     def __init__(
         self,
-        user: str,
-        role: str,
+        token: str,
         *,
         base_url: str,
         transport: httpx.AsyncBaseTransport | None = None,
     ):
         self._client = httpx.AsyncClient(
             base_url=base_url,
-            headers={"X-User": user, "X-Role": role},
+            headers={"Authorization": f"Bearer {token}"},
             transport=transport,
             timeout=30,
         )
@@ -51,4 +50,5 @@ class CampaignsApi:
         return await self.request("GET", path)
 
 
-ApiFactory = Callable[[str, str], CampaignsApi]
+# Агент действует от имени пользователя: фабрика получает его access-токен.
+ApiFactory = Callable[[str], CampaignsApi]

@@ -43,9 +43,6 @@ class RequestContextMiddleware:
                 status_code = message["status"]
                 headers = MutableHeaders(scope=message)
                 headers["X-Request-ID"] = request_id
-                for name in ("X-User", "X-Role"):
-                    if value := incoming.get(name):
-                        headers[name] = value
                 headers["X-Process-Time-Ms"] = f"{(time.perf_counter() - started) * 1000:.1f}"
             await send(message)
 

@@ -1,6 +1,5 @@
 import asyncio
 import base64
-import uuid
 from typing import Any, Protocol
 
 import httpx
@@ -10,6 +9,8 @@ from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
 
 from app.core.config import Settings
+from app.domain.media import MediaKind
+from app.infra.media import MediaSink
 
 # 4 попытки генерации картинки, паузы между ними 2, 4 и 8 секунд.
 IMAGE_ATTEMPTS = 4
@@ -95,13 +96,18 @@ class ImageGenerator(Protocol):
 
 
 class OpenRouterImageGenerator:
-    """Картинка через OpenAI-совместимый /images/generations. Бэкенд сохраняет файл в /media и отдаёт ссылку."""
+    """Картинка через OpenAI-совместимый /images/generations. Бэкенд сохраняет файл в хранилище и отдаёт ссылку."""
 
     def __init__(
-        self, model: str, settings: Settings, transport: httpx.AsyncBaseTransport | None = None
+        self,
+        model: str,
+        settings: Settings,
+        media: MediaSink,
+        transport: httpx.AsyncBaseTransport | None = None,
     ):
         self.model = model
         self.settings = settings
+        self.media = media
         self.transport = transport
 
     async def generate(self, prompt: str, size: str | None = None) -> str | None:
@@ -111,11 +117,13 @@ class OpenRouterImageGenerator:
         if not data or not data[0].get("b64_json"):
             return None
         raw = base64.b64decode(data[0]["b64_json"])
-        extension = "jpg" if raw[:2] == b"\xff\xd8" else "png"
-        name = f"{uuid.uuid4().hex}.{extension}"
-        self.settings.media_dir.mkdir(parents=True, exist_ok=True)
-        (self.settings.media_dir / name).write_bytes(raw)
-        return f"{self.settings.media_base_url}/{name}"
+        jpeg = raw[:2] == b"\xff\xd8"
+        return await self.media.save(
+            raw,
+            kind=MediaKind.GENERATED,
+            extension="jpg" if jpeg else "png",
+            content_type="image/jpeg" if jpeg else "image/png",
+        )
 
     async def _post_with_retries(self, body: dict[str, Any]) -> httpx.Response:
         """Сетевые сбои, 429 и 5xx повторяем с растущей паузой; остальные 4xx — ошибка запроса, повторять бессмысленно."""
@@ -152,7 +160,7 @@ class NoImageGenerator:
         return None
 
 
-def image_generator(settings: Settings) -> ImageGenerator:
+def image_generator(settings: Settings, media: MediaSink) -> ImageGenerator:
     if not settings.image_model or not settings.llm_api_key:
         return NoImageGenerator()
-    return OpenRouterImageGenerator(settings.image_model, settings)
+    return OpenRouterImageGenerator(settings.image_model, settings, media)

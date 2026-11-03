@@ -3,7 +3,7 @@ from typing import Any
 
 
 def utcnow() -> datetime:
-    return datetime.now(UTC).replace(tzinfo=None, microsecond=0)
+    return datetime.now(UTC).replace(microsecond=0)
 
 
 def _flatten(value: Any, prefix: str = "") -> dict[str, Any]:
