@@ -1,7 +1,7 @@
 # Бэкенд AdPilot AI
 
-Архитектура адаптирована из Monolith-backend-template: `api → service → domain`,
-`db/infra`, async SQLAlchemy и UoW, фабрика приложения, явная конфигурация и request id.
+Архитектура взята из Monolith-backend-template: `api → service → domain`, `db/infra`,
+async SQLAlchemy и UoW, PostgreSQL, Redis, S3, JWT-авторизация, outbox и воркер.
 Сохранён API кампаний и чата. Карта слоёв — [architecture.md](../docs/architecture.md),
 внешний контракт — [CONTRACTS.md](../docs/CONTRACTS.md).
 
@@ -11,24 +11,32 @@
 
 ```bash
 cp .env.example .env
-make install
-make migrate
-make seed
-make run
+make install                       # зависимости, .env, ключи JWT
+docker compose up -d db redis s3   # зависимости бэкенда
+DEMO_USERS_PASSWORD=adpilot-demo make migrate   # миграции, чекпоинты, справочники и демо-данные
+make run                           # API на :8000
+make worker                        # воркер outbox (отдельный терминал)
+make admin email=me@example.com    # первый администратор
 ```
 
 API/Swagger: http://localhost:8000/docs. Для чата заполнить `LLM_API_KEY` в `.env`.
 Модели и провайдер выбираются конфигом; доступность конкретных моделей проверяется отдельно.
 Без ключа доступны API кампаний и справочники. Изображения — необязательная функция.
 
-Весь проект: `docker compose up --build`. Сервис `migrate` применяет миграции и загружает
-синтетику, API запускается после его успеха. Образ API работает под uid 999; рабочие данные
-и checkpointer хранятся в постоянном volume. Старые ревизии и таблицы сохранены.
+Весь проект: `docker compose up --build`. Сервис `migrate` применяет миграции, создаёт таблицы
+чекпоинтов и загружает справочники с демо-данными; API и воркер стартуют после его успеха. Образ
+работает под uid 999. Данные лежат в томах `postgres-data`, `redis-data`, `s3-data`.
+
+Демо-вход (в Compose пароль `adpilot-demo`, меняется `DEMO_USERS_PASSWORD`): менеджер
+`ivanov.p@example.com`, модератор `petrova.m@example.com`. Без `DEMO_USERS_PASSWORD` сид загружает только
+справочники, в проде переменная запрещена.
 
 ## Работа с кодом
 
 ```bash
-make check       # ruff, формат, mypy --strict всего app, pytest
+make check       # ruff, формат, mypy --strict всего app, pytest (сам поднимет тестовые Postgres/Redis/S3)
+make test-down   # убрать тестовые контейнеры
+make migration m="что изменилось"   # новая ревизия по моделям; читать глазами
 make format      # привести код к стилю шаблона
 make openapi     # OpenAPI, schemas tools и TS-типы
 ```
@@ -54,8 +62,8 @@ make openapi     # OpenAPI, schemas tools и TS-типы
   Тема передаётся только цветом. Ответ проверяется как XML и по белому списку тегов и атрибутов,
   при ошибке модель исправляет SVG, до трёх попыток.
 - Если иллюстрация не получилась, вместо неё ставится паттерн. Без ключа модели паттерны отключены.
-- Файлы сохраняются в `MEDIA_DIR`, в баннер пишется `/api/media/<файл>`.
+- Файлы сохраняются в S3 (`MediaStore`), в баннер пишется `/api/media/<файл>`.
 
-Эталонные диалоги: `uv run python -m app.run_dialogs` из backend. Команда использует временную
-БД, вызывает живую модель и обновляет транскрипты в `docs/dialogs/transcripts/`.
+Эталонные диалоги: `uv run python -m app.run_dialogs` из backend. Команда создаёт одноразовую базу
+на том же сервере Postgres, вызывает живую модель и обновляет транскрипты в `docs/dialogs/transcripts/`.
 Обычные тесты внешние модели не вызывают и рабочие данные не изменяют.

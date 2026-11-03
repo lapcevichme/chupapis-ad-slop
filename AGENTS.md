@@ -1,6 +1,6 @@
 # AdPilot AI — рабочие правила
 
-SibКод, кейс 1: AI-помощник собирает рекламную кампанию из брифа. Основной результат — **ON_MODERATION**, не фактический запуск. Бэкенд перенесён на Monolith-backend-template; панель и студия креативов развиваются через Design Studio. Банковский контракт сохранён, внутренние расширения описаны отдельно.
+SibКод, кейс 1: AI-помощник собирает рекламную кампанию из брифа. Основной результат — **ON_MODERATION**, не фактический запуск. Бэкенд работает на PostgreSQL по Monolith-backend-template (JWT, Redis, S3, outbox); панель и студия креативов развиваются через Design Studio. Банковский контракт сохранён, внутренние расширения описаны отдельно.
 
 ## Вход в контекст
 
@@ -23,16 +23,16 @@ SibКод, кейс 1: AI-помощник собирает рекламную �
 - Любая запись агента — после явного подтверждения показанных операций; до модерации актуальное превью. Модель предлагает, контролируемый узел выполняет.
 - JSON баннера/PROMO валидировать до API; ID/коды/enum брать инструментами. Ошибки и warnings объяснять и предлагать исправление.
 - Роли, переходы, published и аудит проверяет сервер; роль раньше состояния. Approve/decline — только человек под campaignModerator.
-- Все запросы клиента с X-User/X-Role. PUT — полная замена; словарные обёртки записи отличаются от GET. Каналы `iOS`/`ANDROID`/`WEB`, время кампаний UTC.
+- Пользователь и роль определяются JWT (`Authorization: Bearer`), заголовки X-User/X-Role не используются (D15). PUT — полная замена; словарные обёртки записи отличаются от GET. Каналы `iOS`/`ANDROID`/`WEB`, время кампаний UTC.
 - Только синтетика, без клиентских ПДн. Секреты в `.env`, переменные в `.env.example`. Недоступность генератора изображений не ломает основное демо.
 
 ## Код и контракты
 
-- Бэкенд адаптирован из `/Users/laughinme/Code/python/Monolith-backend-template`: api → service → domain, db/infra, async SQLAlchemy, UoW, create_app. Контракт — [CONTRACTS.md](docs/CONTRACTS.md). Фронтенд меняем отдельно; текущие макеты — [design/README.md](design/README.md).
+- Бэкенд построен по `/Users/laughinme/Code/python/Monolith-backend-template`: api → service → domain, db/infra, async SQLAlchemy на PostgreSQL, UoW, create_app, outbox и воркер. Контракт — [CONTRACTS.md](docs/CONTRACTS.md). Фронтенд меняем отдельно; текущие макеты — [design/README.md](design/README.md).
 - Агент обращается к API кампаний по HTTP, LLM за абстракцией, промпты отдельно. Схемы tools из Pydantic; TS из OpenAPI, сгенерированные файлы руками не менять.
 - [docs/contracts/chat.md](docs/contracts/chat.md) — действующий контракт (решения приняты). Не ломать интеграцию без совместного изменения клиента/сервера/типов.
 - API-клиент фронта только в `src/api/`, SSE через fetch. LLM-текст через ChatMarkdown; `dangerouslySetInnerHTML` запрещён, HTML контента через безопасный парсер.
-- До новых миграций синхронизировать main и проверить единственную Alembic head; для SQLite render_as_batch=True. Не добавлять SQLite-специфичные запросы и лишние сервисы.
+- До новых миграций синхронизировать main и проверить единственную Alembic head. Миграции пишем для PostgreSQL (нативные enum, timestamptz, jsonb); autogenerate читать глазами, в `downgrade` удалять enum-типы вручную. Ограничения целостности — в БД, а не только в сервисах.
 - Не рефакторить заодно. Состояние черновика отличать от сохранённого; повтор запроса и частичная запись не должны незаметно дублировать операции.
 
 ## Git и проверки
@@ -41,7 +41,7 @@ SibКод, кейс 1: AI-помощник собирает рекламную �
 - Сообщения короткие на английском, `feat:`/`fix:`/`docs:`/`chore:`/`test:`/`refactor:`, без Co-Authored-By и иной атрибуции ассистента.
 - Добавлять конкретные файлы, не `git add .`; чужие правки не откатывать. Работаем в main, для рискованной переработки допустима короткая ветка. **Push только по явному разрешению**, перед ним pull --rebase, без force push.
 - Изменение API-контракта — один коммит с типами фронта и инструментами агента. Пользователь прямо разрешил перенос шаблона; повторного подтверждения не нужно.
-- Правила backend — [backend/AGENTS.md](backend/AGENTS.md). Проверки: `make check`; `cd frontend && npm run build && npm run lint`; общий запуск `docker compose up --build`.
+- Правила backend — [backend/AGENTS.md](backend/AGENTS.md). Проверки: `make check` (поднимает тестовые Postgres/Redis/S3 из `docker-compose.test.yml`); `cd frontend && npm run build && npm run lint`; общий запуск `docker compose up --build`.
 - OpenAPI: `cd backend && uv run python -m app.export_openapi`; типы: `cd frontend && npm run gen:api`.
 - Тестировать домен, роли, валидацию, tools и диалоги; UI проверять визуально. Эталоны: 101/108 — ошибки, 103 — минимум, 104 — decline/исправление.
 - Перед «готово» выполнить относящиеся к задаче проверки. Не выдавать сценарную модель за живой LLM-прогон; непроверенное указать в STATUS.
