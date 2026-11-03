@@ -15,7 +15,7 @@ x-backend: &backend
     CAMPAIGNS_API_URL: http://backend:8000
     JWT_PRIVATE_KEY_PATH: /run/secrets/jwt_private_key.pem
     JWT_PUBLIC_KEY_PATH: /run/secrets/jwt_public_key.pem
-    # Демо-стенд: менеджер ivanov.p@adpilot.local и модератор petrova.m@adpilot.local с этим паролем.
+    # Демо-стенд: менеджер ivanov.p@example.com и модератор petrova.m@example.com с этим паролем.
     DEMO_USERS_PASSWORD: ${DEMO_USERS_PASSWORD:-adpilot-demo}
   volumes:
     - ./backend/secrets:/run/secrets:ro

@@ -3,7 +3,7 @@ from datetime import UTC, date, datetime, time
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security.passwords import hash_password
@@ -23,8 +23,8 @@ SEQUENCED_TABLES = (
 )
 
 DEMO_USERS = (
-    ("ivanov.p", "ivanov.p@adpilot.local", Role.MANAGER),
-    ("petrova.m", "petrova.m@adpilot.local", Role.MODERATOR),
+    ("ivanov.p", "ivanov.p@example.com", Role.MANAGER),
+    ("petrova.m", "petrova.m@example.com", Role.MODERATOR),
 )
 
 
@@ -85,7 +85,9 @@ async def seed_demo_users(session: AsyncSession, password: str) -> dict[str, mod
     """Менеджер и модератор из кейса. Пароль задаёт оператор, в коде его нет."""
     users: dict[str, models.User] = {}
     for username, email, role in DEMO_USERS:
-        user = await session.scalar(select(models.User).where(models.User.email == email))
+        user = await session.scalar(
+            select(models.User).where(func.lower(models.User.username) == username)
+        )
         if user is None:
             user = models.User(
                 email=email,

@@ -32,6 +32,23 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    # Те же зависимости, что в docker-compose.test.yml, на тех же портах.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: adpilot
+          POSTGRES_PASSWORD: adpilot
+          POSTGRES_DB: adpilot_test
+        ports: ["5439:5432"]
+        options: >-
+          --health-cmd "pg_isready -U adpilot -d adpilot_test" --health-interval 2s
+          --health-timeout 3s --health-retries 30
+      redis:
+        image: redis:8-alpine
+        ports: ["6380:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 2s --health-timeout 3s --health-retries 30
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -43,6 +60,12 @@ jobs:
       - run: uv run ruff check app tests alembic
       - run: uv run ruff format --check app tests alembic
       - run: uv run mypy app
+      # RustFS не запускается как service-контейнер без аргументов, поэтому поднимаем его командой.
+      - name: S3 для тестов
+        run: |
+          docker run -d --name s3-test -p 9002:9000 \
+            -e RUSTFS_ACCESS_KEY=rustfsadmin -e RUSTFS_SECRET_KEY=rustfsadmin rustfs/rustfs:1.0.4
+          for i in $(seq 1 30); do curl -fsS http://localhost:9002/health && break; sleep 2; done
       - run: uv run pytest -q
 
   test-frontend:

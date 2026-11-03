@@ -142,14 +142,14 @@ async def initialize_database(app: FastAPI) -> None:
         users = {
             "ivanov.p": User(
                 id=MANAGER_ID,
-                email="ivanov.p@adpilot.local",
+                email="ivanov.p@example.com",
                 username="ivanov.p",
                 password_hash="x",
                 role=Role.MANAGER,
             ),
             "petrova.m": User(
                 id=MODERATOR_ID,
-                email="petrova.m@adpilot.local",
+                email="petrova.m@example.com",
                 username="petrova.m",
                 password_hash="x",
                 role=Role.MODERATOR,
