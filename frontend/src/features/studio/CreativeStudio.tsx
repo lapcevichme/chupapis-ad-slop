@@ -3,7 +3,7 @@ import { ArrowLeft, Check, ChevronLeft, Columns2, Download, ImagePlus, Layers2, 
 import { useEffect, useRef, useState } from 'react'
 import { editStudioDocument, generateStudioVariants, loadStudioDocument } from '@/api/studio'
 import type { StudioDocument, StudioLayer } from '@/api/studio'
-import { getCurrentUser } from '@/api/currentUser'
+import { currentUser } from '@/api/auth'
 import { Button } from '@/components/ui/button'
 import { buttonActionLabel, contrastingText, importSource, makeLayoutVariants, newLayer, validateDocument } from './model'
 import type { PromoButton, StudioSource } from './model'
@@ -52,7 +52,7 @@ export function CreativeStudio(props: Props) {
 }
 
 function StudioEditor({ source, initial, campaignId, editable, applyReason, notice, hasContent, onSource, onClose, onApply, onApplying, initialDocument, initialSelection }: Props & { initial: StudioDocument; onApplying: (value: boolean) => void }) {
-  const key = `adpilot.studio.v1.${getCurrentUser().login}.${campaignId ?? 'draft'}.${source.kind}.${source.item.id}`
+  const key = `adpilot.studio.v1.${currentUser()?.username ?? 'anonymous'}.${campaignId ?? 'draft'}.${source.kind}.${source.item.id}`
   const project = useStudioProject(key, initial, JSON.stringify(source.item.content), Boolean(initialDocument))
   const document = project.active.document
   const [selected, setSelected] = useState<string | null>(initialSelection ?? null)

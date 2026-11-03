@@ -1,5 +1,5 @@
 import type { ChatEvent, ChatSession, ConfirmationAnswer } from '@/types/api'
-import { userHeaders } from './currentUser'
+import { authFetch } from './auth'
 import { apiRequest } from './http'
 import type { components } from '@/types/openapi'
 
@@ -12,9 +12,9 @@ export const restoreChatSession = (id: string) => apiRequest(`/chat/${id}/restor
 const SILENCE_TIMEOUT_MS = 90_000
 
 async function postJson(path: string, body: unknown, init?: RequestInit) {
-  return fetch(`/api${path}`, {
+  return authFetch(`/api${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...userHeaders() },
+    headers: { 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
     ...init,
   })
@@ -29,7 +29,7 @@ export async function createChatSession(campaignId?: number): Promise<string> {
 
 // null значит, что такой сессии на сервере больше нет.
 export async function getChatSession(sessionId: string): Promise<ChatSession | null> {
-  const response = await fetch(`/api/chat/${sessionId}`, { headers: userHeaders() })
+  const response = await authFetch(`/api/chat/${sessionId}`)
   if (response.status === 404) return null
   if (!response.ok) throw new Error(`GET /chat: ${response.status}`)
   return (await response.json()) as ChatSession

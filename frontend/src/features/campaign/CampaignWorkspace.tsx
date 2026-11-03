@@ -3,7 +3,7 @@ import { ArrowUpRight, LayoutGrid, Menu, MessageSquare, Plus, X } from 'lucide-r
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { getCampaign, getCampaignAudit, getCampaignWarnings, getDictionaries, listCampaigns, saveCampaignChange } from '@/api/campaigns'
 import type { CampaignChange } from '@/api/campaigns'
-import { getCurrentUser, setCurrentUser, USERS } from '@/api/currentUser'
+import type { SessionUser } from '@/api/auth'
 import { applyStudioToCampaign } from '@/api/studioCampaigns'
 import { Button } from '@/components/ui/button'
 import { ChatPanel } from '@/features/chat/ChatPanel'
@@ -46,11 +46,12 @@ function CampaignStatus({ state, published, proposed, fallback }: { state?: Camp
 }
 
 interface CampaignWorkspaceProps {
+  user: SessionUser & { role: 'campaignManager' | 'campaignModerator' }
   initialBrief?: string
   onSignOut: () => void
 }
 
-export function CampaignWorkspace({ initialBrief, onSignOut }: CampaignWorkspaceProps) {
+export function CampaignWorkspace({ user, initialBrief, onSignOut }: CampaignWorkspaceProps) {
   const chat = useChat()
   const { send } = chat
   // StrictMode запускает эффект дважды, а бриф должен уйти агенту ровно один раз.
@@ -61,7 +62,7 @@ export function CampaignWorkspace({ initialBrief, onSignOut }: CampaignWorkspace
     void send(initialBrief)
   }, [initialBrief, send])
   const queryClient = useQueryClient()
-  const [login, setLogin] = useState(() => getCurrentUser().login)
+  const login = user.username
   const [requestedBannerId, setRequestedBannerId] = useState<EntityId>()
   const [voiceOpen, setVoiceOpen] = useState(false)
   const [studioEntry, setStudioEntry] = useState<{ document: StudioDocument; layerId?: string }>()
@@ -100,7 +101,7 @@ export function CampaignWorkspace({ initialBrief, onSignOut }: CampaignWorkspace
   const contentId = details?.creatives?.find((creative) => creative.bannerId === banner?.id && creative.contentId)?.contentId
   const content = details?.contents?.find((item) => item.id === contentId)
   const failed = campaign.isError || warnings.isError || dictionaries.isError
-  const role = USERS.find((user) => user.login === login)?.role
+  const role = user.role
   const nextStep = role === 'campaignManager' && saved && warnings.data ? managerNextStep(saved.state, warnings.data.errors.length, (saved.creatives?.length ?? 0) > 0) : null
   const designStep = chat.messages.at(-1)?.steps.find((step) => step.status === 'running' && DESIGN_STEP.test(step.label))
   const moderator = role === 'campaignModerator'
@@ -175,7 +176,7 @@ export function CampaignWorkspace({ initialBrief, onSignOut }: CampaignWorkspace
           {campaigns.data?.map((item) => <button key={item.id} disabled={chat.busy} className={`campaign-link ${item.id === campaignId ? 'selected' : ''}`} onClick={() => openCampaign(item.id)}><span>{item.name}</span><small>{item.state === 'ON_MODERATION' ? 'На модерации' : item.published ? 'Показ идёт' : item.state === 'NEEDS_WORK' ? 'Нужны правки' : ''}</small></button>)}
           {campaigns.data?.length === 0 && <p className="nav-message">Здесь будут ваши кампании.</p>}
         </div>}
-        <div className="nav-bottom"><UserMenu login={login} disabled={chat.busy} onSelect={(next) => {setCurrentUser(next); setLogin(next); void queryClient.invalidateQueries(); openCampaign(campaignId)}} onSignOut={onSignOut} /><ThemeToggle /></div>
+        <div className="nav-bottom"><UserMenu user={user} onSignOut={onSignOut} /><ThemeToggle /></div>
       </aside>
       {navOpen && <button className="nav-scrim" aria-label="Закрыть меню кампаний" onClick={() => setNavOpen(false)} />}
       <div className="pilot-workspace">

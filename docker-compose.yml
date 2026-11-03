@@ -58,6 +58,8 @@ services:
     build: ./frontend
     environment:
       API_PROXY_TARGET: http://backend:8000
+      # Подсказка с демо-учётками на странице входа. В проде переменная не задаётся.
+      VITE_DEMO_PASSWORD: ${DEMO_USERS_PASSWORD:-adpilot-demo}
     ports:
       - "5173:5173"
     depends_on:

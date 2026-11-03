@@ -1,5 +1,5 @@
 import type { ApiError } from '@/types/api'
-import { userHeaders } from './currentUser'
+import { authFetch } from './auth'
 import { ApiRequestError } from './http'
 
 // Сервер сам ограничен двумя попытками по 30 секунд; это страховка от зависшего соединения.
@@ -8,10 +8,9 @@ const TRANSCRIBE_TIMEOUT_MS = 90_000
 export async function transcribeSpeech(audio: Blob): Promise<string> {
   const body = new FormData()
   body.append('file', audio, 'speech')
-  const response = await fetch('/api/speech/transcriptions', {
+  const response = await authFetch('/api/speech/transcriptions', {
     method: 'POST',
-    headers: userHeaders(),
-    body,
+        body,
     signal: AbortSignal.timeout(TRANSCRIBE_TIMEOUT_MS),
   })
   if (!response.ok) {
@@ -23,9 +22,9 @@ export async function transcribeSpeech(audio: Blob): Promise<string> {
 }
 
 export async function synthesizeSpeech(text: string, signal?: AbortSignal): Promise<ArrayBuffer> {
-  const response = await fetch('/api/speech/synthesis', {
+  const response = await authFetch('/api/speech/synthesis', {
     method: 'POST',
-    headers: { ...userHeaders(), 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text }),
     signal,
   })
@@ -34,9 +33,9 @@ export async function synthesizeSpeech(text: string, signal?: AbortSignal): Prom
 }
 
 export async function createLiveVoiceSession(offerSdp: string): Promise<string> {
-  const response = await fetch('/api/speech/live/sessions', {
+  const response = await authFetch('/api/speech/live/sessions', {
     method: 'POST',
-    headers: { ...userHeaders(), 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ sdp: offerSdp }),
   })
   if (!response.ok) {

@@ -1,5 +1,5 @@
 import type { components } from '@/types/openapi'
-import { userHeaders } from './currentUser'
+import { authFetch } from './auth'
 import { apiRequest, ApiRequestError } from './http'
 
 type Schemas = components['schemas']
@@ -8,7 +8,7 @@ export type StudioDocument = Omit<Required<Schemas['StudioDocument']>, 'layers'>
 export type StoredStudioDocument = Omit<Schemas['StoredStudioDocument'], 'document'> & { document: StudioDocument }
 
 export function studioKey(url?: string | null): string | null {
-  return url?.match(/\/upload-studio-([0-9a-f]{32})\.png$/)?.[1] ?? null
+  return url?.match(/\/studio-([0-9a-f]{32})\.png$/)?.[1] ?? null
 }
 
 export async function loadStudioDocument(url?: string | null): Promise<StudioDocument | null> {
@@ -20,7 +20,7 @@ export async function saveStudioDocument(document: StudioDocument, png: Blob): P
   const body = new FormData()
   body.append('document', JSON.stringify(document))
   body.append('file', png, 'creative.png')
-  const response = await fetch('/api/studio/documents', { method: 'POST', headers: userHeaders(), body, signal: AbortSignal.timeout(60_000) })
+  const response = await authFetch('/api/studio/documents', { method: 'POST', body, signal: AbortSignal.timeout(60_000) })
   if (!response.ok) {
     const payload = await response.json().catch(() => null)
     throw new ApiRequestError(response.status, payload?.errors ?? [])

@@ -4,6 +4,160 @@
  */
 
 export interface paths {
+    "/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Создать аккаунт менеджера и войти */
+        post: operations["register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Войти по почте и паролю */
+        post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Обновить access-токен и повернуть refresh-токен */
+        post: operations["refresh"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Завершить текущую сессию (идемпотентно) */
+        post: operations["logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/logout-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Завершить все сессии пользователя и отозвать выданные токены */
+        post: operations["logout_all"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Текущий пользователь */
+        get: operations["get_me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Поиск пользователей, новые первыми */
+        get: operations["list_users"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{user_id}/ban": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Заблокировать пользователя и завершить его сессии */
+        post: operations["ban_user"];
+        /** Снять блокировку */
+        delete: operations["unban_user"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{user_id}/role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Сменить роль пользователя */
+        put: operations["set_role"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/topics": {
         parameters: {
             query?: never;
@@ -592,6 +746,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/media/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Файл из хранилища */
+        get: operations["get_media"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/studio/documents": {
         parameters: {
             query?: never;
@@ -650,8 +821,25 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Health */
+        /** Liveness: процесс жив, зависимости не трогаем */
         get: operations["health"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ready": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Readiness: Postgres, Redis и хранилище отвечают */
+        get: operations["ready"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1173,6 +1361,16 @@ export interface components {
             /** Sdp */
             sdp: string;
         };
+        /** LoginRequest */
+        LoginRequest: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /** Password */
+            password: string;
+        };
         /** MessageBody */
         MessageBody: {
             /** Text */
@@ -1256,6 +1454,27 @@ export interface components {
             /** Text */
             text: string;
             textStyle?: components["schemas"]["ComponentTextStyle"] | null;
+        };
+        /** RegisterRequest */
+        RegisterRequest: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /** Password */
+            password: string;
+            /** Username */
+            username: string;
+        };
+        /**
+         * Role
+         * @enum {string}
+         */
+        Role: "campaignManager" | "campaignModerator" | "admin";
+        /** RoleUpdate */
+        RoleUpdate: {
+            role: components["schemas"]["Role"];
         };
         /** SegmentDto */
         SegmentDto: {
@@ -1521,6 +1740,28 @@ export interface components {
             textColor?: string | null;
         };
         /**
+         * TokenPair
+         * @description `refresh_token` пуст у веб-клиентов: они получают его как httpOnly-cookie вместе с читаемой
+         *     cookie `csrf_token`, которую нужно повторить в заголовке `X-CSRF-Token`.
+         */
+        TokenPair: {
+            /** Access Token */
+            access_token: string;
+            /** Refresh Token */
+            refresh_token?: string | null;
+            /**
+             * Token Type
+             * @default bearer
+             * @constant
+             */
+            token_type: "bearer";
+            /**
+             * Expires In
+             * @description Срок жизни access-токена в секундах
+             */
+            expires_in: number;
+        };
+        /**
          * Topic
          * @enum {string}
          */
@@ -1546,6 +1787,18 @@ export interface components {
         UploadedImage: {
             /** Url */
             url: string;
+        };
+        /** UserOut */
+        UserOut: {
+            /** Id */
+            id: string;
+            /** Email */
+            email: string;
+            /** Username */
+            username: string;
+            role: components["schemas"]["Role"];
+            /** Banned */
+            banned: boolean;
         };
         /** ValidationError */
         ValidationError: {
@@ -1663,6 +1916,666 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    register: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Client"?: "web" | "mobile";
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenPair"];
+                };
+            };
+            /** @description Ошибки валидации или жизненного цикла */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ENTITY_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    login: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Client"?: "web" | "mobile";
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenPair"];
+                };
+            };
+            /** @description Ошибки валидации или жизненного цикла */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ENTITY_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    refresh: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Browsers only: the csrf_token cookie */
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenPair"];
+                };
+            };
+            /** @description Ошибки валидации или жизненного цикла */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ENTITY_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Ошибки валидации или жизненного цикла */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ENTITY_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    logout_all: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Ошибки валидации или жизненного цикла */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ENTITY_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_me: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserOut"];
+                };
+            };
+            /** @description Ошибки валидации или жизненного цикла */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ENTITY_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_users: {
+        parameters: {
+            query?: {
+                /** @description Часть почты или имени */
+                search?: string | null;
+                role?: components["schemas"]["Role"] | null;
+                banned?: boolean | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserOut"][];
+                };
+            };
+            /** @description Ошибки валидации или жизненного цикла */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ENTITY_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ban_user: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserOut"];
+                };
+            };
+            /** @description Ошибки валидации или жизненного цикла */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ENTITY_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unban_user: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserOut"];
+                };
+            };
+            /** @description Ошибки валидации или жизненного цикла */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ENTITY_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_role: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoleUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserOut"];
+                };
+            };
+            /** @description Ошибки валидации или жизненного цикла */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ENTITY_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_topics: {
         parameters: {
             query?: never;
@@ -1683,6 +2596,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1728,6 +2659,24 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description ENTITY_NOT_FOUND */
             404: {
                 headers: {
@@ -1742,10 +2691,7 @@ export interface operations {
     create_tag: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -1766,6 +2712,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1820,6 +2784,24 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description ENTITY_NOT_FOUND */
             404: {
                 headers: {
@@ -1851,6 +2833,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1896,6 +2896,24 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description ENTITY_NOT_FOUND */
             404: {
                 headers: {
@@ -1927,6 +2945,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1972,6 +3008,24 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description ENTITY_NOT_FOUND */
             404: {
                 headers: {
@@ -1986,10 +3040,7 @@ export interface operations {
     create_place: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -2010,6 +3061,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2064,6 +3133,24 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description ENTITY_NOT_FOUND */
             404: {
                 headers: {
@@ -2078,10 +3165,7 @@ export interface operations {
     create_campaign: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -2102,6 +3186,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2158,6 +3260,24 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description ENTITY_NOT_FOUND */
             404: {
                 headers: {
@@ -2181,10 +3301,7 @@ export interface operations {
     update_campaign: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path: {
                 campaign_id: number;
             };
@@ -2207,6 +3324,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2237,10 +3372,7 @@ export interface operations {
     delete_campaign: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path: {
                 campaign_id: number;
             };
@@ -2257,6 +3389,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2287,10 +3437,7 @@ export interface operations {
     set_segments: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path: {
                 campaign_id: number;
             };
@@ -2313,6 +3460,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2369,6 +3534,24 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description ENTITY_NOT_FOUND */
             404: {
                 headers: {
@@ -2418,6 +3601,24 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description ENTITY_NOT_FOUND */
             404: {
                 headers: {
@@ -2441,10 +3642,7 @@ export interface operations {
     send_to_moderation: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path: {
                 campaign_id: number;
             };
@@ -2463,6 +3661,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2493,10 +3709,7 @@ export interface operations {
     decline_campaign: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path: {
                 campaign_id: number;
             };
@@ -2519,6 +3732,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2549,10 +3780,7 @@ export interface operations {
     approve_campaign: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path: {
                 campaign_id: number;
             };
@@ -2571,6 +3799,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2601,10 +3847,7 @@ export interface operations {
     activate_campaign: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path: {
                 campaign_id: number;
             };
@@ -2623,6 +3866,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2653,10 +3914,7 @@ export interface operations {
     stop_campaign: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path: {
                 campaign_id: number;
             };
@@ -2675,6 +3933,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2705,10 +3981,7 @@ export interface operations {
     create_banner: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path: {
                 campaign_id: number;
             };
@@ -2731,6 +4004,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2761,10 +4052,7 @@ export interface operations {
     update_banner: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path: {
                 campaign_id: number;
                 banner_id: number;
@@ -2795,6 +4083,24 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description ENTITY_NOT_FOUND */
             404: {
                 headers: {
@@ -2818,10 +4124,7 @@ export interface operations {
     delete_banner: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path: {
                 campaign_id: number;
                 banner_id: number;
@@ -2839,6 +4142,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2869,10 +4190,7 @@ export interface operations {
     create_content: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path: {
                 campaign_id: number;
             };
@@ -2895,6 +4213,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2925,10 +4261,7 @@ export interface operations {
     update_content: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path: {
                 campaign_id: number;
                 content_id: number;
@@ -2959,6 +4292,24 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description ENTITY_NOT_FOUND */
             404: {
                 headers: {
@@ -2982,10 +4333,7 @@ export interface operations {
     delete_content: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path: {
                 campaign_id: number;
                 content_id: number;
@@ -3003,6 +4351,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3033,10 +4399,7 @@ export interface operations {
     create_creative: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path: {
                 campaign_id: number;
             };
@@ -3059,6 +4422,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3089,10 +4470,7 @@ export interface operations {
     update_creative: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path: {
                 campaign_id: number;
                 creative_id: number;
@@ -3123,6 +4501,24 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description ENTITY_NOT_FOUND */
             404: {
                 headers: {
@@ -3146,10 +4542,7 @@ export interface operations {
     delete_creative: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path: {
                 campaign_id: number;
                 creative_id: number;
@@ -3167,6 +4560,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3232,10 +4643,7 @@ export interface operations {
             query?: {
                 archived?: boolean;
             };
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -3252,6 +4660,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3282,10 +4708,7 @@ export interface operations {
     create_chat_session: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -3306,6 +4729,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3336,10 +4777,7 @@ export interface operations {
     get_chat_session: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path: {
                 session_id: string;
             };
@@ -3358,6 +4796,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3388,10 +4844,7 @@ export interface operations {
     archive_chat_session: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path: {
                 session_id: string;
             };
@@ -3410,6 +4863,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3440,10 +4911,7 @@ export interface operations {
     restore_chat_session: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path: {
                 session_id: string;
             };
@@ -3462,6 +4930,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3492,10 +4978,7 @@ export interface operations {
     send_chat_message: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path: {
                 session_id: string;
             };
@@ -3518,6 +5001,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3548,10 +5049,7 @@ export interface operations {
     answer_chat_confirmation: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path: {
                 session_id: string;
                 confirmation_id: string;
@@ -3582,6 +5080,24 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description ENTITY_NOT_FOUND */
             404: {
                 headers: {
@@ -3605,10 +5121,7 @@ export interface operations {
     retry_chat_turn: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path: {
                 session_id: string;
             };
@@ -3627,6 +5140,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3657,10 +5188,7 @@ export interface operations {
     transcribe_speech: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -3681,6 +5209,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3729,10 +5275,7 @@ export interface operations {
     synthesize_speech: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -3753,6 +5296,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3801,10 +5362,7 @@ export interface operations {
     start_live_session: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -3825,6 +5383,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3873,10 +5449,7 @@ export interface operations {
     upload_image: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -3897,6 +5470,91 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ENTITY_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_media: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/*": unknown;
+                };
+            };
+            /** @description Ошибки валидации или жизненного цикла */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3927,10 +5585,7 @@ export interface operations {
     save_studio_document: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -3951,6 +5606,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3981,10 +5654,7 @@ export interface operations {
     get_studio_document: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path: {
                 key: string;
             };
@@ -4003,6 +5673,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4033,10 +5721,7 @@ export interface operations {
     generate_studio_variants: {
         parameters: {
             query?: never;
-            header?: {
-                "X-User"?: string | null;
-                "X-Role"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -4057,6 +5742,24 @@ export interface operations {
             };
             /** @description Ошибки валидации или жизненного цикла */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Нужно войти (NOT_AUTHENTICATED, TOKEN_EXPIRED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ROLE_FORBIDDEN */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4099,8 +5802,37 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+        };
+    };
+    ready: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
                     "application/json": unknown;
                 };
+            };
+            /** @description Зависимость недоступна */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

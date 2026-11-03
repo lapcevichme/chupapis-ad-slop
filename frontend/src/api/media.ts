@@ -1,5 +1,5 @@
 import type { ApiError } from '@/types/api'
-import { userHeaders } from './currentUser'
+import { authFetch } from './auth'
 import { ApiRequestError } from './http'
 
 const UPLOAD_TIMEOUT_MS = 60_000
@@ -7,10 +7,9 @@ const UPLOAD_TIMEOUT_MS = 60_000
 export async function uploadImage(image: Blob): Promise<string> {
   const body = new FormData()
   body.append('file', image, 'photo.jpg')
-  const response = await fetch('/api/media/images', {
+  const response = await authFetch('/api/media/images', {
     method: 'POST',
-    headers: userHeaders(),
-    body,
+        body,
     signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
   })
   if (!response.ok) {

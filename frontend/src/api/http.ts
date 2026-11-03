@@ -1,5 +1,5 @@
 import type { ApiError } from '@/types/api'
-import { userHeaders } from './currentUser'
+import { authFetch } from './auth'
 
 export class ApiRequestError extends Error {
   status: number
@@ -18,9 +18,9 @@ interface RequestOptions {
 }
 
 export async function apiRequest<T = unknown>(path: string, { method = 'GET', body }: RequestOptions = {}): Promise<T> {
-  const response = await fetch(`/api${path}`, {
+  const response = await authFetch(`/api${path}`, {
     method,
-    headers: { ...userHeaders(), ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
+    headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
   })
   if (!response.ok) {

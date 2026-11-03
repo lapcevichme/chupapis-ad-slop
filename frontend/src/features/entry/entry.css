@@ -12,6 +12,10 @@
 .entry-card form{display:flex;flex-direction:column;gap:12px}
 .entry-action{width:100%;height:48px;gap:10px;font-size:15px}
 .entry-or{margin:2px 0;font-size:13px;line-height:20px;color:var(--muted-foreground)}
+.entry-input{display:block;width:100%;height:48px;padding:0 16px;border:1px solid var(--input);border-radius:var(--radius-lg);background:var(--background);font-size:15px;transition:border-color 150ms,box-shadow 150ms}
+.entry-input::placeholder{color:var(--muted-foreground)}
+.entry-input:focus-visible{outline:none;border-color:var(--ring);box-shadow:0 0 0 2px color-mix(in srgb,var(--ring) 28%,transparent)}
+.entry-switch{padding:0;border:0;background:none;color:var(--foreground);font:inherit;font-size:13px;line-height:20px;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
 .entry-brief{display:block;width:100%;min-height:76px;padding:12px 16px;border:1px solid var(--input);border-radius:var(--radius-lg);background:var(--background);font-size:15px;line-height:24px;resize:none;transition:border-color 150ms,box-shadow 150ms}
 .entry-brief::placeholder{color:var(--muted-foreground)}
 .entry-brief:focus-visible{outline:none;border-color:var(--ring);box-shadow:0 0 0 2px color-mix(in srgb,var(--ring) 28%,transparent)}
