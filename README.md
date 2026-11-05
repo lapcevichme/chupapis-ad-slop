@@ -13,7 +13,7 @@
 - Сервер проверяет роли и переходы состояний, сохраняет аудит изменений. Диалог и ожидающее подтверждение переживают перезапуск.
 - Кроме текстового чата есть диктовка и голосовой режим. Они используют тот же процесс подтверждения записей.
 
-Попробовать без установки: [adpilot-ai-navy.vercel.app](https://adpilot-ai-navy.vercel.app). [REST API и Swagger](https://adpilot-ai-api.fly.dev/docs).
+Попробовать без установки: [adpilot.prooood.ru](https://adpilot.prooood.ru), там можно зарегистрироваться как менеджер. [REST API и Swagger](https://adpilot.prooood.ru/api/docs). Стенд работает на домашнем сервере команды и обновляется сам при пуше в `main` ([как устроен деплой](deploy/home/README.md)).
 
 ![Кампания: креатив, параметры и диалог с ассистентом](assets/readme/campaign.jpg)
 
@@ -135,6 +135,7 @@ React + TypeScript + Vite
 | Промпты чата, дизайна, паттернов и студии | [backend/app/infra/agent/prompts/](backend/app/infra/agent/prompts/) |
 | Архитектура и контракты | [docs/architecture.md](docs/architecture.md), [docs/CONTRACTS.md](docs/CONTRACTS.md) |
 | Настройка и деплой backend | [backend/README.md](backend/README.md) |
+| Домашний сервер и автодеплой | [deploy/home/README.md](deploy/home/README.md), [workflow](.github/workflows/deploy-home.yml) |
 
 В поставке кейса оказалось 11 из 18 описанных JSON-файлов. Недостающие справочники восстановлены отдельно для синтетического стенда; их происхождение указано в [backend/seed/README.md](backend/seed/README.md). Оригиналы в `case/` не изменены. Ссылки на картинки из моков могут вести на недоступные `.example`-домены: используйте генерацию, предметную библиотеку или свой файл.
 
